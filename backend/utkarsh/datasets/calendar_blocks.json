@@ -1,5 +1,0 @@
-[
-  { "id": "cal-1", "title": "Daily standup", "start": "09:30", "end": "09:45" },
-  { "id": "cal-2", "title": "Customer escalation bridge", "start": "13:30", "end": "14:00" },
-  { "id": "cal-3", "title": "Manager sync", "start": "16:30", "end": "17:00" }
-]

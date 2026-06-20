@@ -1,0 +1,1674 @@
+{
+  "id": "jira",
+  "name": "Jira Sprint Board",
+  "type": "tracker",
+  "color": "#0c66e4",
+  "items": [
+    {
+      "id": "JIRA-421",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "body": "P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Review nginx timeout config", "Coordinate with platform team" ],
+      "execution": {
+        "definitionOfDone": "Large CSV upload succeeds for Acme and Northstar with no timeout and customer ETA is sent.",
+        "process": [ "Reproduce timeout with 20MB+ CSV", "Inspect proxy/app timeout delta", "Patch timeout config", "Run import regression", "Send ETA and fix summary" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-388",
+      "title": "Complete audit log story for payment settings",
+      "body": "Sprint commitment. Required before compliance demo next week.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Needs schema migration approval" ],
+      "execution": {
+        "definitionOfDone": "Payment-setting changes emit audit events and appear in compliance export.",
+        "process": [ "Confirm audit schema", "Add event publisher", "Write migration", "Add tests", "Prepare demo note" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-399",
+      "title": "Refactor notification preferences component",
+      "body": "Tech debt item from sprint backlog. No customer deadline.",
+      "severity": "P3",
+      "due": "2026-07-03",
+      "impact": 4,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Component is split into smaller tested modules without behavior changes.",
+        "process": [ "Map current props", "Extract preference rows", "Add visual regression notes", "Submit PR" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-500",
+      "title": "Resolve API gateway latency spike",
+      "body": "P1 customer escalation. API response times exceed SLA during peak traffic windows.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Coordinate with infrastructure team", "Review API gateway metrics" ],
+      "execution": {
+        "definitionOfDone": "API latency remains below SLA thresholds during peak traffic.",
+        "process": [ "Analyze gateway metrics", "Identify bottlenecks", "Implement optimizations", "Run load tests", "Validate SLA compliance" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-501",
+      "title": "Implement audit trail for role changes",
+      "body": "Required for upcoming compliance review and sprint commitment.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Needs schema migration approval" ],
+      "execution": {
+        "definitionOfDone": "All role changes are captured in audit exports.",
+        "process": [ "Define audit schema", "Implement event tracking", "Add tests", "Validate exports", "Prepare demo notes" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-502",
+      "title": "Fix webhook retry failures",
+      "body": "Partner integrations experience duplicate retries causing delayed processing.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner logs" ],
+      "execution": {
+        "definitionOfDone": "Webhook retries complete successfully without duplication.",
+        "process": [ "Analyze retry logs", "Reproduce issue", "Patch retry workflow", "Validate partner integrations", "Monitor production" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-503",
+      "title": "Optimize dashboard query performance",
+      "body": "Large customer accounts experience slow dashboard loading times.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Dashboard queries meet performance SLA for enterprise accounts.",
+        "process": [ "Profile queries", "Review execution plans", "Add indexes", "Benchmark improvements", "Validate latency" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-504",
+      "title": "Upgrade authentication SDK",
+      "body": "Current SDK reaches end-of-support next month.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [ "Coordinate with QA team" ],
+      "execution": {
+        "definitionOfDone": "Authentication SDK is upgraded without breaking existing flows.",
+        "process": [ "Review compatibility", "Upgrade dependency", "Run integration tests", "Deploy to staging", "Monitor rollout" ],
+        "estimatedMinutes": 240
+      }
+    },
+    {
+      "id": "JIRA-505",
+      "title": "Investigate mobile sync delays",
+      "body": "Users report delayed data synchronization across devices.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 7,
+      "status": "Blocked",
+      "owner": "Aisha",
+      "team": "Platform Apps",
+      "dependencies": [ "Waiting for device telemetry" ],
+      "execution": {
+        "definitionOfDone": "Data synchronization completes within expected time limits.",
+        "process": [ "Collect telemetry", "Reproduce issue", "Analyze sync workflow", "Implement fix", "Validate behavior" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-506",
+      "title": "Reduce CI pipeline execution time",
+      "body": "Build queue delays are impacting release cadence.",
+      "severity": "P3",
+      "due": "2026-07-01",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Average CI execution time is reduced by twenty percent.",
+        "process": [ "Analyze pipeline stages", "Optimize caching", "Parallelize tests", "Measure improvements", "Document results" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-507",
+      "title": "Refactor notification delivery service",
+      "body": "Technical debt item affecting maintainability and release speed.",
+      "severity": "P3",
+      "due": "2026-07-04",
+      "impact": 4,
+      "status": "Todo",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Notification service is modularized with no behavior changes.",
+        "process": [ "Map dependencies", "Split modules", "Add tests", "Review performance", "Submit PR" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-508",
+      "title": "Fix search indexing inconsistency",
+      "body": "New records are not searchable immediately after creation.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review indexing queue metrics" ],
+      "execution": {
+        "definitionOfDone": "Search results reflect new records within SLA.",
+        "process": [ "Inspect indexing pipeline", "Identify delays", "Patch indexing workflow", "Run validation tests", "Monitor latency" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-509",
+      "title": "Implement automated incident tagging",
+      "body": "Manual incident triage effort is increasing operational overhead.",
+      "severity": "P3",
+      "due": "2026-07-05",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Incidents are automatically tagged based on metadata and severity.",
+        "process": [ "Define tagging rules", "Implement workflow", "Test edge cases", "Deploy automation", "Validate accuracy" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-510",
+      "title": "Fix customer export job failures",
+      "body": "Enterprise customers report intermittent failures when exporting large datasets.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Analyze export worker logs", "Coordinate with infrastructure team" ],
+      "execution": {
+        "definitionOfDone": "Large data exports complete successfully within SLA limits.",
+        "process": [ "Reproduce export failures", "Inspect worker logs", "Patch export workflow", "Run regression tests", "Validate customer exports" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-511",
+      "title": "Implement customer session audit logs",
+      "body": "Required for security review and compliance reporting.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Needs audit schema approval" ],
+      "execution": {
+        "definitionOfDone": "Session events appear in compliance exports.",
+        "process": [ "Define event schema", "Implement logging", "Add tests", "Verify exports", "Prepare documentation" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-512",
+      "title": "Resolve payment callback processing delays",
+      "body": "Payment confirmation events are delayed during peak traffic.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Waiting for provider metrics" ],
+      "execution": {
+        "definitionOfDone": "Payment callbacks are processed within target SLA.",
+        "process": [ "Analyze callback queue", "Inspect provider metrics", "Optimize worker allocation", "Validate processing time", "Monitor production" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-513",
+      "title": "Improve search result ranking accuracy",
+      "body": "Customers report inconsistent search relevance for large datasets.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Search results meet target relevance metrics.",
+        "process": [ "Analyze search patterns", "Tune ranking algorithm", "Evaluate relevance scores", "Run A/B tests", "Validate improvements" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-514",
+      "title": "Upgrade identity provider integration",
+      "body": "Current integration version reaches end-of-support next quarter.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Rohan",
+      "team": "Identity",
+      "dependencies": [ "Coordinate with partner team" ],
+      "execution": {
+        "definitionOfDone": "Identity provider integration is upgraded without service disruption.",
+        "process": [ "Review compatibility", "Update integration", "Run authentication tests", "Deploy to staging", "Monitor rollout" ],
+        "estimatedMinutes": 240
+      }
+    },
+    {
+      "id": "JIRA-515",
+      "title": "Investigate notification delivery failures",
+      "body": "Users intermittently miss critical application alerts.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for provider logs" ],
+      "execution": {
+        "definitionOfDone": "Critical notifications are delivered reliably across channels.",
+        "process": [ "Collect delivery metrics", "Analyze failure patterns", "Patch notification workflow", "Run validation tests", "Monitor production" ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "JIRA-516",
+      "title": "Reduce deployment rollback duration",
+      "body": "Rollback procedures exceed acceptable recovery time objectives.",
+      "severity": "P3",
+      "due": "2026-07-02",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Rollback operations complete within recovery objectives.",
+        "process": [ "Analyze rollback steps", "Automate recovery actions", "Test rollback scenarios", "Measure recovery time", "Document process" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-517",
+      "title": "Refactor repository permissions workflow",
+      "body": "Manual permission management is increasing operational overhead.",
+      "severity": "P3",
+      "due": "2026-07-06",
+      "impact": 4,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Repository permissions are managed through automated workflows.",
+        "process": [ "Map permission flows", "Implement automation", "Add validation checks", "Review access rules", "Submit changes" ],
+        "estimatedMinutes": 200
+      }
+    },
+    {
+      "id": "JIRA-518",
+      "title": "Fix delayed analytics data refresh",
+      "body": "Business reports are showing outdated metrics during working hours.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "Review ETL pipeline metrics" ],
+      "execution": {
+        "definitionOfDone": "Analytics dashboards refresh within defined SLA limits.",
+        "process": [ "Inspect ETL jobs", "Analyze refresh delays", "Optimize pipeline execution", "Validate metrics", "Monitor production" ],
+        "estimatedMinutes": 145
+      }
+    },
+    {
+      "id": "JIRA-519",
+      "title": "Implement automated alert deduplication",
+      "body": "Duplicate alerts are increasing incident response time.",
+      "severity": "P3",
+      "due": "2026-07-04",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Duplicate alerts are automatically identified and suppressed.",
+        "process": [ "Define deduplication rules", "Implement alert workflow", "Test edge cases", "Deploy changes", "Validate alert quality" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-520",
+      "title": "Resolve SSO login redirect loop",
+      "body": "Enterprise users are redirected repeatedly during SSO authentication.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Collect customer authentication logs", "Coordinate with identity provider team" ],
+      "execution": {
+        "definitionOfDone": "SSO authentication completes successfully without redirect loops.",
+        "process": [ "Reproduce login flow", "Analyze redirect chain", "Patch authentication logic", "Run integration tests", "Validate customer accounts" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-521",
+      "title": "Optimize invoice generation throughput",
+      "body": "Monthly invoice processing exceeds expected execution windows.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review invoice worker metrics" ],
+      "execution": {
+        "definitionOfDone": "Invoice generation completes within target processing time.",
+        "process": [ "Profile invoice jobs", "Optimize database queries", "Tune worker concurrency", "Validate processing metrics", "Monitor production" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-522",
+      "title": "Fix partner API schema validation errors",
+      "body": "Integration partners report failures after the latest API release.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner sandbox access" ],
+      "execution": {
+        "definitionOfDone": "Partner integrations validate successfully against the updated API schema.",
+        "process": [ "Review schema changes", "Reproduce validation failures", "Implement compatibility fixes", "Run partner tests", "Confirm issue resolution" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-523",
+      "title": "Improve anomaly detection accuracy",
+      "body": "Current alerting rules generate excessive false positives.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Anomaly detection meets target precision metrics.",
+        "process": [ "Analyze historical alerts", "Tune detection models", "Validate precision rates", "Run A/B testing", "Deploy improvements" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-524",
+      "title": "Upgrade secrets management integration",
+      "body": "Current secrets workflow does not meet updated security requirements.",
+      "severity": "P1",
+      "due": "2026-06-25",
+      "impact": 9,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Coordinate with security team" ],
+      "execution": {
+        "definitionOfDone": "Secrets management integration complies with security standards.",
+        "process": [ "Review security requirements", "Update integration", "Rotate credentials", "Run compliance checks", "Validate deployment" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-525",
+      "title": "Investigate delayed mobile push notifications",
+      "body": "Mobile users receive notifications several minutes after triggering events.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 8,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for provider delivery metrics" ],
+      "execution": {
+        "definitionOfDone": "Push notifications are delivered within SLA limits.",
+        "process": [ "Analyze delivery metrics", "Inspect queue backlog", "Optimize notification routing", "Validate latency improvements", "Monitor production" ],
+        "estimatedMinutes": 145
+      }
+    },
+    {
+      "id": "JIRA-526",
+      "title": "Reduce Kubernetes cluster provisioning time",
+      "body": "Infrastructure setup delays are slowing environment creation.",
+      "severity": "P3",
+      "due": "2026-07-03",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Cluster provisioning time is reduced by at least twenty percent.",
+        "process": [ "Measure provisioning duration", "Optimize automation scripts", "Parallelize setup tasks", "Validate environment creation", "Document changes" ],
+        "estimatedMinutes": 190
+      }
+    },
+    {
+      "id": "JIRA-527",
+      "title": "Automate repository compliance checks",
+      "body": "Manual repository audits are increasing operational overhead.",
+      "severity": "P3",
+      "due": "2026-07-05",
+      "impact": 4,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Repository compliance rules are validated automatically.",
+        "process": [ "Define compliance policies", "Implement automation", "Create validation checks", "Test edge cases", "Deploy workflow" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-528",
+      "title": "Fix delayed search index synchronization",
+      "body": "Recently updated records are not immediately searchable.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review indexing service metrics" ],
+      "execution": {
+        "definitionOfDone": "Search indexes are synchronized within target SLA.",
+        "process": [ "Inspect indexing pipeline", "Identify synchronization delays", "Optimize indexing workflow", "Run validation tests", "Monitor latency" ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "JIRA-529",
+      "title": "Implement automated incident timeline generation",
+      "body": "Incident reviews require manual effort to reconstruct event history.",
+      "severity": "P3",
+      "due": "2026-07-06",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Incident timelines are automatically generated from system events.",
+        "process": [ "Define event mapping", "Build timeline generator", "Validate incident data", "Test edge cases", "Deploy automation" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-530",
+      "title": "Fix bulk user import validation failures",
+      "body": "Enterprise administrators report intermittent failures during large user imports.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Collect customer import samples", "Review validation service logs" ],
+      "execution": {
+        "definitionOfDone": "Bulk user imports complete successfully for all supported formats.",
+        "process": [ "Reproduce validation failures", "Inspect import logs", "Patch validation workflow", "Run regression tests", "Verify customer imports" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-531",
+      "title": "Optimize recurring subscription renewal jobs",
+      "body": "Subscription renewals are exceeding nightly processing windows.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review renewal queue metrics" ],
+      "execution": {
+        "definitionOfDone": "Subscription renewals complete within target processing duration.",
+        "process": [ "Profile renewal jobs", "Optimize query performance", "Tune worker concurrency", "Validate processing metrics", "Monitor production" ],
+        "estimatedMinutes": 185
+      }
+    },
+    {
+      "id": "JIRA-532",
+      "title": "Resolve webhook authentication failures",
+      "body": "Partner integrations fail due to invalid webhook signatures after certificate rotation.",
+      "severity": "P1",
+      "due": "2026-06-25",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner validation logs" ],
+      "execution": {
+        "definitionOfDone": "Webhook authentication succeeds across all partner integrations.",
+        "process": [ "Analyze authentication logs", "Validate certificate configuration", "Patch signature validation", "Run partner tests", "Confirm issue resolution" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-533",
+      "title": "Improve analytics pipeline fault tolerance",
+      "body": "Transient processing failures cause incomplete reporting data.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Analytics pipelines recover automatically from transient failures.",
+        "process": [ "Analyze failure patterns", "Implement retry logic", "Validate data recovery", "Run resilience tests", "Deploy improvements" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-534",
+      "title": "Upgrade infrastructure access policies",
+      "body": "Existing access controls do not meet updated security standards.",
+      "severity": "P1",
+      "due": "2026-06-26",
+      "impact": 9,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Coordinate with security governance team" ],
+      "execution": {
+        "definitionOfDone": "Infrastructure access policies comply with updated standards.",
+        "process": [ "Review access requirements", "Update policy definitions", "Validate role mappings", "Run compliance checks", "Deploy changes" ],
+        "estimatedMinutes": 220
+      }
+    },
+    {
+      "id": "JIRA-535",
+      "title": "Investigate notification queue saturation",
+      "body": "High message volume causes delays in customer notifications.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for queue diagnostics" ],
+      "execution": {
+        "definitionOfDone": "Notification queues process messages within SLA thresholds.",
+        "process": [ "Collect queue metrics", "Analyze throughput bottlenecks", "Optimize worker scaling", "Validate queue performance", "Monitor production" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-536",
+      "title": "Automate environment drift detection",
+      "body": "Manual configuration audits are slowing incident response.",
+      "severity": "P3",
+      "due": "2026-07-04",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Configuration drift is detected and reported automatically.",
+        "process": [ "Define baseline configurations", "Implement drift detection", "Configure alerting", "Validate reports", "Document workflows" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-537",
+      "title": "Implement repository ownership automation",
+      "body": "Missing ownership information delays code reviews and approvals.",
+      "severity": "P3",
+      "due": "2026-07-07",
+      "impact": 4,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Repository ownership is automatically assigned and validated.",
+        "process": [ "Define ownership rules", "Build automation workflow", "Validate repository coverage", "Test edge cases", "Deploy solution" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-538",
+      "title": "Fix delayed cache invalidation events",
+      "body": "Users experience stale data after updating records.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review cache metrics" ],
+      "execution": {
+        "definitionOfDone": "Cache invalidation occurs within defined latency thresholds.",
+        "process": [ "Inspect cache workflows", "Identify invalidation delays", "Optimize event processing", "Run validation tests", "Monitor cache performance" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-539",
+      "title": "Implement automated release readiness checks",
+      "body": "Manual release validation increases deployment risk.",
+      "severity": "P3",
+      "due": "2026-07-08",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Release readiness is automatically validated before deployments.",
+        "process": [ "Define release criteria", "Build validation workflows", "Integrate quality gates", "Test release scenarios", "Deploy automation" ],
+        "estimatedMinutes": 190
+      }
+    },
+    {
+      "id": "JIRA-540",
+      "title": "Resolve OAuth token synchronization failures",
+      "body": "Users are unexpectedly logged out when switching between multiple devices.",
+      "severity": "P1",
+      "due": "2026-06-25",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review token refresh metrics", "Coordinate with mobile team" ],
+      "execution": {
+        "definitionOfDone": "Authentication sessions remain synchronized across all devices.",
+        "process": [ "Analyze token refresh logs", "Reproduce synchronization issue", "Patch session workflow", "Run integration tests", "Validate multi-device support" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-541",
+      "title": "Optimize tax calculation processing",
+      "body": "Regional tax computations increase invoice generation time for enterprise accounts.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review tax service metrics" ],
+      "execution": {
+        "definitionOfDone": "Tax calculations complete within target processing limits.",
+        "process": [ "Profile calculation jobs", "Optimize query execution", "Tune worker allocation", "Validate tax accuracy", "Monitor production metrics" ],
+        "estimatedMinutes": 185
+      }
+    },
+    {
+      "id": "JIRA-542",
+      "title": "Fix API version negotiation failures",
+      "body": "Partner applications fail when requesting unsupported API versions.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner test environment" ],
+      "execution": {
+        "definitionOfDone": "API version negotiation succeeds for all supported partners.",
+        "process": [ "Inspect request headers", "Reproduce negotiation failures", "Patch version handling", "Run compatibility tests", "Validate partner integrations" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-543",
+      "title": "Improve analytics ingestion reliability",
+      "body": "Data ingestion jobs intermittently fail during peak traffic periods.",
+      "severity": "P2",
+      "due": "2026-07-02",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Analytics ingestion succeeds consistently with no data loss.",
+        "process": [ "Analyze ingestion failures", "Implement retry mechanisms", "Validate data integrity", "Run resilience tests", "Deploy improvements" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-544",
+      "title": "Implement privileged access monitoring",
+      "body": "Current infrastructure monitoring does not capture privileged access events.",
+      "severity": "P1",
+      "due": "2026-06-27",
+      "impact": 9,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Coordinate with security operations" ],
+      "execution": {
+        "definitionOfDone": "Privileged access events are captured and reported automatically.",
+        "process": [ "Define monitoring requirements", "Implement event collection", "Configure alerts", "Run compliance validation", "Deploy monitoring" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-545",
+      "title": "Investigate notification retry loop",
+      "body": "Repeated notification retries are increasing infrastructure costs.",
+      "severity": "P1",
+      "due": "2026-06-26",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for delivery provider logs" ],
+      "execution": {
+        "definitionOfDone": "Notification retries occur only when necessary and remain within SLA thresholds.",
+        "process": [ "Analyze retry metrics", "Identify retry triggers", "Patch retry workflow", "Validate delivery behavior", "Monitor production" ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "JIRA-546",
+      "title": "Automate disaster recovery validation",
+      "body": "Manual recovery testing delays infrastructure readiness checks.",
+      "severity": "P3",
+      "due": "2026-07-05",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Disaster recovery workflows are validated automatically.",
+        "process": [ "Define recovery scenarios", "Build validation scripts", "Run failover simulations", "Measure recovery metrics", "Document findings" ],
+        "estimatedMinutes": 195
+      }
+    },
+    {
+      "id": "JIRA-547",
+      "title": "Implement pull request ownership rules",
+      "body": "Missing reviewers delay code approvals and release schedules.",
+      "severity": "P3",
+      "due": "2026-07-08",
+      "impact": 4,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Pull requests automatically assign reviewers based on ownership rules.",
+        "process": [ "Define ownership mappings", "Build automation workflow", "Validate reviewer assignments", "Test edge cases", "Deploy solution" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-548",
+      "title": "Fix stale session cache updates",
+      "body": "Users experience outdated account information after profile changes.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review cache synchronization metrics" ],
+      "execution": {
+        "definitionOfDone": "Session data reflects updates within defined latency limits.",
+        "process": [ "Inspect cache events", "Analyze synchronization delays", "Patch update workflow", "Run validation tests", "Monitor cache performance" ],
+        "estimatedMinutes": 145
+      }
+    },
+    {
+      "id": "JIRA-549",
+      "title": "Implement automated sprint health reporting",
+      "body": "Engineering managers lack visibility into sprint risks and workload distribution.",
+      "severity": "P3",
+      "due": "2026-07-09",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Sprint health metrics are generated automatically and shared with stakeholders.",
+        "process": [ "Define health indicators", "Build reporting workflow", "Integrate Jira metrics", "Validate reports", "Deploy dashboards" ],
+        "estimatedMinutes": 185
+      }
+    },
+    {
+      "id": "JIRA-550",
+      "title": "Resolve release branch merge conflicts",
+      "body": "Critical fixes cannot be deployed until merge conflicts are resolved.",
+      "severity": "P1",
+      "due": "2026-06-26",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Coordinate with release managers" ],
+      "execution": {
+        "definitionOfDone": "Release branch merges successfully and deployment is unblocked.",
+        "process": [ "Identify conflicting commits", "Resolve merge issues", "Run regression tests", "Validate release branch", "Notify stakeholders" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-551",
+      "title": "Fix failed invoice reconciliation jobs",
+      "body": "Nightly reconciliation jobs fail for high-volume enterprise accounts.",
+      "severity": "P1",
+      "due": "2026-06-25",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Waiting for finance validation data" ],
+      "execution": {
+        "definitionOfDone": "Invoice reconciliation jobs complete successfully for all accounts.",
+        "process": [ "Analyze reconciliation logs", "Identify data mismatches", "Patch processing workflow", "Validate results", "Monitor nightly jobs" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-552",
+      "title": "Investigate authentication token refresh failures",
+      "body": "Users are intermittently logged out during active sessions.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review token service metrics" ],
+      "execution": {
+        "definitionOfDone": "Session tokens refresh correctly without unexpected logouts.",
+        "process": [ "Inspect refresh logs", "Reproduce issue", "Patch token workflow", "Run integration tests", "Validate session stability" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-553",
+      "title": "Optimize partner API rate limiting",
+      "body": "External integrations exceed allowed request thresholds during peak traffic.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Review partner traffic metrics" ],
+      "execution": {
+        "definitionOfDone": "API rate limits are enforced without impacting customer integrations.",
+        "process": [ "Analyze traffic patterns", "Adjust rate limits", "Run load tests", "Validate integrations", "Monitor API metrics" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-554",
+      "title": "Improve data warehouse ingestion latency",
+      "body": "Business reporting dashboards are delayed during peak processing windows.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Data ingestion completes within defined SLA limits.",
+        "process": [ "Analyze ingestion metrics", "Optimize ETL jobs", "Validate data freshness", "Run benchmarks", "Monitor dashboards" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-555",
+      "title": "Implement infrastructure cost anomaly detection",
+      "body": "Unexpected cloud spending increases require automated monitoring.",
+      "severity": "P2",
+      "due": "2026-07-02",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Coordinate with finance team" ],
+      "execution": {
+        "definitionOfDone": "Infrastructure cost anomalies are detected automatically.",
+        "process": [ "Define anomaly thresholds", "Implement monitoring rules", "Configure alerts", "Validate detection accuracy", "Deploy dashboards" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-556",
+      "title": "Fix delayed push notification processing",
+      "body": "Mobile users receive notifications several minutes after triggering events.",
+      "severity": "P1",
+      "due": "2026-06-26",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for provider metrics" ],
+      "execution": {
+        "definitionOfDone": "Push notifications are delivered within SLA thresholds.",
+        "process": [ "Inspect queue latency", "Analyze delivery metrics", "Optimize worker allocation", "Run validation tests", "Monitor production" ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "JIRA-557",
+      "title": "Automate code ownership validation",
+      "body": "Missing repository ownership information delays reviews and releases.",
+      "severity": "P3",
+      "due": "2026-07-06",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Repository ownership is automatically validated during pull requests.",
+        "process": [ "Define ownership rules", "Implement automation", "Test workflows", "Validate assignments", "Deploy changes" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-558",
+      "title": "Fix failed audit export generation",
+      "body": "Compliance reports intermittently fail for enterprise customers.",
+      "severity": "P1",
+      "due": "2026-06-27",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review export service logs" ],
+      "execution": {
+        "definitionOfDone": "Audit exports generate successfully for all supported customers.",
+        "process": [ "Reproduce export failure", "Inspect service logs", "Patch export workflow", "Run regression tests", "Validate compliance reports" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-559",
+      "title": "Optimize database connection pooling",
+      "body": "High traffic periods exhaust available database connections.",
+      "severity": "P1",
+      "due": "2026-06-26",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review database metrics" ],
+      "execution": {
+        "definitionOfDone": "Connection pools remain stable during peak traffic.",
+        "process": [ "Analyze connection metrics", "Tune pool settings", "Load test changes", "Validate stability", "Monitor production" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-560",
+      "title": "Resolve duplicate invoice notifications",
+      "body": "Customers receive multiple invoice emails after payment processing.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 8,
+      "status": "Blocked",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Waiting for email provider logs" ],
+      "execution": {
+        "definitionOfDone": "Invoice notifications are sent exactly once per event.",
+        "process": [ "Analyze notification logs", "Inspect event workflow", "Patch deduplication logic", "Validate delivery", "Monitor production" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-561",
+      "title": "Investigate API authentication latency",
+      "body": "Authentication requests exceed SLA during business hours.",
+      "severity": "P1",
+      "due": "2026-06-25",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for gateway metrics" ],
+      "execution": {
+        "definitionOfDone": "Authentication latency remains within SLA thresholds.",
+        "process": [ "Analyze request traces", "Identify bottlenecks", "Implement optimizations", "Run load tests", "Validate latency" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-562",
+      "title": "Improve analytics dashboard refresh frequency",
+      "body": "Business users report outdated metrics during peak usage.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Review ETL schedules" ],
+      "execution": {
+        "definitionOfDone": "Dashboard metrics refresh within agreed SLAs.",
+        "process": [ "Analyze refresh intervals", "Optimize ETL execution", "Validate metrics", "Benchmark latency", "Monitor dashboards" ],
+        "estimatedMinutes": 145
+      }
+    },
+    {
+      "id": "JIRA-563",
+      "title": "Implement infrastructure credential rotation",
+      "body": "Security policy requires automated credential rotation.",
+      "severity": "P1",
+      "due": "2026-06-28",
+      "impact": 9,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Coordinate with security team" ],
+      "execution": {
+        "definitionOfDone": "Infrastructure credentials rotate automatically according to policy.",
+        "process": [ "Define rotation policies", "Implement automation", "Validate access workflows", "Run security checks", "Deploy changes" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "JIRA-564",
+      "title": "Fix delayed email notification delivery",
+      "body": "Transactional emails are delivered several minutes after events occur.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 8,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for email provider diagnostics" ],
+      "execution": {
+        "definitionOfDone": "Transactional emails are delivered within SLA limits.",
+        "process": [ "Inspect delivery metrics", "Analyze queue delays", "Optimize worker allocation", "Validate latency", "Monitor production" ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "JIRA-565",
+      "title": "Automate pull request compliance validation",
+      "body": "Manual checks delay code reviews and release schedules.",
+      "severity": "P3",
+      "due": "2026-07-07",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Compliance checks run automatically for all pull requests.",
+        "process": [ "Define compliance rules", "Build automation", "Test workflows", "Validate results", "Deploy changes" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-566",
+      "title": "Fix search cache synchronization delays",
+      "body": "Recently updated records remain stale in search results.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review cache metrics" ],
+      "execution": {
+        "definitionOfDone": "Search caches update within target latency thresholds.",
+        "process": [ "Inspect cache events", "Identify delays", "Patch synchronization workflow", "Run validation tests", "Monitor performance" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-567",
+      "title": "Implement release dependency visualization",
+      "body": "Engineering teams lack visibility into cross-team release blockers.",
+      "severity": "P3",
+      "due": "2026-07-08",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Release dependencies are visualized automatically for all active sprints.",
+        "process": [ "Define dependency model", "Build visualization service", "Integrate Jira data", "Validate reports", "Deploy dashboard" ],
+        "estimatedMinutes": 185
+      }
+    },
+    {
+      "id": "JIRA-568",
+      "title": "Resolve session persistence failures",
+      "body": "Users are logged out unexpectedly after account updates.",
+      "severity": "P1",
+      "due": "2026-06-27",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review session service metrics" ],
+      "execution": {
+        "definitionOfDone": "User sessions remain active across profile updates.",
+        "process": [ "Analyze session logs", "Reproduce issue", "Patch persistence workflow", "Run integration tests", "Validate user sessions" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-569",
+      "title": "Optimize recurring billing retry workflow",
+      "body": "Failed billing retries increase subscription churn.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review retry metrics" ],
+      "execution": {
+        "definitionOfDone": "Billing retries complete successfully within defined thresholds.",
+        "process": [ "Analyze retry patterns", "Optimize retry logic", "Validate payment flows", "Monitor metrics", "Document changes" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-570",
+      "title": "Fix partner webhook signature validation",
+      "body": "Webhook requests fail after recent certificate updates.",
+      "severity": "P1",
+      "due": "2026-06-26",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner certificates" ],
+      "execution": {
+        "definitionOfDone": "Webhook signatures validate successfully across all partners.",
+        "process": [ "Inspect signature workflow", "Validate certificates", "Patch verification logic", "Run partner tests", "Confirm resolution" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-571",
+      "title": "Investigate failed mobile authentication callbacks",
+      "body": "Mobile users intermittently fail to complete authentication flows.",
+      "severity": "P1",
+      "due": "2026-06-27",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Waiting for mobile SDK logs" ],
+      "execution": {
+        "definitionOfDone": "Authentication callbacks complete successfully across supported devices.",
+        "process": [ "Collect mobile logs", "Reproduce callback failures", "Patch authentication flow", "Run integration tests", "Validate customer accounts" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-572",
+      "title": "Optimize export worker memory utilization",
+      "body": "Large export jobs trigger memory pressure and worker restarts.",
+      "severity": "P1",
+      "due": "2026-06-28",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Review worker memory metrics" ],
+      "execution": {
+        "definitionOfDone": "Export workers process large jobs without memory exhaustion.",
+        "process": [ "Profile memory usage", "Optimize processing pipeline", "Run stress tests", "Validate exports", "Monitor production" ],
+        "estimatedMinutes": 185
+      }
+    },
+    {
+      "id": "JIRA-573",
+      "title": "Fix invoice generation queue backlog",
+      "body": "Invoice jobs accumulate during month-end processing windows.",
+      "severity": "P1",
+      "due": "2026-06-29",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review queue metrics" ],
+      "execution": {
+        "definitionOfDone": "Invoice generation completes within defined processing windows.",
+        "process": [ "Analyze queue backlog", "Optimize worker concurrency", "Validate throughput", "Run load tests", "Monitor processing metrics" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-574",
+      "title": "Resolve API schema compatibility issues",
+      "body": "Partner applications fail after recent API schema updates.",
+      "severity": "P1",
+      "due": "2026-06-27",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner validation environment" ],
+      "execution": {
+        "definitionOfDone": "All partner integrations function correctly with the updated schema.",
+        "process": [ "Review schema changes", "Reproduce integration failures", "Implement compatibility fixes", "Run partner tests", "Confirm resolution" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-575",
+      "title": "Improve analytics job retry handling",
+      "body": "Transient processing failures result in incomplete reports.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Analytics jobs recover automatically without data loss.",
+        "process": [ "Analyze failure patterns", "Implement retry mechanisms", "Validate data integrity", "Run resilience tests", "Deploy improvements" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-576",
+      "title": "Implement privileged session recording",
+      "body": "Security team requires additional audit coverage for privileged access.",
+      "severity": "P1",
+      "due": "2026-06-30",
+      "impact": 9,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Coordinate with security operations" ],
+      "execution": {
+        "definitionOfDone": "Privileged sessions are recorded and retained according to policy.",
+        "process": [ "Define recording requirements", "Implement session capture", "Configure retention policies", "Run compliance checks", "Deploy solution" ],
+        "estimatedMinutes": 220
+      }
+    },
+    {
+      "id": "JIRA-577",
+      "title": "Fix notification provider failover workflow",
+      "body": "Notification delivery fails when the primary provider experiences outages.",
+      "severity": "P1",
+      "due": "2026-06-28",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for provider incident report" ],
+      "execution": {
+        "definitionOfDone": "Notifications automatically fail over to backup providers.",
+        "process": [ "Review failover configuration", "Simulate provider outages", "Patch routing logic", "Validate delivery", "Monitor production" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-578",
+      "title": "Automate repository security scanning",
+      "body": "Manual security reviews delay release approvals.",
+      "severity": "P3",
+      "due": "2026-07-09",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Repository security scans run automatically for all pull requests.",
+        "process": [ "Define scanning rules", "Integrate scanning tools", "Validate findings", "Configure reporting", "Deploy workflows" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-579",
+      "title": "Resolve search indexing queue saturation",
+      "body": "High update volumes delay search indexing during peak hours.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review indexing queue metrics" ],
+      "execution": {
+        "definitionOfDone": "Search indexes remain current within SLA thresholds.",
+        "process": [ "Analyze indexing backlog", "Optimize queue throughput", "Run performance tests", "Validate indexing latency", "Monitor production" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-580",
+      "title": "Implement sprint blocker prediction dashboard",
+      "body": "Engineering managers need early visibility into delivery risks.",
+      "severity": "P3",
+      "due": "2026-07-10",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Sprint blockers are identified automatically using workload signals.",
+        "process": [ "Define prediction metrics", "Integrate Jira data", "Build dashboards", "Validate predictions", "Share with stakeholders" ],
+        "estimatedMinutes": 195
+      }
+    },
+    {
+      "id": "JIRA-581",
+      "title": "Fix user permission synchronization failures",
+      "body": "Permission changes are not reflected immediately across services.",
+      "severity": "P1",
+      "due": "2026-06-29",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review permission propagation metrics" ],
+      "execution": {
+        "definitionOfDone": "Permission changes propagate consistently across all services.",
+        "process": [ "Analyze synchronization logs", "Reproduce propagation issues", "Patch event handling", "Run integration tests", "Validate permissions" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-582",
+      "title": "Optimize failed payment retry handling",
+      "body": "Payment retries increase processing costs and customer complaints.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review retry metrics" ],
+      "execution": {
+        "definitionOfDone": "Payment retries complete successfully with minimal duplicate attempts.",
+        "process": [ "Analyze retry behavior", "Optimize retry logic", "Validate payment flows", "Monitor metrics", "Document changes" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-583",
+      "title": "Investigate SAML assertion validation failures",
+      "body": "Enterprise customers report intermittent SSO login failures after identity provider updates.",
+      "severity": "P1",
+      "due": "2026-06-30",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Waiting for customer SAML traces" ],
+      "execution": {
+        "definitionOfDone": "SAML authentication succeeds across all supported identity providers.",
+        "process": [ "Collect authentication traces", "Validate assertions", "Patch validation logic", "Run integration tests", "Confirm customer access" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-584",
+      "title": "Optimize background job scheduling fairness",
+      "body": "Low-priority jobs monopolize worker capacity during peak traffic.",
+      "severity": "P2",
+      "due": "2026-07-02",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Review scheduler metrics" ],
+      "execution": {
+        "definitionOfDone": "Critical jobs receive priority and processing remains within SLA limits.",
+        "process": [ "Analyze scheduling behavior", "Implement priority queues", "Run load tests", "Validate throughput", "Monitor production" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-585",
+      "title": "Fix subscription downgrade processing errors",
+      "body": "Customers cannot downgrade plans without manual intervention.",
+      "severity": "P1",
+      "due": "2026-06-29",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review subscription workflow logs" ],
+      "execution": {
+        "definitionOfDone": "Subscription downgrades complete successfully across all plans.",
+        "process": [ "Reproduce downgrade failures", "Inspect billing workflows", "Patch processing logic", "Run regression tests", "Validate customer accounts" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "JIRA-586",
+      "title": "Resolve partner webhook delivery delays",
+      "body": "Integration partners receive webhook events outside SLA windows.",
+      "severity": "P1",
+      "due": "2026-06-28",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner delivery metrics" ],
+      "execution": {
+        "definitionOfDone": "Webhook events are delivered within target latency thresholds.",
+        "process": [ "Analyze delivery queues", "Inspect retry patterns", "Optimize routing logic", "Validate partner integrations", "Monitor production" ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "JIRA-587",
+      "title": "Improve anomaly alert precision",
+      "body": "Current analytics alerts generate excessive false positives.",
+      "severity": "P2",
+      "due": "2026-07-03",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Anomaly alerts achieve target precision metrics.",
+        "process": [ "Analyze historical alerts", "Tune detection models", "Run validation tests", "Measure precision", "Deploy improvements" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "JIRA-588",
+      "title": "Implement automated secrets expiration alerts",
+      "body": "Manual credential tracking increases the risk of expired secrets.",
+      "severity": "P1",
+      "due": "2026-07-01",
+      "impact": 9,
+      "status": "Todo",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Coordinate with security operations" ],
+      "execution": {
+        "definitionOfDone": "Secret expiration alerts are generated automatically before expiration.",
+        "process": [ "Define expiration policies", "Implement monitoring", "Configure alerts", "Validate notifications", "Deploy automation" ],
+        "estimatedMinutes": 190
+      }
+    },
+    {
+      "id": "JIRA-589",
+      "title": "Fix notification template rendering failures",
+      "body": "Users receive incomplete notification messages for certain workflows.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 8,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for template engine diagnostics" ],
+      "execution": {
+        "definitionOfDone": "Notification templates render correctly across all channels.",
+        "process": [ "Analyze rendering logs", "Reproduce failures", "Patch template engine", "Run validation tests", "Monitor production" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "JIRA-590",
+      "title": "Automate pull request dependency mapping",
+      "body": "Hidden dependencies between pull requests delay release approvals.",
+      "severity": "P3",
+      "due": "2026-07-10",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Pull request dependencies are automatically identified and visualized.",
+        "process": [ "Define dependency rules", "Build mapping service", "Integrate repository data", "Validate relationships", "Deploy dashboards" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "JIRA-591",
+      "title": "Resolve cache invalidation race conditions",
+      "body": "Concurrent updates occasionally result in stale customer data.",
+      "severity": "P1",
+      "due": "2026-06-29",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Review cache event ordering" ],
+      "execution": {
+        "definitionOfDone": "Cache invalidation events process correctly under concurrent load.",
+        "process": [ "Analyze event sequences", "Reproduce race conditions", "Patch invalidation workflow", "Run concurrency tests", "Validate cache consistency" ],
+        "estimatedMinutes": 175
+      }
+    },
+    {
+      "id": "JIRA-592",
+      "title": "Implement sprint capacity forecasting",
+      "body": "Engineering managers lack visibility into future team workload.",
+      "severity": "P3",
+      "due": "2026-07-11",
+      "impact": 5,
+      "status": "Todo",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Sprint capacity forecasts are generated automatically using historical data.",
+        "process": [ "Define forecasting metrics", "Build prediction models", "Validate estimates", "Generate dashboards", "Share with stakeholders" ],
+        "estimatedMinutes": 200
+      }
+    },
+    {
+      "id": "JIRA-593",
+      "title": "Fix cross-region session replication delays",
+      "body": "Global users experience inconsistent authentication states across regions.",
+      "severity": "P1",
+      "due": "2026-06-30",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Waiting for regional replication metrics" ],
+      "execution": {
+        "definitionOfDone": "Authentication sessions remain synchronized across all regions.",
+        "process": [ "Inspect replication metrics", "Analyze synchronization delays", "Patch replication workflow", "Run failover tests", "Validate global sessions" ],
+        "estimatedMinutes": 185
+      }
+    },
+    {
+      "id": "JIRA-594",
+      "title": "Optimize invoice PDF generation performance",
+      "body": "Invoice rendering times exceed customer expectations during peak periods.",
+      "severity": "P2",
+      "due": "2026-07-02",
+      "impact": 8,
+      "status": "Todo",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review rendering metrics" ],
+      "execution": {
+        "definitionOfDone": "Invoice PDFs generate within target response times.",
+        "process": [ "Profile rendering performance", "Optimize templates", "Benchmark improvements", "Validate outputs", "Monitor production" ],
+        "estimatedMinutes": 170
+      }
+    }
+  ]
+}

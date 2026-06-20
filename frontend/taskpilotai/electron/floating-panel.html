@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      /* ── Design tokens matching the main TaskPilot app ── */
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color-scheme: light;
+
+        --bg:        #f7f4ee;
+        --surface:   #fffdf8;
+        --sidebar:   #efe9dd;
+        --border:    #ded5c8;
+        --border2:   #eadfce;
+        --text:      #17202a;
+        --text2:     #65717d;
+        --eyebrow:   #8a5c22;
+        --navy:      #152238;
+        --green:     #18745f;
+        --green-bg:  #dfeee8;
+        --amber:     #b87319;
+        --red:       #ad2f2f;
+        --chip-bg:   #f1e6d6;
+        --chip-text: #26313d;
+        --agent-bg:  #f1e6d6;
+        --user-bg:   #152238;
+        --user-text: #fff;
+        --card-bg:   rgba(255,252,247,0.96);
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html, body {
+        width: 430px;
+        height: 620px;
+        overflow: hidden;
+        background: transparent;
+      }
+
+      /* ── Panel shell ── */
+      .panel {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% - 10px);
+        height: calc(100% - 10px);
+        margin: 5px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: 0 20px 60px rgba(23,32,42,0.22), 0 4px 16px rgba(23,32,42,0.10);
+        overflow: hidden;
+      }
+
+      /* ── Header ── */
+      .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid var(--border2);
+        background: var(--sidebar);
+        -webkit-app-region: drag;
+        flex-shrink: 0;
+      }
+
+      .agent-id {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .agent-mark {
+        position: relative;
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
+        background: transparent;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(21,34,56,0.28);
+      }
+
+      .status-dot {
+        position: absolute;
+        bottom: -2px; right: -2px;
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        background: var(--green);
+        border: 2px solid var(--sidebar);
+        animation: pulse-dot 2.4s ease-in-out infinite;
+      }
+
+      @keyframes pulse-dot {
+        0%,100% { box-shadow: 0 0 0 0 rgba(24,116,95,0.4); }
+        50%      { box-shadow: 0 0 0 5px rgba(24,116,95,0); }
+      }
+
+      .agent-info strong {
+        display: block;
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--text);
+        line-height: 1.2;
+      }
+
+      .agent-info span {
+        font-size: 11px;
+        color: var(--text2);
+        font-weight: 500;
+      }
+
+      .head-actions {
+        display: flex;
+        gap: 6px;
+        -webkit-app-region: no-drag;
+      }
+
+      .head-btn {
+        width: 30px; height: 30px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text2);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 700;
+        transition: all 0.15s;
+      }
+
+      .head-btn:hover {
+        background: var(--chip-bg);
+        border-color: var(--border);
+        color: var(--text);
+      }
+
+      /* ── Priority task pills bar ── */
+      .task-bar {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding: 8px 14px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        border-bottom: 1px solid var(--border2);
+        background: var(--bg);
+        flex-shrink: 0;
+      }
+      .task-bar::-webkit-scrollbar { display: none; }
+
+      .task-pill {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text2);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .task-pill:hover {
+        background: var(--chip-bg);
+        color: var(--text);
+      }
+
+      .sev {
+        font-size: 9px;
+        font-weight: 900;
+        padding: 2px 5px;
+        border-radius: 4px;
+        letter-spacing: 0.02em;
+      }
+      .sev-p1 { background: rgba(173,47,47,0.12); color: var(--red); }
+      .sev-p2 { background: rgba(184,115,25,0.14); color: var(--amber); }
+      .sev-p3 { background: rgba(24,116,95,0.14); color: var(--green); }
+
+      /* ── Messages ── */
+      .messages {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        padding: 14px 14px 4px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      .messages::-webkit-scrollbar { width: 4px; }
+      .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+      .msg {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        animation: msg-in 0.22s cubic-bezier(0.16,1,0.3,1);
+      }
+      @keyframes msg-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .msg.user { flex-direction: row-reverse; }
+
+      .msg-av {
+        width: 26px; height: 26px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        font-size: 9px;
+        font-weight: 900;
+        margin-top: 2px;
+        letter-spacing: -0.02em;
+      }
+      .msg.agent .msg-av {
+        background: transparent;
+        overflow: hidden;
+        padding: 0;
+      }
+      .msg.user  .msg-av { background: var(--chip-bg); color: var(--text); }
+
+      .bubble {
+        max-width: 80%;
+        padding: 10px 13px;
+        border-radius: 12px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--text);
+      }
+      .msg.agent .bubble {
+        background: var(--agent-bg);
+        border: 1px solid var(--border2);
+        border-top-left-radius: 3px;
+        color: var(--text);
+      }
+      .msg.user .bubble {
+        background: var(--user-bg);
+        color: var(--user-text);
+        border-top-right-radius: 3px;
+      }
+      .bubble strong { font-weight: 800; }
+
+      /* ── Task card inside bubble ── */
+      .task-card {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border2);
+        border-left: 3px solid var(--navy);
+      }
+      .task-card.p1-card { border-left-color: var(--red); }
+      .task-card.p2-card { border-left-color: var(--amber); }
+      .task-card.p3-card { border-left-color: var(--green); }
+
+      .task-card:hover {
+        background: #f7f8fa;
+        border-color: #c0c8d8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(9,30,66,0.1);
+        transition: all 0.15s;
+      }
+
+      .task-card-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 5px;
+      }
+      .task-card-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--text);
+        line-height: 1.3;
+      }
+      .task-num {
+        font-size: 9px;
+        font-weight: 800;
+        color: var(--text2);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .task-meta-row {
+        font-size: 11px;
+        color: var(--text2);
+        margin-top: 4px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .done-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--green);
+        background: var(--green-bg);
+        padding: 3px 10px;
+        border-radius: 999px;
+        margin-top: 5px;
+      }
+
+      /* ── Typing indicator ── */
+      .typing {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 4px;
+      }
+      .typing span {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--text2);
+        opacity: 0.5;
+        animation: bounce 1.2s ease-in-out infinite;
+      }
+      .typing span:nth-child(2) { animation-delay: 0.18s; }
+      .typing span:nth-child(3) { animation-delay: 0.36s; }
+      @keyframes bounce {
+        0%,80%,100% { transform: translateY(0); opacity: 0.4; }
+        40%          { transform: translateY(-5px); opacity: 1; }
+      }
+
+      /* ── Chips ── */
+      .chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px 14px 8px;
+        flex-shrink: 0;
+      }
+
+      .chip {
+        padding: 6px 11px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--chip-bg);
+        color: var(--chip-text);
+        font: 700 11px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .chip:hover {
+        background: #e8d9c4;
+        border-color: #cbbfa8;
+        color: var(--text);
+      }
+
+      /* ── Input area ── */
+      .input-area {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 10px 12px 12px;
+        border-top: 1px solid var(--border2);
+        background: var(--sidebar);
+        flex-shrink: 0;
+      }
+
+      textarea {
+        flex: 1;
+        min-width: 0;
+        min-height: 38px;
+        max-height: 120px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        resize: none;
+        font: 500 13px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
+        background: var(--surface);
+        color: var(--text);
+        box-sizing: border-box;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        scrollbar-width: none;
+      }
+      textarea::placeholder { color: var(--text2); }
+      textarea:focus {
+        outline: none;
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(24,116,95,0.12);
+      }
+
+      .send-btn {
+        width: 38px; height: 38px;
+        border: 0;
+        border-radius: 20px;
+        background: var(--navy);
+        color: #fff;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        transition: all 0.15s;
+        box-shadow: 0 4px 12px rgba(21,34,56,0.3);
+        font-size: 15px;
+      }
+      .send-btn:hover { background: #0e1a2e; transform: scale(1.06); }
+      .send-btn:active { transform: scale(0.96); }
+    </style>
+  </head>
+  <body>
+    <section class="panel">
+      <!-- Header -->
+      <header class="head">
+        <div class="agent-id">
+          <div class="agent-mark">
+            <img src="../public/logo.jpg" alt="TaskPilot AI" style="width:38px;height:38px;object-fit:cover;border-radius:11px;display:block;">
+            <span class="status-dot"></span>
+          </div>
+          <div class="agent-info">
+            <strong>TaskPilot AI</strong>
+            <span id="statusText">Online · Ready to help</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <button class="head-btn" id="appBtn" title="Open main dashboard">⊞</button>
+          <button class="head-btn" id="closeBtn" title="Close panel">✕</button>
+        </div>
+      </header>
+
+      <!-- Task pill bar (appears after tasks loaded) -->
+      <div class="task-bar" id="taskBar" style="display:none;"></div>
+
+      <!-- Messages -->
+      <div class="messages" id="messages"></div>
+
+      <!-- Quick chips -->
+      <div class="chips-row" id="chipsRow" style="display:none;"></div>
+
+      <!-- Input -->
+      <div class="input-area">
+        <textarea id="input" rows="1" placeholder="Ask anything… (Enter to send)"></textarea>
+        <button class="send-btn" id="sendBtn" aria-label="Send">➜</button>
+      </div>
+    </section>
+
+    <script>
+      // ── DOM refs ──────────────────────────────────────────────────────
+      const msgsEl    = document.getElementById('messages');
+      const inputEl   = document.getElementById('input');
+      const sendBtn   = document.getElementById('sendBtn');
+      const taskBarEl = document.getElementById('taskBar');
+      const chipsEl   = document.getElementById('chipsRow');
+      const statusEl  = document.getElementById('statusText');
+
+      // ── Demo task data (mirrors TaskPilot engine output) ──────────────
+      const TASKS = [
+        { id:'t1', rank:1, title:'Fix P1 CSV upload timeout — SLA breach today',     sev:'P1', src:'Jira + ServiceNow', eta:'2–3 hrs',  due:'Today'   },
+        { id:'t2', rank:2, title:'Review auth-token PR blocking 4 engineers',         sev:'P2', src:'GitHub',           eta:'~45 min', due:'Today'   },
+        { id:'t3', rank:3, title:'Reply to dashboard count discrepancy email',        sev:'P2', src:'Outlook',          eta:'~20 min', due:'Tomorrow' },
+        { id:'t4', rank:4, title:'Update audit log schema for compliance review',     sev:'P3', src:'Jira',             eta:'~1 hr',   due:'Jun 21'  },
+        { id:'t5', rank:5, title:'Standup notes for incident INC-7741',              sev:'P3', src:'ServiceNow',       eta:'~15 min', due:'EOD'     },
+      ];
+
+      let done = new Set();
+      let isTyping = false;
+
+      // ── Boot ──────────────────────────────────────────────────────────
+      async function boot() {
+        await wait(550);
+        agentSay(`Hey Utkarsh! 👋 Good to see you. Want me to pull up your task queue for today, or is there something specific on your mind?`);
+        showChips([
+          { label: '📋 Show my tasks for today', act: 'show-tasks' },
+          { label: '🔥 What\'s most urgent?',    act: 'show-top'   },
+          { label: '✅ I finished a task',       act: 'done-ask'   },
+        ]);
+      }
+
+      // ── Message helpers ───────────────────────────────────────────────
+      function addMsg(role, contentEl) {
+        const row = document.createElement('div');
+        row.className = `msg ${role}`;
+
+        const av = document.createElement('div');
+        av.className = 'msg-av';
+        if (role === 'agent') {
+          av.innerHTML = '<img src="../public/logo.jpg" alt="TP" style="width:26px;height:26px;object-fit:cover;border-radius:8px;display:block;">';
+        } else {
+          av.textContent = 'U';
+        }
+
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        if (typeof contentEl === 'string') {
+          bubble.innerHTML = md(contentEl);
+        } else {
+          bubble.appendChild(contentEl);
+        }
+
+        row.appendChild(av);
+        row.appendChild(bubble);
+        msgsEl.appendChild(row);
+        scrollBottom();
+        return bubble;
+      }
+
+      function agentSay(text) { return addMsg('agent', text); }
+      function userSay(text)  { return addMsg('user',  text); }
+
+      function showTypingBubble() {
+        if (isTyping) return;
+        isTyping = true;
+        const row = document.createElement('div');
+        row.className = 'msg agent'; row.id = 'typing';
+        const av = document.createElement('div');
+        av.className = 'msg-av';
+        av.innerHTML = '<img src="../public/logo.jpg" alt="TP" style="width:26px;height:26px;object-fit:cover;border-radius:8px;display:block;">';
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        b.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+        row.appendChild(av); row.appendChild(b);
+        msgsEl.appendChild(row);
+        scrollBottom();
+        statusEl.textContent = 'Typing…';
+      }
+
+      function hideTypingBubble() {
+        isTyping = false;
+        document.getElementById('typing')?.remove();
+        statusEl.textContent = 'Online · Ready to help';
+      }
+
+      async function think(ms = 850) {
+        showTypingBubble();
+        await wait(ms);
+        hideTypingBubble();
+      }
+
+      function md(s) {
+        return String(s)
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+          .replace(/\[(.*?)\]\((https?:\/\/[^)]+)\)/g,
+            (_, label, url) => `<button onclick="openUrl('${url.replace(/'/g,"\\'")}');return false;" style="background:none;border:none;padding:0;color:var(--green);font-weight:700;text-decoration:underline;cursor:pointer;font-size:inherit;">${label}</button>`)
+          .replace(/\n/g,'<br>');
+      }
+
+      // ── Central link opener — always uses shell.openExternal via IPC ──
+      function openUrl(url) {
+        try {
+          window.taskPilotFloating.openExternal(url);
+        } catch {
+          // Fallback for browser context
+          window.open(url, '_blank', 'noopener');
+        }
+      }
+
+      function makeOpenBtn(url, label, style = '') {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.style.cssText = style || 'display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#f1f2f4;color:#172b4d;font-size:11px;font-weight:800;border:1px solid #dfe3ea;cursor:pointer;';
+        btn.addEventListener('click', (e) => { e.stopPropagation(); openUrl(url); });
+        return btn;
+      }
+
+      function getGoogleResourcesForTask(title) {
+        const t = title.toLowerCase();
+        
+        if (t.includes('csv') || t.includes('timeout') || t.includes('upload')) {
+          return {
+            docTitle: "Handling Large File Uploads & Request Timeouts",
+            docUrl: "https://cloud.google.com/architecture/handling-large-file-uploads-and-request-timeouts",
+            videoTitle: "Debugging Request Timeouts & Server Tuning",
+            videoUrl: "https://www.youtube.com/watch?v=0k5a5dGZ2v4"
+          };
+        }
+        if (t.includes('auth') || t.includes('token') || t.includes('credential') || t.includes('rotation')) {
+          return {
+            docTitle: "Google Identity: OAuth 2.0 Token Best Practices & Key Rotation",
+            docUrl: "https://developers.google.com/identity/protocols/oauth2/security",
+            videoTitle: "Securing APIs with Automated Credential Rotation",
+            videoUrl: "https://www.youtube.com/watch?v=R4K-JvO3B24"
+          };
+        }
+        if (t.includes('retention') || t.includes('compliance') || t.includes('audit')) {
+          return {
+            docTitle: "Google Workspace Compliance: Data Retention & Audit Log Policies",
+            docUrl: "https://support.google.com/a/answer/10065099",
+            videoTitle: "Managing Audit Logging and Compliance Policies",
+            videoUrl: "https://www.youtube.com/watch?v=0YV1g-1r4w4"
+          };
+        }
+        if (t.includes('queue') || t.includes('notification') || t.includes('latency')) {
+          return {
+            docTitle: "Designing Pub/Sub Message Queue Systems & Resolving Depth Spikes",
+            docUrl: "https://cloud.google.com/pubsub/docs/subscriber-troubleshooting",
+            videoTitle: "Scaling Message Queues & Fixing Queue Depth Spikes",
+            videoUrl: "https://www.youtube.com/watch?v=rzkRzD8e-bU"
+          };
+        }
+        if (t.includes('onboarding') || t.includes('workflow')) {
+          return {
+            docTitle: "Google Cloud Workflows: Standardizing Business Workflows",
+            docUrl: "https://cloud.google.com/workflows/docs/tutorials",
+            videoTitle: "Debugging Automated Workflows & Flow Failures",
+            videoUrl: "https://www.youtube.com/watch?v=r19hNq17Q3M"
+          };
+        }
+        return {
+          docTitle: "Google Developers: Engineering Troubleshooting and API Guides",
+          docUrl: "https://developers.google.com/docs",
+          videoTitle: "Software Architecture Debugging & Resolution Patterns",
+          videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        };
+      }
+
+      function scrollBottom() {
+        setTimeout(() => msgsEl.scrollTo({ top: msgsEl.scrollHeight, behavior:'smooth' }), 40);
+      }
+
+      function wait(ms) { return new Promise(r => setTimeout(r,ms)); }
+      function cut(s,n) { return s.length > n ? s.slice(0,n)+'…' : s; }
+
+      // ── Source deep-link builder ───────────────────────────────────────
+      function getSourceUrl(task) {
+        const src = (task.src || '').toLowerCase();
+        const id = task.id || '';
+        if (src.includes('jira'))        return `https://jira.atlassian.com/browse/${id}`;
+        if (src.includes('github'))      return id.toLowerCase().startsWith('pr') ? `https://github.com/pulls` : `https://github.com/issues`;
+        if (src.includes('servicenow') || src.includes('snow')) return `https://developer.servicenow.com/dev.do`;
+        if (src.includes('outlook') || src.includes('email')) return `https://outlook.office.com/mail/`;
+        if (src.includes('slack'))       return `https://app.slack.com/`;
+        if (src.includes('meeting') || src.includes('notes')) return `https://meet.google.com/`;
+        return null;
+      }
+
+      // ── Task card builder with deep-link button ────────────────────────
+      function taskCard(t, num) {
+        const sevClass = `${t.sev.toLowerCase()}-card`;
+        const sourceUrl = getSourceUrl(t);
+        const srcLabel = t.src ? t.src.split(' +')[0].trim() : 'Source';
+        const d = document.createElement('div');
+        d.className = `task-card ${sevClass}`;
+        d.style.cursor = 'pointer';
+        d.innerHTML = `
+          <div class="task-card-row">
+            <span class="task-num">#${num}</span>
+            <span class="sev sev-${t.sev.toLowerCase()}">${t.sev}</span>
+          </div>
+          <div class="task-card-title">${t.title}</div>
+          <div class="task-meta-row">
+            <span>📍 ${t.src}</span>
+            <span>⏱ ${t.eta}</span>
+            <span>📅 ${t.due}</span>
+          </div>
+          <div id="open-btn-${t.id}" style="margin-top:8px;"></div>`;
+
+        // Add the open button after DOM is ready
+        setTimeout(() => {
+          const container = d.querySelector(`#open-btn-${t.id}`);
+          if (container && sourceUrl) {
+            const btn = makeOpenBtn(sourceUrl, `Open in ${srcLabel} ↗`);
+            container.appendChild(btn);
+          }
+        }, 0);
+
+        // Clicking the card triggers explainTask + marks working
+        d.addEventListener('click', () => {
+          hideChips();
+          markTaskWorking(t.id);
+          explainTask(t);
+        });
+        return d;
+      }
+
+      function taskListEl(tasks) {
+        const wrap = document.createElement('div');
+        tasks.forEach((t,i) => wrap.appendChild(taskCard(t, i+1)));
+        return wrap;
+      }
+
+      // ── Task pill bar ──────────────────────────────────────────────────
+      function refreshTaskBar() {
+        const rem = TASKS.filter(t => !done.has(t.id));
+        if (!rem.length) { taskBarEl.style.display = 'none'; return; }
+        taskBarEl.style.display = 'flex';
+        taskBarEl.innerHTML = rem.map(t => `
+          <div class="task-pill" data-id="${t.id}">
+            <span class="sev sev-${t.sev.toLowerCase()}">${t.sev}</span>
+            <span>${cut(t.title, 26)}</span>
+          </div>`).join('');
+        taskBarEl.querySelectorAll('[data-id]').forEach(el =>
+          el.addEventListener('click', () => {
+            const t = TASKS.find(x => x.id === el.dataset.id);
+            if (t) explainTask(t);
+          })
+        );
+      }
+
+      // ── Chip helpers ───────────────────────────────────────────────────
+      function showChips(chips) {
+        chipsEl.innerHTML = '';
+        chips.forEach(c => {
+          const b = document.createElement('button');
+          b.className = 'chip';
+          b.textContent = c.label;
+          b.addEventListener('click', () => handleAction(c.act));
+          chipsEl.appendChild(b);
+        });
+        chipsEl.style.display = 'flex';
+      }
+
+      function hideChips() {
+        chipsEl.style.display = 'none';
+        chipsEl.innerHTML = '';
+      }
+
+      // ── Main action dispatcher ─────────────────────────────────────────
+      async function handleAction(act) {
+        hideChips();
+
+        if (act === 'show-tasks') {
+          userSay('Show my tasks for today');
+          await showAllTasks(); return;
+        }
+        if (act === 'show-top') {
+          userSay("What's most urgent right now?");
+          await showTopTask(); return;
+        }
+        if (act === 'done-ask') {
+          userSay('I finished a task');
+          await askWhichDone(); return;
+        }
+        if (act === 'done-top') {
+          const top = remaining()[0];
+          if (top) { userSay(`✅ Done with "${cut(top.title,40)}"`); await completeTask(top.id); }
+          return;
+        }
+        if (act === 'explain-top') {
+          const top = remaining()[0];
+          if (top) { userSay('Walk me through this task'); await explainTask(top); }
+          return;
+        }
+        if (act.startsWith('explain:')) {
+          const id = act.slice(8);
+          const t = TASKS.find(x => x.id === id);
+          if (t) { userSay(`Walk me through "${cut(t.title, 40)}"`); await explainTask(t); }
+          return;
+        }
+        if (act === 'daily-summary') {
+          userSay('Generate daily summary');
+          await dailySummary(); return;
+        }
+        if (act.startsWith('complete:')) {
+          const id = act.slice(9);
+          const t = TASKS.find(x => x.id === id);
+          if (t) { userSay(`✅ Marked "${cut(t.title,40)}" as done`); await completeTask(id); }
+          return;
+        }
+      }
+
+      function remaining() { return TASKS.filter(t => !done.has(t.id)); }
+
+      // ── Flows ──────────────────────────────────────────────────────────
+      async function showAllTasks() {
+        await think(950);
+        const rem = remaining();
+        if (!rem.length) {
+          agentSay("You've cleared your entire queue — nothing left for today! 🎉 Really impressive.");
+          return;
+        }
+        agentSay(`Alright, here's your priority queue — **${rem.length} task${rem.length>1?'s':''} ranked** by urgency, SLA risk, and cross-system signals:\n\n💡 _Click any task card to see step-by-step guidance and open it in the source app._`);
+        await wait(250);
+        addMsg('agent', taskListEl(rem));
+        await wait(350);
+        const top = rem[0];
+        agentSay(`I'd start with **#1** — it's ${top.sev} and ${top.due==='Today'?'due **today**':`due **${top.due}**`}. That's your biggest risk right now. Click the card or tap below to get the fix steps.`);
+        refreshTaskBar();
+        showChips([
+          { label:`🔍 Fix "${cut(top.title,28)}"`, act:`explain:${top.id}` },
+          { label:'✅ Mark #1 done',                act:'done-top'          },
+          { label:'⚡ I finished something',        act:'done-ask'          },
+        ]);
+      }
+
+      async function showTopTask() {
+        await think(800);
+        const top = remaining()[0];
+        if (!top) { agentSay("Queue is empty — you're all done! 🎉"); return; }
+        const wrap = document.createElement('div');
+        wrap.innerHTML = md('Your **#1 priority right now** is:');
+        wrap.appendChild(taskCard(top, 1));
+        addMsg('agent', wrap);
+        await wait(350);
+        agentSay(`This one has SLA risk and shows up across ${top.src.includes('+')?'multiple systems':top.src}. I'd tackle this first — ${top.eta} to finish.`);
+        refreshTaskBar();
+        showChips([
+          { label:'✅ Mark as done',        act:'done-top'   },
+          { label:'📋 Show full queue',     act:'show-tasks' },
+          { label:'⚡ I finished something', act:'done-ask'  },
+        ]);
+      }
+
+      async function explainTask(t) {
+        await think(800);
+        const res = getGoogleResourcesForTask(t.title);
+        const sourceUrl = getSourceUrl(t);
+
+        // Build resource links element
+        const resEl = document.createElement('div');
+        resEl.innerHTML = md(`Here's the breakdown for **"${t.title}"**:\n\n📍 **Source:** ${t.src}\n⏱ **Estimated:** ${t.eta}\n📅 **Due:** ${t.due}\n🎯 **Severity:** ${t.sev}`);
+
+        // Source deep-link button
+        if (sourceUrl) {
+          const openBtn = document.createElement('a');
+          openBtn.href = sourceUrl;
+          openBtn.target = '_blank';
+          openBtn.rel = 'noopener';
+          openBtn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin:10px 0 6px;padding:7px 14px;background:#172b4d;color:#fff;border-radius:8px;font-size:12px;font-weight:800;text-decoration:none;';
+          openBtn.innerHTML = `Open in ${t.src.split(' +')[0]} ↗`;
+          resEl.appendChild(openBtn);
+        }
+
+        // Resource links
+        const linksDiv = document.createElement('div');
+        linksDiv.style.cssText = 'margin-top:10px;display:grid;gap:6px;';
+        linksDiv.innerHTML = `
+          <div style="font-size:11px;font-weight:800;color:#626f86;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">📚 How-to Resources</div>
+          <a href="${res.docUrl}" target="_blank" rel="noopener"
+             style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #dfe3ea;border-radius:7px;text-decoration:none;color:#172b4d;font-size:12px;font-weight:600;background:#fff;">
+            📄 ${res.docTitle} <span style="margin-left:auto;color:#626f86;font-size:11px;">↗</span>
+          </a>
+          <a href="${res.videoUrl}" target="_blank" rel="noopener"
+             style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #dfe3ea;border-radius:7px;text-decoration:none;color:#172b4d;font-size:12px;font-weight:600;background:#fff;">
+            🎥 ${res.videoTitle} <span style="margin-left:auto;color:#626f86;font-size:11px;">↗</span>
+          </a>`;
+        resEl.appendChild(linksDiv);
+        addMsg('agent', resEl);
+
+        // Now call Gemini for actual step-by-step fix guidance
+        await think(1200);
+        try {
+          const prompt = `You are TaskPilot AI, an expert engineering assistant. An engineer needs step-by-step help to fix this task:
+
+Task: "${t.title}"
+Source system: ${t.src}
+Severity: ${t.sev}
+Due: ${t.due}
+
+Give a concise, actionable step-by-step procedure to resolve this — 4 to 6 numbered steps max. Be specific and technical. Don't say "Gemini". Start directly with "Here's how to fix it:"`;
+          const r = await window.taskPilotFloating.geminiChat(prompt, 'gemini-2.5-flash').catch(() => null);
+          if (r?.success && r.text) {
+            agentSay(r.text.replace(/Gemini/gi, 'TaskPilot AI'));
+          } else {
+            agentSay(`Here's how to fix it:\n1. Reproduce the issue in staging\n2. Check logs for the root cause\n3. Apply the targeted fix\n4. Run regression tests\n5. Deploy and monitor`);
+          }
+        } catch {
+          agentSay(`Here's how to fix it:\n1. Reproduce the issue in staging\n2. Check logs for the root cause\n3. Apply the targeted fix\n4. Run regression tests\n5. Deploy and monitor`);
+        }
+
+        showChips([
+          { label: '✅ Mark as done', act: `complete:${t.id}` },
+          { label: '📋 Back to queue', act: 'show-tasks' },
+        ]);
+      }
+
+      async function askWhichDone() {
+        await think(600);
+        const rem = remaining();
+        if (!rem.length) { agentSay("Queue is already clear — nothing left to mark done! 🙌"); return; }
+        agentSay("Which one did you knock out? Tap below 👇");
+        showChips(rem.slice(0,4).map(t => ({
+          label: `✅ ${cut(t.title,34)}`,
+          act: `complete:${t.id}`
+        })));
+      }
+
+      async function completeTask(id) {
+        const task = TASKS.find(t => t.id === id);
+        if (!task) return;
+        await think(700);
+
+        done.add(id);
+
+        // Notify main app window
+        try { window.taskPilotFloating.completeTask(id); } catch {}
+
+        const rem = remaining();
+        const next = rem[0];
+
+        // Completion confirmation
+        const confEl = document.createElement('div');
+        confEl.innerHTML = md(`Nice work, Utkarsh! ✅ **"${task.title}"** is marked complete.`);
+        const badge = document.createElement('div');
+        badge.className = 'done-badge';
+        badge.innerHTML = `✓ Done &nbsp;·&nbsp; ${task.src}`;
+        confEl.appendChild(badge);
+        addMsg('agent', confEl);
+
+        await wait(450);
+
+        if (next) {
+          const nWrap = document.createElement('div');
+          nWrap.innerHTML = md('Your **next priority** is:');
+          nWrap.appendChild(taskCard(next, 1));
+          addMsg('agent', nWrap);
+          await wait(350);
+          agentSay(`This one's ${next.sev} priority and ${next.due==='Today'?'also due **today**':`due **${next.due}**`} — about ${next.eta}. Ready when you are!`);
+          showChips([
+            { label:'✅ Done with that too',  act:`complete:${next.id}` },
+            { label:'📋 Show full queue',     act:'show-tasks'          },
+            { label:'🚀 Anything else?',      act:'show-top'            },
+          ]);
+        } else {
+          agentSay(`That's everything for today, Utkarsh! Queue is fully clear. 🎉 Want me to generate a quick end-of-day summary?`);
+          showChips([{ label:'📝 Generate summary', act:'daily-summary' }]);
+        }
+
+        refreshTaskBar();
+      }
+
+      async function dailySummary() {
+        await think(1100);
+        const doneList = TASKS.filter(t => done.has(t.id));
+        agentSay(`📝 **End-of-day summary for Utkarsh:**\n\n✅ Completed **${doneList.length} task${doneList.length!==1?'s':''}** today:\n${doneList.map((t,i)=>`${i+1}. ${t.title}`).join('\n')}\n\n🚀 Queue cleared. Great work!`);
+      }
+
+      // ── Free-text handler ──────────────────────────────────────────────
+      async function handleText(text) {
+        const q = text.toLowerCase();
+
+        // Completion intent
+        if (/\b(done|finish|complet|closed|resolv|marked)\b/i.test(q)) {
+          const rem = remaining();
+          const match = rem.find(t =>
+            t.title.toLowerCase().split(' ').some(w => w.length > 4 && q.includes(w))
+          );
+          if (match) { await completeTask(match.id); return; }
+          await askWhichDone(); return;
+        }
+
+        // "how to / procedure / steps / fix / help with / explain" for a specific task
+        if (/how\s*(can|do|to|should)|procedure|steps?|walk.?through|explain|guid|help.?(me|with|fix)|fix\s+(p1|p2|the|this)|resolv|debug|investigat/i.test(q)) {
+          // Try to find which task they're asking about
+          const rem = remaining();
+          const match = rem.find(t =>
+            t.title.toLowerCase().split(' ').some(w => w.length > 4 && q.includes(w))
+          ) || rem[0];
+          if (match) {
+            userSay.skipped = true; // prevent double
+            await explainTask(match);
+            return;
+          }
+        }
+
+        // Show queue
+        if (/\b(task|queue|today|all tasks|my tasks)\b/i.test(q) && !/how|fix|procedure|step/.test(q)) {
+          await showAllTasks(); return;
+        }
+
+        // Urgency
+        if (/\b(urgent|top|focus|first|prior|most important)\b/i.test(q)) {
+          await showTopTask(); return;
+        }
+
+        // Everything else → Gemini with full context
+        await think(1000);
+        try {
+          const top = remaining()[0];
+          const taskContext = remaining().slice(0, 3).map((t, i) => `${i+1}. [${t.sev}] ${t.title} (${t.src}, due ${t.due})`).join('\n');
+          const prompt = `You are TaskPilot AI — a knowledgeable, direct engineering productivity assistant. You're helping Utkarsh, a software engineer.
+
+They said: "${text}"
+
+Current top tasks:
+${taskContext}
+
+Respond helpfully and specifically. If they're asking how to do something, give real technical guidance. If they're asking about status, answer directly. Be concise (3-5 sentences max). Don't say "Gemini". Don't be vague.`;
+          const r = await window.taskPilotFloating.geminiChat(prompt, 'gemini-2.5-flash').catch(() => null);
+          if (r?.success && r.text) {
+            agentSay(r.text.replace(/Gemini/gi, 'TaskPilot AI'));
+          } else {
+            agentSay("Got it! Want me to walk you through your top task or show the full queue?");
+          }
+        } catch {
+          agentSay("Got it! Want me to walk you through your top task or show the full queue?");
+        }
+
+        const top = remaining()[0];
+        showChips([
+          { label: '📋 Show my tasks', act: 'show-tasks' },
+          top ? { label: `🔍 Walk me through "${cut(top.title, 28)}"`, act: 'explain-top' } : { label: '🔥 Top priority', act: 'show-top' },
+        ]);
+      }
+
+      // ── Input / send ───────────────────────────────────────────────────
+      async function handleSend() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+        inputEl.value = '';
+        inputEl.style.height = 'auto';
+        hideChips();
+        userSay(text);
+        await handleText(text);
+      }
+
+      inputEl.addEventListener('input', () => {
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px';
+      });
+      inputEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+        if (e.key === 'Escape') window.taskPilotFloating.hidePanel();
+      });
+      sendBtn.addEventListener('click', handleSend);
+
+      // ── Header buttons ─────────────────────────────────────────────────
+      document.getElementById('closeBtn').addEventListener('click', () => window.taskPilotFloating.hidePanel());
+      document.getElementById('appBtn').addEventListener('click',   () => window.taskPilotFloating.restoreMain());
+
+      // ── Listen for state-updates pushed from main app ──────────────────
+      try {
+        window.taskPilotFloating.onMessage(msg => {
+          if (msg && msg.type === 'state-update' && msg.activeQueue) {
+            // Map the tasks from activeQueue to TASKS
+            TASKS.length = 0; // Clear the array
+            msg.activeQueue.forEach(t => {
+              TASKS.push({
+                id: t.id,
+                rank: t.rank,
+                title: t.title,
+                sev: t.severity || 'P2',
+                src: t.sources ? t.sources.join(' + ') : 'System',
+                eta: t.eta || '~1 hr',
+                due: t.due || 'Today'
+              });
+            });
+            
+            // Sync completion status
+            done = new Set(msg.completedTaskIds || []);
+            
+            // Re-render task bar
+            refreshTaskBar();
+          }
+        });
+      } catch {}
+
+      // ── Go! ────────────────────────────────────────────────────────────
+      boot();
+    </script>
+  </body>
+</html>

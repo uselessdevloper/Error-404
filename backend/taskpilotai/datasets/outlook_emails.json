@@ -1,0 +1,875 @@
+{
+  "id": "email",
+  "name": "Outlook Emails",
+  "type": "message",
+  "color": "#0c66e4",
+  "items": [
+    {
+      "id": "MAIL-920",
+      "title": "VP escalation: upload timeout needs ETA",
+      "body": "From VP Customer Success: Please provide an ETA today for the CSV upload timeout affecting Acme imports. This appears related to JIRA-421 and INC-7741.",
+      "severity": "P1",
+      "due": "2026-06-19",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Customer Success",
+      "dependencies": [ "Reply with ETA by 4 PM" ],
+      "execution": {
+        "definitionOfDone": "ETA reply sent to VP and linked incident/story updated.",
+        "process": [ "Summarize current incident status", "Confirm ETA from engineering fix path", "Draft reply", "Send after user approval" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "MAIL-932",
+      "title": "Action needed: compliance audit demo prep",
+      "body": "Can you finish audit logs for payment settings before Wednesday's demo and share risks in the manager sync?",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Compliance",
+      "dependencies": [ "Share risks in manager sync" ],
+      "execution": {
+        "definitionOfDone": "Risk summary is ready and audit story has a completion plan.",
+        "process": [ "Extract requested deliverables", "Map to JIRA-388", "Prepare risk note", "Add manager sync talking point" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-933",
+      "title": "Customer escalation: API rate limit increase request",
+      "body": "Enterprise customer requests a temporary API rate limit increase before their product launch next week. Customer Success needs confirmation today.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Customer Success",
+      "dependencies": [ "Confirm capacity with Platform team", "Reply to customer before 5 PM" ],
+      "execution": {
+        "definitionOfDone": "Customer receives a confirmed response with approved rate limits and rollout timeline.",
+        "process": [ "Review customer usage forecast", "Validate platform capacity", "Confirm temporary limits", "Draft customer response" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-934",
+      "title": "Reminder: production readiness review for onboarding changes",
+      "body": "Growth team requests confirmation that onboarding workflow updates are ready for release this week.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Riya",
+      "team": "Growth",
+      "dependencies": [ "Review open onboarding issues", "Share release risks" ],
+      "execution": {
+        "definitionOfDone": "Release readiness status is documented and shared with stakeholders.",
+        "process": [ "Review open issues", "Assess deployment risks", "Prepare readiness summary", "Send update" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-935",
+      "title": "Action required: partner API deprecation notice",
+      "body": "External partner requests migration support before the v1 API endpoint is retired next month.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Confirm migration timeline", "Schedule partner sync" ],
+      "execution": {
+        "definitionOfDone": "Partner receives a migration plan with support milestones.",
+        "process": [ "Review deprecation schedule", "Assess migration blockers", "Prepare transition plan", "Reply to partner" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-936",
+      "title": "Follow-up: notification delivery SLA review",
+      "body": "Leadership requests an update on notification delays affecting premium customers.",
+      "severity": "P2",
+      "due": "2026-06-20",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Collect provider metrics" ],
+      "execution": {
+        "definitionOfDone": "SLA review findings and mitigation actions are shared.",
+        "process": [ "Analyze delivery metrics", "Identify affected customers", "Prepare recommendations", "Send update" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "MAIL-937",
+      "title": "Security alert: privileged access review overdue",
+      "body": "Quarterly access review remains incomplete for production environments.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Complete access review", "Share audit evidence" ],
+      "execution": {
+        "definitionOfDone": "Access review is completed and evidence is uploaded for compliance.",
+        "process": [ "Review privileged accounts", "Validate access approvals", "Document findings", "Submit evidence" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-938",
+      "title": "Finance request: invoice discrepancy investigation",
+      "body": "Finance team identified mismatched invoice totals for enterprise customers and needs an update before month-end close.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Validate reconciliation data", "Share investigation status" ],
+      "execution": {
+        "definitionOfDone": "Invoice discrepancies are categorized and next steps are communicated.",
+        "process": [ "Review reconciliation reports", "Identify affected invoices", "Determine root cause", "Send status update" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-939",
+      "title": "Reminder: search indexing performance update",
+      "body": "Product team requests an update on delayed search indexing before the customer webinar.",
+      "severity": "P2",
+      "due": "2026-06-21",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Review indexing metrics" ],
+      "execution": {
+        "definitionOfDone": "Search indexing status and expected improvements are shared.",
+        "process": [ "Analyze indexing backlog", "Estimate resolution timeline", "Prepare customer-facing summary", "Send update" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-940",
+      "title": "Action needed: CI pipeline stability review",
+      "body": "Engineering leadership requests a summary of recurring CI failures affecting release velocity.",
+      "severity": "P3",
+      "due": "2026-06-24",
+      "impact": 5,
+      "status": "Unread",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Collect CI failure reports" ],
+      "execution": {
+        "definitionOfDone": "Recurring CI issues are documented with improvement proposals.",
+        "process": [ "Review failure history", "Categorize root causes", "Identify trends", "Prepare summary" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-941",
+      "title": "Operations update requested: infrastructure capacity forecast",
+      "body": "Leadership team requests updated infrastructure capacity projections for next quarter planning.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Review utilization reports" ],
+      "execution": {
+        "definitionOfDone": "Capacity forecast is updated and shared with leadership.",
+        "process": [ "Analyze utilization trends", "Forecast demand", "Identify scaling risks", "Publish report" ],
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "id": "MAIL-942",
+      "title": "Executive follow-up: onboarding conversion decline",
+      "body": "VP Growth requests an explanation for the recent decrease in onboarding completion rates before tomorrow's business review.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Riya",
+      "team": "Growth",
+      "dependencies": [ "Review onboarding analytics", "Prepare executive summary" ],
+      "execution": {
+        "definitionOfDone": "Executive update includes root causes, impact assessment, and mitigation plan.",
+        "process": [ "Analyze funnel metrics", "Identify drop-off trends", "Estimate business impact", "Send executive summary" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-943",
+      "title": "Urgent: partner webhook migration confirmation",
+      "body": "Strategic partner requests confirmation that webhook endpoint migration will complete before their launch deadline.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Validate migration timeline", "Confirm partner readiness" ],
+      "execution": {
+        "definitionOfDone": "Partner receives a confirmed migration schedule and support plan.",
+        "process": [ "Review migration status", "Identify open risks", "Confirm milestones", "Reply to partner" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-944",
+      "title": "Action required: invoice processing SLA breach",
+      "body": "Finance leadership reports invoice generation delays affecting monthly close activities.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Analyze invoice queue metrics", "Provide ETA" ],
+      "execution": {
+        "definitionOfDone": "Finance team receives an ETA and mitigation plan for invoice delays.",
+        "process": [ "Review processing metrics", "Identify bottlenecks", "Estimate recovery timeline", "Send update" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-945",
+      "title": "Reminder: notification provider contract review",
+      "body": "Procurement team requests updated delivery metrics to support notification provider renewal discussions.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Collect provider performance reports" ],
+      "execution": {
+        "definitionOfDone": "Provider performance summary is shared with procurement stakeholders.",
+        "process": [ "Gather delivery metrics", "Compare provider performance", "Identify risks", "Prepare summary" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-946",
+      "title": "Security escalation: secret rotation overdue",
+      "body": "Automated audit detected production credentials that have not been rotated within the required period.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Coordinate with service owners", "Complete secret rotation" ],
+      "execution": {
+        "definitionOfDone": "All identified credentials are rotated and audit evidence is recorded.",
+        "process": [ "Identify affected services", "Notify owners", "Rotate credentials", "Document completion" ],
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "id": "MAIL-947",
+      "title": "Product request: search relevance improvement update",
+      "body": "Product leadership needs an update on search quality improvements before the quarterly roadmap review.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Review search analytics" ],
+      "execution": {
+        "definitionOfDone": "Search improvement progress and next milestones are communicated.",
+        "process": [ "Analyze search metrics", "Review optimization status", "Identify remaining risks", "Prepare update" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-948",
+      "title": "Reminder: infrastructure cost optimization review",
+      "body": "Finance requests updated cloud cost reduction initiatives for next quarter budgeting.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Review cloud utilization reports" ],
+      "execution": {
+        "definitionOfDone": "Cost optimization opportunities are documented and prioritized.",
+        "process": [ "Analyze cost trends", "Identify optimization opportunities", "Estimate savings", "Share recommendations" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-949",
+      "title": "Action needed: repository ownership gaps",
+      "body": "Engineering managers request a report on repositories without assigned code owners.",
+      "severity": "P3",
+      "due": "2026-06-26",
+      "impact": 5,
+      "status": "Unread",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Generate repository ownership report" ],
+      "execution": {
+        "definitionOfDone": "Repository ownership gaps are identified and shared with engineering managers.",
+        "process": [ "Review repository metadata", "Identify missing owners", "Prepare summary", "Send report" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-950",
+      "title": "Customer request: dashboard data freshness clarification",
+      "body": "Enterprise customer requests clarification on expected dashboard refresh intervals after noticing delays.",
+      "severity": "P2",
+      "due": "2026-06-21",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Validate dashboard refresh metrics" ],
+      "execution": {
+        "definitionOfDone": "Customer receives documented dashboard refresh expectations and current status.",
+        "process": [ "Review refresh schedules", "Analyze recent delays", "Prepare explanation", "Send response" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "MAIL-951",
+      "title": "Leadership update requested: sprint risk summary",
+      "body": "Engineering leadership requests a consolidated view of blocked work and delivery risks before weekly planning.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Review sprint metrics", "Collect blocker updates" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives a prioritized risk summary with mitigation actions.",
+        "process": [ "Analyze sprint status", "Identify blocked work", "Estimate delivery impact", "Share summary" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-952",
+      "title": "Executive request: incident RCA summary needed",
+      "body": "CTO requests a concise root cause analysis for yesterday's API latency incident before the executive operations review.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Collect incident timeline", "Confirm mitigation actions" ],
+      "execution": {
+        "definitionOfDone": "Executive RCA summary is delivered with clear next steps and owners.",
+        "process": [ "Review incident timeline", "Confirm root cause", "Document mitigation plan", "Send executive summary" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-953",
+      "title": "Action required: SSO login failures affecting enterprise users",
+      "body": "Customer Success reports increased login failures for enterprise customers using SSO integrations.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review authentication logs", "Coordinate with support team" ],
+      "execution": {
+        "definitionOfDone": "Affected customers receive an update and a remediation plan is documented.",
+        "process": [ "Analyze authentication metrics", "Identify impacted accounts", "Confirm resolution path", "Prepare customer response" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-954",
+      "title": "Partner escalation: webhook retry volume increasing",
+      "body": "External partner reports duplicate webhook events causing downstream processing delays.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Review partner logs", "Validate retry configuration" ],
+      "execution": {
+        "definitionOfDone": "Partner receives a resolution timeline and duplicate events are mitigated.",
+        "process": [ "Analyze webhook metrics", "Review retry settings", "Identify root cause", "Send partner update" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-955",
+      "title": "Finance escalation: subscription renewal discrepancies",
+      "body": "Finance team detected inconsistencies between renewal transactions and billing records.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Compare transaction logs", "Review reconciliation reports" ],
+      "execution": {
+        "definitionOfDone": "Discrepancies are categorized and finance receives an investigation summary.",
+        "process": [ "Collect renewal data", "Validate billing records", "Identify discrepancies", "Prepare findings" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-956",
+      "title": "Reminder: provider failover test results required",
+      "body": "Operations leadership requests the outcome of the latest notification provider failover exercise.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Compile failover test metrics" ],
+      "execution": {
+        "definitionOfDone": "Failover results and follow-up actions are shared with stakeholders.",
+        "process": [ "Review failover results", "Identify gaps", "Document findings", "Send summary" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-957",
+      "title": "Compliance reminder: access review evidence due",
+      "body": "Audit team requests final evidence for quarterly production access reviews.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Complete access validation", "Upload audit evidence" ],
+      "execution": {
+        "definitionOfDone": "Audit evidence is submitted and compliance requirements are satisfied.",
+        "process": [ "Review access records", "Validate approvals", "Generate evidence package", "Submit documentation" ],
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "id": "MAIL-958",
+      "title": "Product follow-up: search latency improvement ETA",
+      "body": "Product managers need an updated timeline for search performance improvements before the customer roadmap webinar.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Review search latency metrics" ],
+      "execution": {
+        "definitionOfDone": "Product team receives a validated ETA and risk assessment.",
+        "process": [ "Analyze performance metrics", "Estimate remaining work", "Identify risks", "Send update" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-959",
+      "title": "Budget planning: cloud spend forecast requested",
+      "body": "Finance leadership requests updated infrastructure cost projections for next quarter budgeting.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Analyze utilization trends", "Review cloud billing data" ],
+      "execution": {
+        "definitionOfDone": "Cloud spend forecast is reviewed and shared with finance stakeholders.",
+        "process": [ "Review billing reports", "Forecast growth", "Estimate future costs", "Publish summary" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-960",
+      "title": "Engineering request: code review turnaround metrics",
+      "body": "Engineering managers request updated pull request review metrics before planning discussions.",
+      "severity": "P3",
+      "due": "2026-06-24",
+      "impact": 5,
+      "status": "Unread",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Generate review analytics report" ],
+      "execution": {
+        "definitionOfDone": "Review metrics are documented with recommendations for improvement.",
+        "process": [ "Collect review data", "Analyze approval times", "Identify bottlenecks", "Share report" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-961",
+      "title": "Customer inquiry: dashboard refresh interval clarification",
+      "body": "Enterprise account team requests confirmation of expected dashboard refresh times for premium customers.",
+      "severity": "P2",
+      "due": "2026-06-21",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Validate refresh schedules", "Review recent ETL performance" ],
+      "execution": {
+        "definitionOfDone": "Customer-facing guidance is updated and shared with account teams.",
+        "process": [ "Review ETL metrics", "Confirm refresh intervals", "Document expectations", "Reply to stakeholders" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "MAIL-962",
+      "title": "Urgent: API error rate increase detected",
+      "body": "Monitoring alerts indicate a significant increase in API error rates affecting enterprise customers.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Review application logs", "Coordinate with SRE team" ],
+      "execution": {
+        "definitionOfDone": "Error rates return to baseline and stakeholders receive an incident update.",
+        "process": [ "Analyze error metrics", "Identify affected services", "Coordinate mitigation", "Send status update" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-963",
+      "title": "Customer request: MFA rollout timeline confirmation",
+      "body": "Enterprise customer requests confirmation of the multi-factor authentication rollout schedule.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review rollout roadmap", "Confirm feature availability" ],
+      "execution": {
+        "definitionOfDone": "Customer receives an approved rollout timeline and implementation guidance.",
+        "process": [ "Review roadmap", "Validate rollout phases", "Prepare customer response", "Send update" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-964",
+      "title": "Partner notification: sandbox environment instability",
+      "body": "Multiple partners report intermittent failures in the integration sandbox environment.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Review sandbox metrics", "Coordinate with Platform team" ],
+      "execution": {
+        "definitionOfDone": "Partners receive an incident update and sandbox stability is restored.",
+        "process": [ "Analyze environment metrics", "Identify failure patterns", "Coordinate remediation", "Communicate status" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-965",
+      "title": "Finance follow-up: tax calculation variance review",
+      "body": "Finance team identified unexpected differences in tax calculations for specific regions.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review tax service logs", "Validate calculation rules" ],
+      "execution": {
+        "definitionOfDone": "Tax calculation discrepancies are resolved and findings are shared with finance.",
+        "process": [ "Analyze tax records", "Compare calculation rules", "Identify discrepancies", "Prepare update" ],
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "id": "MAIL-966",
+      "title": "Reminder: notification provider SLA documentation",
+      "body": "Procurement team requires updated provider SLA metrics for contract negotiations.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Compile delivery reports" ],
+      "execution": {
+        "definitionOfDone": "SLA metrics are documented and shared with procurement stakeholders.",
+        "process": [ "Collect delivery metrics", "Compare provider performance", "Prepare SLA summary", "Send report" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "MAIL-967",
+      "title": "Security alert: anomaly detected in privileged access logs",
+      "body": "Automated monitoring identified unusual access patterns in production systems.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Review access logs", "Coordinate with incident response team" ],
+      "execution": {
+        "definitionOfDone": "Access anomalies are investigated and mitigation actions are documented.",
+        "process": [ "Analyze access logs", "Identify suspicious activity", "Validate user actions", "Publish findings" ],
+        "estimatedMinutes": 55
+      }
+    },
+    {
+      "id": "MAIL-968",
+      "title": "Product request: search adoption metrics update",
+      "body": "Product leadership requests recent search usage trends before roadmap prioritization.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Review search analytics" ],
+      "execution": {
+        "definitionOfDone": "Search adoption metrics are summarized and shared with product leadership.",
+        "process": [ "Analyze usage trends", "Identify growth patterns", "Prepare insights", "Send summary" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-969",
+      "title": "Action required: infrastructure capacity threshold update",
+      "body": "Operations leadership requests revised infrastructure thresholds for expected traffic growth.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Review utilization forecasts" ],
+      "execution": {
+        "definitionOfDone": "Capacity thresholds are updated and approved by stakeholders.",
+        "process": [ "Analyze utilization trends", "Forecast demand", "Adjust thresholds", "Publish recommendations" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-970",
+      "title": "Engineering follow-up: developer portal adoption review",
+      "body": "Leadership requests metrics on internal developer portal usage and onboarding effectiveness.",
+      "severity": "P3",
+      "due": "2026-06-27",
+      "impact": 5,
+      "status": "Unread",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Collect portal analytics" ],
+      "execution": {
+        "definitionOfDone": "Developer portal adoption metrics and recommendations are shared.",
+        "process": [ "Review usage data", "Identify adoption barriers", "Prepare findings", "Send report" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-971",
+      "title": "Customer inquiry: analytics export frequency clarification",
+      "body": "Enterprise customer requests details about scheduled analytics export intervals.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Review export schedules", "Validate customer configuration" ],
+      "execution": {
+        "definitionOfDone": "Customer receives documented export frequency expectations and configuration guidance.",
+        "process": [ "Review export settings", "Validate schedules", "Prepare response", "Send update" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "MAIL-972",
+      "title": "Executive request: weekly delivery risk update",
+      "body": "Leadership requests a consolidated summary of high-risk deliverables and blocked initiatives before weekly planning.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Review sprint metrics", "Collect blocker status" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives a prioritized risk summary with mitigation actions.",
+        "process": [ "Review sprint metrics", "Identify blockers", "Estimate delivery impact", "Share summary" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-973",
+      "title": "Customer escalation: account lockout increase",
+      "body": "Support team reports increased account lockouts affecting enterprise users.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Review authentication logs", "Coordinate with support team" ],
+      "execution": {
+        "definitionOfDone": "Root cause is identified and customer communication is completed.",
+        "process": [ "Analyze login metrics", "Review account events", "Identify causes", "Send update" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-974",
+      "title": "Partner request: API usage forecast review",
+      "body": "Strategic partner submitted revised API traffic projections requiring capacity validation.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Unread",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Review traffic forecast", "Coordinate with Platform team" ],
+      "execution": {
+        "definitionOfDone": "Partner receives approved capacity guidance.",
+        "process": [ "Analyze forecast", "Validate capacity", "Identify risks", "Send response" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-975",
+      "title": "Finance alert: failed invoice exports",
+      "body": "Finance team cannot access scheduled invoice exports for month-end reconciliation.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Review export logs", "Validate storage access" ],
+      "execution": {
+        "definitionOfDone": "Invoice exports are restored and finance receives an update.",
+        "process": [ "Analyze export jobs", "Identify failures", "Coordinate fixes", "Share status" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-976",
+      "title": "Reminder: notification cost optimization proposal",
+      "body": "Leadership requests cost-saving opportunities for notification delivery channels.",
+      "severity": "P3",
+      "due": "2026-06-25",
+      "impact": 5,
+      "status": "Unread",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Collect provider cost reports" ],
+      "execution": {
+        "definitionOfDone": "Cost optimization proposal is delivered to leadership.",
+        "process": [ "Review provider costs", "Compare channel efficiency", "Estimate savings", "Prepare proposal" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "MAIL-977",
+      "title": "Compliance notice: security training completion overdue",
+      "body": "Several engineering teams have not completed mandatory security training.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Review training reports" ],
+      "execution": {
+        "definitionOfDone": "Training completion gaps are identified and reminders are sent.",
+        "process": [ "Analyze completion reports", "Identify overdue users", "Prepare reminders", "Notify managers" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-978",
+      "title": "Product follow-up: search usage segmentation",
+      "body": "Product managers request search usage metrics segmented by customer tier.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 6,
+      "status": "Unread",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Generate search analytics report" ],
+      "execution": {
+        "definitionOfDone": "Segmented search metrics are shared with product teams.",
+        "process": [ "Review analytics", "Segment customer data", "Prepare insights", "Send report" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-979",
+      "title": "Action required: infrastructure incident drill schedule",
+      "body": "Operations leadership requests confirmation of the next disaster recovery exercise.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Review recovery calendar" ],
+      "execution": {
+        "definitionOfDone": "Disaster recovery drill schedule is finalized and communicated.",
+        "process": [ "Review calendar", "Coordinate stakeholders", "Confirm scope", "Share schedule" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "MAIL-980",
+      "title": "Engineering request: documentation search improvements",
+      "body": "Developers report difficulty locating internal documentation.",
+      "severity": "P3",
+      "due": "2026-06-27",
+      "impact": 5,
+      "status": "Unread",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Collect developer feedback" ],
+      "execution": {
+        "definitionOfDone": "Documentation search improvements are prioritized and shared.",
+        "process": [ "Analyze feedback", "Identify search gaps", "Recommend improvements", "Publish findings" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "MAIL-981",
+      "title": "Customer request: analytics retention policy clarification",
+      "body": "Enterprise customer requests clarification regarding historical analytics retention limits.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 7,
+      "status": "Unread",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Review retention policies" ],
+      "execution": {
+        "definitionOfDone": "Customer receives approved retention policy details.",
+        "process": [ "Review policy", "Validate account settings", "Prepare response", "Send update" ],
+        "estimatedMinutes": 20
+      }
+    }
+  ]
+}

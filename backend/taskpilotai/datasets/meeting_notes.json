@@ -1,0 +1,1387 @@
+{
+  "id": "notes",
+  "name": "Meeting Notes",
+  "type": "note",
+  "color": "#22a06b",
+  "items": [
+    {
+      "id": "MEET-31",
+      "title": "Follow up on dashboard count mismatch",
+      "body": "Standup action: Utkarsh to pair with data team and identify why dashboard totals differ after nightly job.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Analytics",
+      "dependencies": [ "Data team log export" ],
+      "execution": {
+        "definitionOfDone": "Data mismatch follow-up has owner, RCA path, and next update time.",
+        "process": [ "Schedule data-team pairing", "Collect example dashboard mismatch", "Compare job output", "Post standup follow-up" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-32",
+      "title": "Confirm API rate limit thresholds for enterprise tenants",
+      "body": "Architecture review action: Meera to validate current rate limits with customer success team before next release.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Customer usage metrics", "Customer success feedback" ],
+      "execution": {
+        "definitionOfDone": "Rate limit thresholds are reviewed and updated recommendations are documented.",
+        "process": [ "Collect usage metrics", "Review customer feedback", "Analyze traffic patterns", "Publish recommendations" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-33",
+      "title": "Review onboarding drop-off metrics",
+      "body": "Growth sync action: Riya to analyze user drop-off after profile completion step.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Growth",
+      "dependencies": [ "Analytics dashboard access" ],
+      "execution": {
+        "definitionOfDone": "Drop-off causes are identified and next actions are assigned.",
+        "process": [ "Review onboarding funnel", "Identify drop-off points", "Prepare findings", "Share recommendations" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-34",
+      "title": "Validate notification provider SLA compliance",
+      "body": "Incident review action: Arjun to compare provider delivery times against contractual SLA.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Provider delivery reports" ],
+      "execution": {
+        "definitionOfDone": "Provider SLA compliance report is shared with stakeholders.",
+        "process": [ "Collect delivery metrics", "Compare against SLA", "Identify gaps", "Present findings" ],
+        "estimatedMinutes": 70
+      }
+    },
+    {
+      "id": "MEET-35",
+      "title": "Prepare compliance audit evidence package",
+      "body": "Security review action: Vikram to compile required evidence for upcoming compliance audit.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 10,
+      "status": "Captured",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Audit logs export", "Access review reports" ],
+      "execution": {
+        "definitionOfDone": "All requested compliance evidence is collected and reviewed.",
+        "process": [ "Gather audit records", "Validate evidence completeness", "Organize documentation", "Submit package" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "MEET-36",
+      "title": "Follow up on CI pipeline failure trends",
+      "body": "Engineering retrospective action: Sanya to identify the most frequent CI failure categories.",
+      "severity": "P3",
+      "due": "2026-06-26",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "CI failure reports" ],
+      "execution": {
+        "definitionOfDone": "Top CI failure patterns are documented with improvement proposals.",
+        "process": [ "Review pipeline history", "Categorize failures", "Identify root causes", "Present recommendations" ],
+        "estimatedMinutes": 95
+      }
+    },
+
+    {
+      "id": "MEET-37",
+      "title": "Investigate infrastructure cost increase",
+      "body": "Operations review action: Karan to analyze recent cloud cost spikes.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Cloud billing reports" ],
+      "execution": {
+        "definitionOfDone": "Cost drivers are identified and optimization actions are proposed.",
+        "process": [ "Review billing reports", "Analyze cost trends", "Identify anomalies", "Share findings" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-38",
+      "title": "Document partner API migration timeline",
+      "body": "Partner sync action: Rohan to align migration milestones with external teams.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner roadmap confirmation" ],
+      "execution": {
+        "definitionOfDone": "Migration timeline is documented and approved by stakeholders.",
+        "process": [ "Review partner requirements", "Define milestones", "Confirm dependencies", "Publish timeline" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "MEET-39",
+      "title": "Review invoice reconciliation discrepancies",
+      "body": "Finance sync action: Aisha to investigate mismatched reconciliation totals.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Finance reconciliation report" ],
+      "execution": {
+        "definitionOfDone": "Root cause of reconciliation mismatch is identified and communicated.",
+        "process": [ "Collect reconciliation data", "Compare transaction records", "Identify discrepancies", "Publish summary" ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "MEET-40",
+      "title": "Analyze search indexing delays",
+      "body": "Platform standup action: Meera to review indexing backlog growth.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Search queue metrics" ],
+      "execution": {
+        "definitionOfDone": "Indexing bottlenecks are identified and mitigation actions are assigned.",
+        "process": [ "Review queue metrics", "Analyze indexing delays", "Identify bottlenecks", "Assign next steps" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-41",
+      "title": "Verify dashboard data freshness targets",
+      "body": "Analytics review action: Utkarsh to confirm dashboard refresh intervals with stakeholders.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 6,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Analytics",
+      "dependencies": [ "Dashboard refresh metrics" ],
+      "execution": {
+        "definitionOfDone": "Dashboard freshness expectations are documented and aligned.",
+        "process": [ "Review refresh schedules", "Compare stakeholder expectations", "Identify gaps", "Document decisions" ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "MEET-42",
+      "title": "Validate customer export performance targets",
+      "body": "Customer escalation action: Utkarsh to confirm acceptable export durations for enterprise accounts.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Customer success feedback", "Export performance metrics" ],
+      "execution": {
+        "definitionOfDone": "Export performance targets are documented and approved by stakeholders.",
+        "process": [ "Review export metrics", "Gather customer feedback", "Define performance targets", "Publish action items" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-43",
+      "title": "Review authentication failure trends",
+      "body": "Identity sync action: Riya to analyze login failures after recent authentication updates.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 10,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Authentication error logs" ],
+      "execution": {
+        "definitionOfDone": "Failure patterns are identified and remediation owners are assigned.",
+        "process": [ "Analyze login metrics", "Review authentication logs", "Identify root causes", "Share findings" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-44",
+      "title": "Confirm partner API deprecation timeline",
+      "body": "Integration review action: Rohan to align API deprecation milestones with partner teams.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner roadmap update" ],
+      "execution": {
+        "definitionOfDone": "Deprecation timeline is agreed upon and communicated.",
+        "process": [ "Review partner schedules", "Confirm migration dates", "Document dependencies", "Publish timeline" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-45",
+      "title": "Investigate failed payment reconciliation cases",
+      "body": "Finance review action: Aisha to identify root causes for unmatched payment records.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Finance reconciliation report" ],
+      "execution": {
+        "definitionOfDone": "Reconciliation issues are categorized with corrective actions assigned.",
+        "process": [ "Collect transaction records", "Compare reconciliation outputs", "Identify mismatches", "Document findings" ],
+        "estimatedMinutes": 105
+      }
+    },
+    {
+      "id": "MEET-46",
+      "title": "Review messaging provider failover readiness",
+      "body": "Incident follow-up action: Arjun to validate failover procedures for notification providers.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Provider failover documentation" ],
+      "execution": {
+        "definitionOfDone": "Failover readiness gaps are identified and remediation actions are assigned.",
+        "process": [ "Review failover procedures", "Validate provider configurations", "Run scenario checks", "Share recommendations" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-47",
+      "title": "Assess infrastructure capacity requirements",
+      "body": "Operations planning action: Karan to review infrastructure growth projections for next quarter.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Capacity planning report" ],
+      "execution": {
+        "definitionOfDone": "Capacity projections are documented with scaling recommendations.",
+        "process": [ "Review utilization trends", "Forecast demand", "Identify capacity gaps", "Publish recommendations" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "MEET-48",
+      "title": "Analyze repository review bottlenecks",
+      "body": "Engineering retrospective action: Sanya to identify causes of delayed pull request approvals.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Pull request analytics report" ],
+      "execution": {
+        "definitionOfDone": "Review bottlenecks are documented with proposed improvements.",
+        "process": [ "Collect review metrics", "Analyze approval delays", "Identify bottlenecks", "Recommend actions" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-49",
+      "title": "Review data pipeline recovery procedures",
+      "body": "Analytics retrospective action: Neha to validate recovery steps for failed ETL jobs.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "ETL incident reports" ],
+      "execution": {
+        "definitionOfDone": "Recovery procedures are updated and approved by stakeholders.",
+        "process": [ "Review incident history", "Validate recovery steps", "Identify process gaps", "Document improvements" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-50",
+      "title": "Confirm search indexing SLA expectations",
+      "body": "Platform sync action: Meera to align search freshness expectations with customer-facing teams.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Search latency metrics" ],
+      "execution": {
+        "definitionOfDone": "Search indexing SLA targets are documented and communicated.",
+        "process": [ "Review latency metrics", "Gather stakeholder input", "Define SLA targets", "Publish summary" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-51",
+      "title": "Prepare sprint risk summary for leadership",
+      "body": "Manager sync action: Utkarsh to summarize blocked work items and delivery risks.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Sprint status report" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives an updated sprint risk summary with mitigation plans.",
+        "process": [ "Review sprint status", "Identify delivery risks", "Prepare mitigation plan", "Share summary" ],
+        "estimatedMinutes": 70
+      }
+    },
+    {
+      "id": "MEET-52",
+      "title": "Review release readiness blockers",
+      "body": "Sprint planning action: Utkarsh to compile unresolved blockers impacting the upcoming release.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Sprint board status", "Release checklist" ],
+      "execution": {
+        "definitionOfDone": "Release blockers are documented with owners and target resolution dates.",
+        "process": [ "Review sprint board", "Identify blockers", "Assign owners", "Publish release update" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-53",
+      "title": "Analyze authentication latency increase",
+      "body": "Identity review action: Riya to investigate increased login response times reported by customers.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 10,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Authentication performance dashboard" ],
+      "execution": {
+        "definitionOfDone": "Authentication latency trends are analyzed and mitigation actions are assigned.",
+        "process": [ "Review latency metrics", "Analyze recent changes", "Identify bottlenecks", "Present findings" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-54",
+      "title": "Validate partner migration dependencies",
+      "body": "Integration sync action: Rohan to confirm external dependencies for upcoming partner migrations.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner migration plan" ],
+      "execution": {
+        "definitionOfDone": "Migration dependencies are documented and communicated to stakeholders.",
+        "process": [ "Review migration plans", "Identify dependencies", "Confirm partner timelines", "Publish updates" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-55",
+      "title": "Review failed subscription renewals",
+      "body": "Billing review action: Aisha to investigate recent increases in failed renewal transactions.",
+      "severity": "P1",
+      "due": "2026-06-25",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Renewal transaction report" ],
+      "execution": {
+        "definitionOfDone": "Renewal failure causes are identified and corrective actions are assigned.",
+        "process": [ "Collect renewal data", "Analyze failure reasons", "Identify patterns", "Share recommendations" ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "MEET-56",
+      "title": "Assess notification queue capacity",
+      "body": "Operations action: Arjun to evaluate notification throughput requirements for peak traffic periods.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Queue utilization metrics" ],
+      "execution": {
+        "definitionOfDone": "Notification capacity requirements are documented with scaling recommendations.",
+        "process": [ "Review queue metrics", "Forecast traffic growth", "Assess capacity limits", "Recommend improvements" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-57",
+      "title": "Validate backup recovery objectives",
+      "body": "Infrastructure review action: Karan to verify backup recovery performance against defined targets.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Recovery drill results" ],
+      "execution": {
+        "definitionOfDone": "Recovery objectives are validated and improvement actions are documented.",
+        "process": [ "Review recovery metrics", "Compare against objectives", "Identify gaps", "Publish recommendations" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "MEET-58",
+      "title": "Review code ownership coverage",
+      "body": "Developer experience action: Sanya to identify repositories missing ownership definitions.",
+      "severity": "P3",
+      "due": "2026-06-29",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Repository ownership report" ],
+      "execution": {
+        "definitionOfDone": "Ownership gaps are identified with follow-up actions assigned.",
+        "process": [ "Analyze repository metadata", "Identify missing owners", "Document findings", "Recommend actions" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-59",
+      "title": "Investigate analytics data freshness gaps",
+      "body": "Analytics sync action: Neha to review delays between source updates and dashboard availability.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "ETL processing metrics" ],
+      "execution": {
+        "definitionOfDone": "Data freshness issues are documented with remediation steps.",
+        "process": [ "Review ETL schedules", "Analyze refresh delays", "Identify bottlenecks", "Share findings" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-60",
+      "title": "Confirm search performance expectations",
+      "body": "Platform review action: Meera to align search response time targets with customer-facing teams.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 6,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Search performance reports" ],
+      "execution": {
+        "definitionOfDone": "Search performance targets are agreed upon and documented.",
+        "process": [ "Review performance metrics", "Collect stakeholder feedback", "Define targets", "Publish summary" ],
+        "estimatedMinutes": 70
+      }
+    },
+    {
+      "id": "MEET-61",
+      "title": "Prepare engineering workload summary",
+      "body": "Leadership sync action: Utkarsh to summarize current workload distribution and overloaded teams.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Sprint metrics dashboard" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives a workload summary with recommended actions.",
+        "process": [ "Review team metrics", "Identify overloaded teams", "Prepare recommendations", "Share summary" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-62",
+      "title": "Review customer escalation response process",
+      "body": "Operations sync action: Utkarsh to evaluate response times for high-priority customer incidents.",
+      "severity": "P1",
+      "due": "2026-06-25",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Incident response metrics" ],
+      "execution": {
+        "definitionOfDone": "Response time gaps are identified and improvement actions are assigned.",
+        "process": [ "Review incident metrics", "Analyze response times", "Identify bottlenecks", "Document recommendations" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-63",
+      "title": "Validate multi-factor authentication adoption",
+      "body": "Security review action: Riya to assess MFA adoption across enterprise customers.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Authentication usage reports" ],
+      "execution": {
+        "definitionOfDone": "MFA adoption metrics are reviewed and follow-up actions are documented.",
+        "process": [ "Collect adoption data", "Analyze usage trends", "Identify low adoption segments", "Publish findings" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-64",
+      "title": "Confirm external API support commitments",
+      "body": "Partner sync action: Rohan to verify support timelines for upcoming integration changes.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner support agreements" ],
+      "execution": {
+        "definitionOfDone": "Support commitments are documented and communicated to stakeholders.",
+        "process": [ "Review partner agreements", "Validate support timelines", "Document dependencies", "Share updates" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-65",
+      "title": "Analyze billing dispute trends",
+      "body": "Finance review action: Aisha to investigate recent increases in customer billing disputes.",
+      "severity": "P1",
+      "due": "2026-06-27",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Customer dispute reports" ],
+      "execution": {
+        "definitionOfDone": "Billing dispute patterns are identified and mitigation plans are created.",
+        "process": [ "Review dispute records", "Identify common causes", "Analyze trends", "Recommend actions" ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "MEET-66",
+      "title": "Review notification delivery health metrics",
+      "body": "Messaging sync action: Arjun to evaluate notification success rates across providers.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Provider delivery dashboards" ],
+      "execution": {
+        "definitionOfDone": "Notification delivery health report is shared with stakeholders.",
+        "process": [ "Collect provider metrics", "Compare delivery rates", "Identify issues", "Publish findings" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-67",
+      "title": "Assess infrastructure utilization forecasts",
+      "body": "Capacity planning action: Karan to evaluate projected infrastructure requirements for the next quarter.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Infrastructure utilization reports" ],
+      "execution": {
+        "definitionOfDone": "Capacity forecasts are validated and scaling recommendations are documented.",
+        "process": [ "Review utilization trends", "Forecast demand", "Identify capacity risks", "Publish recommendations" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-68",
+      "title": "Evaluate pull request review turnaround time",
+      "body": "Developer experience retrospective action: Sanya to analyze delays in code review cycles.",
+      "severity": "P3",
+      "due": "2026-06-30",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Pull request analytics dashboard" ],
+      "execution": {
+        "definitionOfDone": "Review cycle bottlenecks are identified and improvement proposals are documented.",
+        "process": [ "Collect review metrics", "Analyze review delays", "Identify bottlenecks", "Recommend changes" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-69",
+      "title": "Validate analytics reporting accuracy",
+      "body": "Analytics review action: Neha to compare dashboard outputs with source system data.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Source data exports" ],
+      "execution": {
+        "definitionOfDone": "Reporting discrepancies are identified and corrective actions are assigned.",
+        "process": [ "Compare source data", "Validate dashboard metrics", "Identify discrepancies", "Document findings" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "MEET-70",
+      "title": "Review search relevance feedback",
+      "body": "Platform sync action: Meera to analyze customer feedback related to search quality.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 6,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Customer feedback reports" ],
+      "execution": {
+        "definitionOfDone": "Search quality improvement opportunities are documented.",
+        "process": [ "Review customer feedback", "Analyze search metrics", "Identify improvement areas", "Share recommendations" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-71",
+      "title": "Prepare cross-team dependency summary",
+      "body": "Program review action: Utkarsh to summarize active dependencies affecting sprint commitments.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Sprint dependency report" ],
+      "execution": {
+        "definitionOfDone": "Cross-team dependencies are documented with owners and timelines.",
+        "process": [ "Review dependency reports", "Identify blocked work", "Assign owners", "Publish summary" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-72",
+      "title": "Review incident escalation effectiveness",
+      "body": "Operations retrospective action: Utkarsh to analyze escalation paths for recent high-priority incidents.",
+      "severity": "P1",
+      "due": "2026-06-26",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Incident timeline reports" ],
+      "execution": {
+        "definitionOfDone": "Escalation gaps are identified and process improvements are documented.",
+        "process": [ "Review incident timelines", "Analyze escalation delays", "Identify bottlenecks", "Recommend improvements" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-73",
+      "title": "Validate password reset success metrics",
+      "body": "Identity review action: Riya to assess password reset completion rates after recent workflow changes.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Authentication workflow analytics" ],
+      "execution": {
+        "definitionOfDone": "Password reset success rates are reviewed and optimization opportunities are documented.",
+        "process": [ "Collect reset metrics", "Analyze completion rates", "Identify failure patterns", "Publish findings" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-74",
+      "title": "Assess partner onboarding readiness",
+      "body": "Integration planning action: Rohan to confirm technical readiness for upcoming partner launches.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner onboarding checklist" ],
+      "execution": {
+        "definitionOfDone": "Partner onboarding requirements are validated and action items are assigned.",
+        "process": [ "Review onboarding checklist", "Confirm dependencies", "Assess readiness", "Share updates" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-75",
+      "title": "Analyze refund processing delays",
+      "body": "Finance sync action: Aisha to investigate increased refund completion times.",
+      "severity": "P1",
+      "due": "2026-06-28",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Refund transaction reports" ],
+      "execution": {
+        "definitionOfDone": "Refund processing bottlenecks are identified and mitigation actions are assigned.",
+        "process": [ "Review refund metrics", "Analyze processing delays", "Identify root causes", "Present recommendations" ],
+        "estimatedMinutes": 105
+      }
+    },
+    {
+      "id": "MEET-76",
+      "title": "Review notification retry performance",
+      "body": "Messaging operations action: Arjun to evaluate retry success rates across delivery providers.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Provider retry metrics" ],
+      "execution": {
+        "definitionOfDone": "Notification retry behavior is documented with optimization recommendations.",
+        "process": [ "Collect retry statistics", "Analyze provider performance", "Identify failure patterns", "Share findings" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-77",
+      "title": "Validate disaster recovery communication plan",
+      "body": "Infrastructure review action: Karan to confirm stakeholder communication procedures during outages.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Disaster recovery playbook" ],
+      "execution": {
+        "definitionOfDone": "Communication procedures are reviewed and improvement actions are documented.",
+        "process": [ "Review recovery playbook", "Validate communication flows", "Identify gaps", "Update documentation" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-78",
+      "title": "Assess developer onboarding efficiency",
+      "body": "Developer experience action: Sanya to review onboarding timelines for new engineering hires.",
+      "severity": "P3",
+      "due": "2026-07-01",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Onboarding feedback survey" ],
+      "execution": {
+        "definitionOfDone": "Onboarding delays are identified with recommendations for improvement.",
+        "process": [ "Collect onboarding feedback", "Analyze completion times", "Identify blockers", "Recommend changes" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-79",
+      "title": "Review analytics alert accuracy",
+      "body": "Analytics retrospective action: Neha to evaluate false positive rates in monitoring dashboards.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Alert history reports" ],
+      "execution": {
+        "definitionOfDone": "Alert accuracy issues are identified and tuning recommendations are documented.",
+        "process": [ "Review alert history", "Calculate false positive rates", "Identify noisy rules", "Publish recommendations" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-80",
+      "title": "Evaluate cache performance targets",
+      "body": "Platform review action: Meera to confirm cache hit rate objectives for customer-facing services.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 6,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Cache performance dashboard" ],
+      "execution": {
+        "definitionOfDone": "Cache performance targets are documented with optimization priorities.",
+        "process": [ "Review cache metrics", "Compare against targets", "Identify gaps", "Publish recommendations" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-81",
+      "title": "Prepare engineering risk register update",
+      "body": "Leadership sync action: Utkarsh to summarize newly identified delivery risks and mitigation plans.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Quarterly risk assessment" ],
+      "execution": {
+        "definitionOfDone": "Risk register is updated and shared with stakeholders.",
+        "process": [ "Review current risks", "Identify new risks", "Define mitigation actions", "Publish updated register" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-82",
+      "title": "Review sprint carryover items",
+      "body": "Sprint retrospective action: Utkarsh to analyze recurring carryover tasks and identify delivery bottlenecks.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Sprint velocity report" ],
+      "execution": {
+        "definitionOfDone": "Carryover causes are documented with mitigation actions and owners.",
+        "process": [ "Review sprint metrics", "Identify recurring blockers", "Analyze delivery trends", "Share recommendations" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-83",
+      "title": "Validate session timeout policy changes",
+      "body": "Identity review action: Riya to confirm customer impact of updated session timeout settings.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Session analytics dashboard" ],
+      "execution": {
+        "definitionOfDone": "Session timeout changes are validated and customer impact is documented.",
+        "process": [ "Review session metrics", "Analyze user behavior", "Identify friction points", "Publish findings" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-84",
+      "title": "Assess partner support ticket trends",
+      "body": "Partner sync action: Rohan to review common integration support requests from external teams.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner support dashboard" ],
+      "execution": {
+        "definitionOfDone": "Support trends are categorized and improvement opportunities are identified.",
+        "process": [ "Collect support data", "Analyze ticket categories", "Identify recurring issues", "Recommend actions" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-85",
+      "title": "Review invoice processing SLA adherence",
+      "body": "Billing operations action: Aisha to compare invoice generation times against agreed targets.",
+      "severity": "P1",
+      "due": "2026-06-29",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Invoice processing reports" ],
+      "execution": {
+        "definitionOfDone": "Invoice SLA deviations are identified with corrective actions assigned.",
+        "process": [ "Review processing metrics", "Compare against SLA", "Identify delays", "Document findings" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "MEET-86",
+      "title": "Analyze notification channel effectiveness",
+      "body": "Messaging review action: Arjun to compare delivery success rates across email, SMS, and push notifications.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Notification analytics dashboard" ],
+      "execution": {
+        "definitionOfDone": "Channel performance insights are documented with optimization recommendations.",
+        "process": [ "Collect delivery metrics", "Compare channel performance", "Identify gaps", "Share recommendations" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-87",
+      "title": "Validate infrastructure alert thresholds",
+      "body": "SRE review action: Karan to assess whether current alert thresholds align with operational targets.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Monitoring dashboard metrics" ],
+      "execution": {
+        "definitionOfDone": "Alert threshold adjustments are documented and approved.",
+        "process": [ "Review alert history", "Analyze threshold effectiveness", "Identify noisy alerts", "Recommend changes" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-88",
+      "title": "Review internal developer documentation coverage",
+      "body": "Developer experience action: Sanya to identify gaps in onboarding and contribution documentation.",
+      "severity": "P3",
+      "due": "2026-07-02",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Documentation inventory report" ],
+      "execution": {
+        "definitionOfDone": "Documentation gaps are identified with follow-up actions assigned.",
+        "process": [ "Review existing documentation", "Collect developer feedback", "Identify missing content", "Publish recommendations" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-89",
+      "title": "Evaluate dashboard adoption metrics",
+      "body": "Analytics review action: Neha to assess usage patterns for newly launched reporting dashboards.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 6,
+      "status": "Captured",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Dashboard usage reports" ],
+      "execution": {
+        "definitionOfDone": "Dashboard adoption insights are documented with improvement opportunities.",
+        "process": [ "Analyze usage metrics", "Review adoption trends", "Identify low-engagement areas", "Share findings" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-90",
+      "title": "Confirm search availability targets",
+      "body": "Platform sync action: Meera to align search uptime objectives with customer expectations.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 6,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Search uptime reports" ],
+      "execution": {
+        "definitionOfDone": "Search availability targets are documented and communicated.",
+        "process": [ "Review uptime metrics", "Gather stakeholder feedback", "Define availability targets", "Publish summary" ],
+        "estimatedMinutes": 70
+      }
+    },
+    {
+      "id": "MEET-91",
+      "title": "Prepare cross-functional blocker report",
+      "body": "Program management action: Utkarsh to summarize unresolved dependencies impacting multiple teams.",
+      "severity": "P1",
+      "due": "2026-06-27",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Cross-team dependency tracker" ],
+      "execution": {
+        "definitionOfDone": "Blockers are documented with escalation paths and resolution owners.",
+        "process": [ "Review dependency tracker", "Identify blocked initiatives", "Assign owners", "Publish report" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-92",
+      "title": "Review customer onboarding completion targets",
+      "body": "Growth sync action: Riya to evaluate onboarding completion rates after recent workflow updates.",
+      "severity": "P1",
+      "due": "2026-06-28",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Growth",
+      "dependencies": [ "Onboarding analytics dashboard" ],
+      "execution": {
+        "definitionOfDone": "Onboarding performance gaps are identified with improvement actions assigned.",
+        "process": [ "Review onboarding metrics", "Analyze completion rates", "Identify drop-off points", "Publish recommendations" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-93",
+      "title": "Validate partner webhook migration readiness",
+      "body": "Integration review action: Rohan to confirm external teams are prepared for webhook endpoint changes.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner migration checklist" ],
+      "execution": {
+        "definitionOfDone": "Webhook migration readiness is documented with identified risks and owners.",
+        "process": [ "Review migration checklist", "Confirm partner timelines", "Identify dependencies", "Share readiness update" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-94",
+      "title": "Analyze subscription churn indicators",
+      "body": "Billing strategy action: Aisha to investigate trends contributing to increased customer churn.",
+      "severity": "P1",
+      "due": "2026-06-30",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Customer retention reports" ],
+      "execution": {
+        "definitionOfDone": "Churn drivers are identified and mitigation actions are documented.",
+        "process": [ "Review retention metrics", "Analyze cancellation reasons", "Identify risk segments", "Present findings" ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "MEET-95",
+      "title": "Assess notification escalation workflows",
+      "body": "Messaging operations action: Arjun to validate escalation procedures for failed notifications.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Notification incident reports" ],
+      "execution": {
+        "definitionOfDone": "Escalation workflows are reviewed with optimization opportunities documented.",
+        "process": [ "Review incident history", "Analyze escalation patterns", "Identify process gaps", "Recommend improvements" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-96",
+      "title": "Review infrastructure scaling assumptions",
+      "body": "Capacity planning action: Karan to validate growth assumptions used in infrastructure forecasts.",
+      "severity": "P2",
+      "due": "2026-07-02",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Quarterly capacity forecast" ],
+      "execution": {
+        "definitionOfDone": "Scaling assumptions are validated and forecast updates are documented.",
+        "process": [ "Review forecast models", "Validate growth assumptions", "Identify capacity risks", "Publish recommendations" ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "MEET-97",
+      "title": "Evaluate developer self-service adoption",
+      "body": "Developer experience action: Sanya to measure usage of internal self-service tooling.",
+      "severity": "P3",
+      "due": "2026-07-03",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Developer portal analytics" ],
+      "execution": {
+        "definitionOfDone": "Self-service adoption trends are documented with improvement recommendations.",
+        "process": [ "Review usage metrics", "Collect developer feedback", "Identify adoption barriers", "Share findings" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-98",
+      "title": "Validate analytics pipeline ownership",
+      "body": "Analytics retrospective action: Neha to confirm ownership for critical ETL workflows.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "ETL ownership registry" ],
+      "execution": {
+        "definitionOfDone": "Ownership gaps are resolved and escalation paths are documented.",
+        "process": [ "Review ownership records", "Identify missing owners", "Assign responsibilities", "Publish updates" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-99",
+      "title": "Assess search query performance trends",
+      "body": "Platform review action: Meera to evaluate search response times across enterprise accounts.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Search performance dashboard" ],
+      "execution": {
+        "definitionOfDone": "Search performance trends are documented with optimization priorities.",
+        "process": [ "Review latency metrics", "Analyze customer segments", "Identify bottlenecks", "Recommend actions" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-100",
+      "title": "Prepare executive delivery risk update",
+      "body": "Leadership sync action: Utkarsh to summarize delivery risks impacting quarterly objectives.",
+      "severity": "P1",
+      "due": "2026-06-28",
+      "impact": 10,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Quarterly roadmap status" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives an updated risk summary with mitigation plans and owners.",
+        "process": [ "Review roadmap status", "Identify delivery risks", "Document mitigation plans", "Share executive update" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "MEET-101",
+      "title": "Review security incident response metrics",
+      "body": "Security operations action: Vikram to analyze response times for recent security alerts.",
+      "severity": "P1",
+      "due": "2026-06-29",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Security incident dashboard" ],
+      "execution": {
+        "definitionOfDone": "Security response performance is evaluated with improvement actions identified.",
+        "process": [ "Review incident metrics", "Analyze response timelines", "Identify delays", "Publish recommendations" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-102",
+      "title": "Validate incident postmortem action ownership",
+      "body": "Operations review action: Utkarsh to confirm ownership and timelines for open postmortem action items.",
+      "severity": "P1",
+      "due": "2026-06-30",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Incident postmortem tracker" ],
+      "execution": {
+        "definitionOfDone": "All postmortem actions have owners, deadlines, and follow-up checkpoints.",
+        "process": [ "Review postmortem tracker", "Identify unassigned items", "Confirm ownership", "Publish status update" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-103",
+      "title": "Assess account recovery success rates",
+      "body": "Identity review action: Riya to evaluate user success rates for account recovery workflows.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Account recovery analytics" ],
+      "execution": {
+        "definitionOfDone": "Recovery workflow issues are identified and improvement recommendations are documented.",
+        "process": [ "Review recovery metrics", "Analyze completion rates", "Identify friction points", "Share findings" ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "MEET-104",
+      "title": "Review partner integration support readiness",
+      "body": "Partner operations action: Rohan to confirm support coverage for upcoming integration launches.",
+      "severity": "P2",
+      "due": "2026-07-02",
+      "impact": 8,
+      "status": "Captured",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner launch calendar" ],
+      "execution": {
+        "definitionOfDone": "Support readiness risks are identified and mitigation plans are assigned.",
+        "process": [ "Review launch schedule", "Validate support plans", "Identify gaps", "Document recommendations" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "MEET-105",
+      "title": "Analyze failed payment authorization trends",
+      "body": "Billing operations action: Aisha to investigate increases in declined payment authorizations.",
+      "severity": "P1",
+      "due": "2026-07-01",
+      "impact": 9,
+      "status": "Captured",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Payment authorization reports" ],
+      "execution": {
+        "definitionOfDone": "Authorization failure causes are identified with mitigation actions documented.",
+        "process": [ "Review payment metrics", "Analyze decline reasons", "Identify trends", "Share recommendations" ],
+        "estimatedMinutes": 105
+      }
+    },
+    {
+      "id": "MEET-106",
+      "title": "Evaluate notification provider cost efficiency",
+      "body": "Messaging review action: Arjun to compare delivery costs and reliability across providers.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 6,
+      "status": "Captured",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Provider cost reports" ],
+      "execution": {
+        "definitionOfDone": "Provider cost and reliability trade-offs are documented.",
+        "process": [ "Collect provider metrics", "Compare delivery costs", "Analyze reliability data", "Publish findings" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-107",
+      "title": "Review infrastructure maintenance windows",
+      "body": "SRE planning action: Karan to validate maintenance schedules against customer usage patterns.",
+      "severity": "P2",
+      "due": "2026-07-03",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Infrastructure maintenance calendar" ],
+      "execution": {
+        "definitionOfDone": "Maintenance windows are optimized to minimize customer impact.",
+        "process": [ "Review maintenance history", "Analyze customer usage", "Identify conflicts", "Recommend updates" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-108",
+      "title": "Assess engineering knowledge base usage",
+      "body": "Developer experience action: Sanya to evaluate adoption of internal engineering documentation.",
+      "severity": "P3",
+      "due": "2026-07-04",
+      "impact": 5,
+      "status": "Captured",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [ "Knowledge base analytics" ],
+      "execution": {
+        "definitionOfDone": "Knowledge base adoption trends are documented with improvement actions.",
+        "process": [ "Review usage metrics", "Collect developer feedback", "Identify content gaps", "Share recommendations" ],
+        "estimatedMinutes": 70
+      }
+    },
+    {
+      "id": "MEET-109",
+      "title": "Validate ETL pipeline recovery ownership",
+      "body": "Analytics operations action: Neha to confirm escalation ownership for failed ETL workflows.",
+      "severity": "P2",
+      "due": "2026-07-02",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "ETL incident runbook" ],
+      "execution": {
+        "definitionOfDone": "Recovery ownership and escalation paths are documented and approved.",
+        "process": [ "Review incident runbooks", "Validate ownership", "Identify gaps", "Update documentation" ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "MEET-110",
+      "title": "Review cache invalidation effectiveness",
+      "body": "Platform review action: Meera to analyze stale data incidents related to cache invalidation delays.",
+      "severity": "P2",
+      "due": "2026-07-01",
+      "impact": 7,
+      "status": "Captured",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Cache incident reports" ],
+      "execution": {
+        "definitionOfDone": "Cache invalidation gaps are identified with optimization priorities documented.",
+        "process": [ "Review incident history", "Analyze cache metrics", "Identify root causes", "Recommend improvements" ],
+        "estimatedMinutes": 85
+      }
+    },
+    {
+      "id": "MEET-111",
+      "title": "Prepare quarterly engineering dependency review",
+      "body": "Program management action: Utkarsh to summarize high-risk dependencies affecting quarterly initiatives.",
+      "severity": "P1",
+      "due": "2026-06-30",
+      "impact": 10,
+      "status": "Captured",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Quarterly roadmap dependencies" ],
+      "execution": {
+        "definitionOfDone": "High-risk dependencies are documented with mitigation plans and escalation owners.",
+        "process": [ "Review roadmap dependencies", "Identify critical risks", "Define mitigation plans", "Publish summary" ],
+        "estimatedMinutes": 95
+      }
+    }
+
+  ]
+}

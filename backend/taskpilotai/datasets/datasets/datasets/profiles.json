@@ -1,0 +1,74 @@
+{
+  "engineer": {
+    "name": "Full-stack Engineer",
+    "focus": "One trusted execution queue with hidden work detection.",
+    "metrics": [
+      "45 min saved daily",
+      "6 sources scanned",
+      "94% prioritization confidence"
+    ],
+    "additionalMetrics": [
+      "10 active tasks consolidated into a single queue",
+      "7 hidden dependencies surfaced automatically",
+      "4 blocked tasks escalated proactively",
+      "6 overdue pull requests prioritized",
+      "91% task ownership accuracy",
+      "5 context switches avoided daily",
+      "3 merge conflicts predicted",
+      "8 notifications suppressed through intelligent filtering",
+      "2 missed deadlines prevented weekly",
+      "89% review turnaround accuracy",
+      "12 meeting action items converted into tasks",
+      "6 customer escalations linked to engineering work",
+      "4 release blockers identified early",
+      "7 low-value alerts filtered",
+      "5 stale tasks archived automatically",
+      "3 duplicate issues merged",
+      "93% focus time protection",
+      "8 review requests prioritized by impact",
+      "4 high-risk tasks highlighted",
+      "2 hidden approval bottlenecks surfaced",
+      "6 deployment risks identified",
+      "9 work items reprioritized dynamically",
+      "5 unresolved dependencies tracked",
+      "3 sprint risks escalated",
+      "88% confidence in execution queue ordering"
+    ]
+  },
+  "manager": {
+    "name": "Engineering Manager",
+    "focus": "Team workload, blockers, SLA risk, and handoff clarity.",
+    "metrics": [
+      "3 blockers surfaced",
+      "2 SLA risks",
+      "1 overloaded engineer"
+    ],
+    "additionalMetrics": [
+      "7 cross-team dependencies identified",
+      "5 delivery risks detected early",
+      "4 engineers approaching capacity limits",
+      "2 critical milestones at risk",
+      "91% sprint completion confidence",
+      "6 blocked initiatives requiring escalation",
+      "8 hidden tasks uncovered",
+      "5 overdue action items tracked",
+      "3 review bottlenecks identified",
+      "4 customer escalations linked to roadmap work",
+      "2 underutilized engineers available for reassignment",
+      "90% workload visibility across teams",
+      "6 unresolved ownership gaps detected",
+      "3 delayed handoffs highlighted",
+      "7 overdue pull requests impacting releases",
+      "5 roadmap items affected by dependencies",
+      "4 recurring operational bottlenecks surfaced",
+      "2 release dates likely to slip",
+      "9 active risks impacting quarterly objectives",
+      "6 teams monitored for workload imbalance",
+      "3 critical incidents affecting delivery plans",
+      "5 sprint scope changes detected automatically",
+      "89% forecast accuracy for delivery timelines",
+      "4 SLA breaches predicted before impact",
+      "92% confidence in prioritization insights"
+    ]
+  }
+}

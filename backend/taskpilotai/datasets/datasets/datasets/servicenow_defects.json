@@ -1,0 +1,1165 @@
+{
+  "id": "servicenow",
+  "name": "ServiceNow Defects",
+  "type": "defect",
+  "color": "#bf2600",
+  "items": [
+    {
+      "id": "INC-7741",
+      "title": "CSV upload fails for large customer import",
+      "body": "Same failure observed by Acme and Northstar. P1 incident with one business day SLA remaining.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Utkarsh",
+      "team": "Production Support",
+      "dependencies": [ "Customer success waiting for ETA" ],
+      "execution": {
+        "definitionOfDone": "Incident resolved or workaround confirmed with customer success.",
+        "process": [ "Link to JIRA-421", "Confirm affected tenants", "Post incident update", "Validate fix in staging", "Close incident" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7818",
+      "title": "Dashboard count mismatch after nightly job",
+      "body": "P2 data freshness concern. Manager asked for root cause by Monday.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 7,
+      "status": "New",
+      "owner": "Utkarsh",
+      "team": "Analytics",
+      "dependencies": [ "Data team log export" ],
+      "execution": {
+        "definitionOfDone": "Mismatch root cause documented and replay/fix plan agreed with data team.",
+        "process": [ "Compare dashboard query to warehouse table", "Inspect nightly job logs", "Pair with data team", "Document RCA" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "INC-7820",
+      "title": "Webhook events delayed for enterprise tenants",
+      "body": "Customer notifications are arriving 20-30 minutes late after queue scaling changes.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Riya",
+      "team": "Production Support",
+      "dependencies": [ "Messaging team queue metrics", "Customer success waiting for ETA" ],
+      "execution": {
+        "definitionOfDone": "Webhook latency returns below SLA threshold for all affected tenants.",
+        "process": [ "Analyze queue metrics", "Identify bottleneck", "Deploy fix", "Validate event delivery", "Send customer update" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7821",
+      "title": "Payment reconciliation job failed overnight",
+      "body": "Finance dashboard missing settlement data for previous business day.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "New",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Database team backup validation" ],
+      "execution": {
+        "definitionOfDone": "Settlement records are restored and dashboard values are accurate.",
+        "process": [ "Review batch logs", "Replay failed jobs", "Validate totals", "Notify finance" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7822",
+      "title": "Authentication service returning intermittent 401 errors",
+      "body": "Spike in login failures observed after token validation update.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "Security team approval" ],
+      "execution": {
+        "definitionOfDone": "Authentication success rate returns above 99.9 percent.",
+        "process": [ "Analyze auth logs", "Rollback validation change", "Run smoke tests", "Monitor metrics" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7823",
+      "title": "Mobile push notifications not delivered",
+      "body": "Android users are not receiving transaction alerts.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Firebase delivery logs" ],
+      "execution": {
+        "definitionOfDone": "Push notifications are delivered successfully across all devices.",
+        "process": [ "Inspect delivery failures", "Review provider configuration", "Test notification flow", "Verify metrics" ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "INC-7824",
+      "title": "Search results showing stale records",
+      "body": "Recently updated customer profiles are not visible in search.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "Indexing service logs" ],
+      "execution": {
+        "definitionOfDone": "Search index refreshes within configured SLA.",
+        "process": [ "Review indexing jobs", "Validate queue backlog", "Rebuild index", "Verify search accuracy" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7825",
+      "title": "Audit export missing compliance records",
+      "body": "Compliance team unable to retrieve audit history for selected accounts.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Legal team validation" ],
+      "execution": {
+        "definitionOfDone": "Audit exports contain all required compliance records.",
+        "process": [ "Compare audit sources", "Validate export logic", "Generate sample exports", "Confirm with compliance" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "INC-7826",
+      "title": "Dashboard widgets timing out during peak usage",
+      "body": "High-value customers experiencing delays on analytics pages.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Database query analysis" ],
+      "execution": {
+        "definitionOfDone": "Dashboard response time remains below three seconds.",
+        "process": [ "Profile slow queries", "Optimize indexes", "Deploy improvements", "Validate performance" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "INC-7827",
+      "title": "Role permissions applied incorrectly after update",
+      "body": "Users unexpectedly gaining access to restricted modules.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Identity",
+      "dependencies": [ "Security approval", "Access audit completion" ],
+      "execution": {
+        "definitionOfDone": "Permission assignments are corrected and verified.",
+        "process": [ "Review permission matrix", "Identify regression", "Patch access rules", "Validate user roles" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7828",
+      "title": "Background jobs consuming excessive memory",
+      "body": "Worker nodes restarting due to memory pressure.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Infrastructure metrics" ],
+      "execution": {
+        "definitionOfDone": "Memory usage remains stable during peak load.",
+        "process": [ "Collect heap dumps", "Identify memory leak", "Deploy fix", "Monitor utilization" ],
+        "estimatedMinutes": 200
+      }
+    },
+    {
+      "id": "INC-7829",
+      "title": "Email verification links expiring immediately",
+      "body": "New users unable to complete onboarding flow.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Aisha",
+      "team": "Growth",
+      "dependencies": [ "Email provider logs" ],
+      "execution": {
+        "definitionOfDone": "Verification links remain active for configured duration.",
+        "process": [ "Reproduce issue", "Inspect token generation", "Deploy fix", "Validate onboarding" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7830",
+      "title": "API rate limiting causing unexpected customer errors",
+      "body": "Partner integrations exceeding threshold after traffic increase.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Traffic analysis report" ],
+      "execution": {
+        "definitionOfDone": "Rate limits align with partner traffic patterns.",
+        "process": [ "Analyze traffic patterns", "Adjust thresholds", "Run load tests", "Monitor errors" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7831",
+      "title": "Customer profile updates failing intermittently",
+      "body": "Users report saving changes requires multiple attempts.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "New",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Application logs" ],
+      "execution": {
+        "definitionOfDone": "Profile updates succeed consistently across environments.",
+        "process": [ "Review API errors", "Reproduce issue", "Patch validation logic", "Verify updates" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7832",
+      "title": "Data export service exceeding SLA",
+      "body": "Large customer exports require more than one hour to complete.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Warehouse query optimization" ],
+      "execution": {
+        "definitionOfDone": "Export jobs complete within target SLA.",
+        "process": [ "Analyze export jobs", "Optimize queries", "Increase parallelism", "Validate runtime" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7833",
+      "title": "Session timeout affecting active users",
+      "body": "Users logged out unexpectedly during transactions.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "Security review" ],
+      "execution": {
+        "definitionOfDone": "Session duration behaves according to policy settings.",
+        "process": [ "Review timeout configuration", "Inspect session storage", "Deploy fix", "Validate user sessions" ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "INC-7834",
+      "title": "Duplicate invoices generated for subscription renewals",
+      "body": "Billing workflow processing duplicate events.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Finance team reconciliation" ],
+      "execution": {
+        "definitionOfDone": "Duplicate invoices are prevented and corrected.",
+        "process": [ "Identify duplicate events", "Patch workflow", "Reverse incorrect invoices", "Validate billing" ],
+        "estimatedMinutes": 210
+      }
+    },
+    {
+      "id": "INC-7835",
+      "title": "Third-party integration returning malformed payloads",
+      "body": "Order processing failures observed for partner accounts.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Vendor response" ],
+      "execution": {
+        "definitionOfDone": "Malformed payloads are handled without processing failures.",
+        "process": [ "Capture payload samples", "Implement validation", "Deploy patch", "Verify orders" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7836",
+      "title": "Scheduled reports not generated for APAC tenants",
+      "body": "Recurring reports failed after timezone configuration update.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Timezone configuration review" ],
+      "execution": {
+        "definitionOfDone": "Scheduled reports generate successfully across all regions.",
+        "process": [ "Review scheduler logs", "Validate timezone mappings", "Replay failed jobs", "Confirm report delivery" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7837",
+      "title": "Customer search API returning incomplete results",
+      "body": "Users cannot locate recently created accounts.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "Search index validation" ],
+      "execution": {
+        "definitionOfDone": "Search results reflect all customer records accurately.",
+        "process": [ "Analyze search logs", "Compare index counts", "Rebuild index", "Validate search accuracy" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7838",
+      "title": "Database failover alerts triggered unexpectedly",
+      "body": "Primary database nodes reporting false failover events.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Infrastructure monitoring review" ],
+      "execution": {
+        "definitionOfDone": "False failover alerts are eliminated.",
+        "process": [ "Inspect alert rules", "Analyze node metrics", "Update thresholds", "Validate monitoring" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "INC-7839",
+      "title": "User invitation emails delayed after deployment",
+      "body": "New account invitations arriving several hours late.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Email provider metrics" ],
+      "execution": {
+        "definitionOfDone": "Invitation emails are delivered within SLA.",
+        "process": [ "Review message queues", "Inspect provider logs", "Deploy fix", "Verify delivery times" ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "INC-7840",
+      "title": "Bulk account provisioning failing for enterprise customers",
+      "body": "Provisioning requests above 500 users fail intermittently.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Infrastructure capacity increase" ],
+      "execution": {
+        "definitionOfDone": "Bulk provisioning completes successfully for large imports.",
+        "process": [ "Reproduce issue", "Inspect provisioning logs", "Scale worker capacity", "Validate onboarding flow" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7841",
+      "title": "API documentation links returning 404 errors",
+      "body": "Developers unable to access updated integration guides.",
+      "severity": "P3",
+      "due": "2026-06-27",
+      "impact": 4,
+      "status": "New",
+      "owner": "Rohan",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "All API documentation links resolve correctly.",
+        "process": [ "Identify broken links", "Update documentation routes", "Publish changes", "Validate pages" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "INC-7842",
+      "title": "Compliance audit logs missing user context",
+      "body": "Audit exports do not include actor information for selected actions.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Compliance team validation" ],
+      "execution": {
+        "definitionOfDone": "Audit logs include complete user attribution details.",
+        "process": [ "Review audit pipeline", "Identify missing fields", "Deploy fix", "Validate exports" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "INC-7843",
+      "title": "Cache invalidation not triggering after profile updates",
+      "body": "Customers continue seeing outdated profile information.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Karan",
+      "team": "Platform Apps",
+      "dependencies": [ "Cache metrics review" ],
+      "execution": {
+        "definitionOfDone": "Profile updates are reflected immediately across services.",
+        "process": [ "Trace cache events", "Review invalidation logic", "Patch workflow", "Verify updates" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7844",
+      "title": "Nightly backup process exceeding maintenance window",
+      "body": "Backup jobs overlap with production traffic periods.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Storage optimization review" ],
+      "execution": {
+        "definitionOfDone": "Backups complete within approved maintenance window.",
+        "process": [ "Review backup jobs", "Optimize storage throughput", "Adjust schedules", "Validate completion time" ],
+        "estimatedMinutes": 190
+      }
+    },
+    {
+      "id": "INC-7845",
+      "title": "Customer portal displaying duplicate notifications",
+      "body": "Users receive repeated alerts for the same event.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 6,
+      "status": "Assigned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Notification service logs" ],
+      "execution": {
+        "definitionOfDone": "Duplicate notifications are eliminated.",
+        "process": [ "Analyze event streams", "Inspect deduplication logic", "Deploy fix", "Validate notifications" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7846",
+      "title": "Data warehouse sync skipped customer records",
+      "body": "Analytics reports showing incomplete customer metrics.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Warehouse replay approval" ],
+      "execution": {
+        "definitionOfDone": "Warehouse data is fully synchronized and verified.",
+        "process": [ "Compare source counts", "Replay sync jobs", "Validate metrics", "Confirm dashboard accuracy" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7847",
+      "title": "OAuth callback URL validation failing",
+      "body": "Third-party integrations unable to complete authentication.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Partner environment validation" ],
+      "execution": {
+        "definitionOfDone": "OAuth authentication succeeds for all integrations.",
+        "process": [ "Review callback validation", "Reproduce issue", "Deploy fix", "Verify partner flows" ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "INC-7848",
+      "title": "Invoice PDF generation failing for large accounts",
+      "body": "Monthly invoices cannot be downloaded by enterprise customers.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "PDF rendering service metrics" ],
+      "execution": {
+        "definitionOfDone": "Invoice PDFs generate successfully for all accounts.",
+        "process": [ "Review rendering logs", "Optimize generation process", "Deploy fix", "Validate downloads" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7849",
+      "title": "Service health dashboard reporting inaccurate uptime",
+      "body": "Executive dashboard showing lower than actual availability metrics.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "New",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "Monitoring data validation" ],
+      "execution": {
+        "definitionOfDone": "Dashboard uptime values match monitoring sources.",
+        "process": [ "Compare metrics", "Inspect aggregation logic", "Correct calculations", "Verify dashboard" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "INC-7850",
+      "title": "Automated account lockouts triggered incorrectly",
+      "body": "Users locked out despite successful authentication attempts.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "Security investigation results" ],
+      "execution": {
+        "definitionOfDone": "Account lockouts occur only for valid security events.",
+        "process": [ "Analyze lockout events", "Inspect detection rules", "Deploy fix", "Validate login flows" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "INC-7851",
+      "title": "Customer activity timeline not loading",
+      "body": "Users report empty activity history after recent backend deployment.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "Event store query review" ],
+      "execution": {
+        "definitionOfDone": "Activity timeline loads correctly for all customer accounts.",
+        "process": [ "Review API responses", "Validate event store data", "Patch query logic", "Verify timeline accuracy" ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "INC-7852",
+      "title": "Billing adjustment workflow creating duplicate credits",
+      "body": "Finance team detected duplicate refund credits for subscription changes.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Finance reconciliation approval" ],
+      "execution": {
+        "definitionOfDone": "Duplicate credits are prevented and historical records corrected.",
+        "process": [ "Identify duplicate events", "Patch billing workflow", "Reverse invalid credits", "Validate transactions" ],
+        "estimatedMinutes": 200
+      }
+    },
+    {
+      "id": "INC-7853",
+      "title": "SSO login flow failing for new enterprise tenants",
+      "body": "New customers cannot complete SAML authentication setup.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Customer IdP metadata validation" ],
+      "execution": {
+        "definitionOfDone": "SSO onboarding succeeds for all enterprise tenants.",
+        "process": [ "Validate SAML assertions", "Review certificate mappings", "Patch authentication flow", "Verify onboarding" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7854",
+      "title": "Monitoring alerts not triggering during service degradation",
+      "body": "Recent incidents were not detected by existing alert rules.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Observability platform metrics" ],
+      "execution": {
+        "definitionOfDone": "Critical alerts trigger reliably for all production incidents.",
+        "process": [ "Review alert thresholds", "Analyze missed events", "Update alert rules", "Run validation tests" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7855",
+      "title": "Document export API returning corrupted files",
+      "body": "Exported customer reports cannot be opened in PDF viewers.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "PDF rendering service logs" ],
+      "execution": {
+        "definitionOfDone": "Generated documents open successfully across supported viewers.",
+        "process": [ "Review export pipeline", "Inspect rendering service", "Deploy patch", "Validate generated files" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "INC-7856",
+      "title": "API gateway rejecting valid requests intermittently",
+      "body": "Customers experience random HTTP 403 responses during peak traffic.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Gateway configuration review" ],
+      "execution": {
+        "definitionOfDone": "Valid requests are processed consistently without rejection.",
+        "process": [ "Analyze gateway logs", "Inspect access rules", "Deploy configuration update", "Verify traffic patterns" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7857",
+      "title": "Outbound webhooks missing retry attempts",
+      "body": "Failed integrations are not retried according to policy.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Webhook queue inspection" ],
+      "execution": {
+        "definitionOfDone": "Webhook retries occur according to configured policies.",
+        "process": [ "Inspect retry logic", "Review queue processing", "Deploy fix", "Validate delivery" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7858",
+      "title": "Customer data sync failing across regions",
+      "body": "Cross-region replication lag exceeding target SLA.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Infrastructure network analysis" ],
+      "execution": {
+        "definitionOfDone": "Cross-region replication remains within SLA targets.",
+        "process": [ "Analyze replication metrics", "Inspect network latency", "Optimize replication settings", "Validate sync status" ],
+        "estimatedMinutes": 190
+      }
+    },
+    {
+      "id": "INC-7859",
+      "title": "Role assignment changes not reflected immediately",
+      "body": "Permission updates require users to log out and back in.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "Session cache validation" ],
+      "execution": {
+        "definitionOfDone": "Role changes apply immediately without reauthentication.",
+        "process": [ "Review cache propagation", "Inspect permission service", "Deploy fix", "Validate role updates" ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "INC-7860",
+      "title": "Data import validation allowing invalid records",
+      "body": "Incorrect customer records entering production systems.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Business rules confirmation" ],
+      "execution": {
+        "definitionOfDone": "Invalid records are rejected during import processing.",
+        "process": [ "Review validation rules", "Identify missing checks", "Deploy patch", "Validate imports" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "INC-7861",
+      "title": "Notification preferences reset after account updates",
+      "body": "Users lose customized notification settings unexpectedly.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 6,
+      "status": "New",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "User preference audit" ],
+      "execution": {
+        "definitionOfDone": "Notification preferences persist after profile changes.",
+        "process": [ "Reproduce issue", "Inspect preference storage", "Patch update workflow", "Verify persistence" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7862",
+      "title": "Revenue analytics dashboard showing inconsistent totals",
+      "body": "Finance teams report discrepancies between dashboard and exports.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Warehouse reconciliation" ],
+      "execution": {
+        "definitionOfDone": "Dashboard metrics align with source systems.",
+        "process": [ "Compare data sources", "Inspect aggregation logic", "Correct calculations", "Validate reports" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7863",
+      "title": "Secrets rotation job failed for production environment",
+      "body": "Scheduled credential rotation did not complete successfully.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Infrastructure access approval" ],
+      "execution": {
+        "definitionOfDone": "All production secrets are rotated successfully.",
+        "process": [ "Review rotation logs", "Validate secret versions", "Retry failed jobs", "Confirm service health" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7864",
+      "title": "Partner API credentials expiring unexpectedly",
+      "body": "External integrations failing due to premature token expiration.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner coordination" ],
+      "execution": {
+        "definitionOfDone": "Partner integrations maintain valid credentials.",
+        "process": [ "Inspect token lifecycle", "Review expiration policies", "Deploy fix", "Validate integrations" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7865",
+      "title": "Application logs missing correlation identifiers",
+      "body": "Support teams unable to trace requests across services.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "Assigned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Logging pipeline update" ],
+      "execution": {
+        "definitionOfDone": "All service logs include correlation identifiers.",
+        "process": [ "Audit logging format", "Update middleware", "Deploy changes", "Verify traceability" ],
+        "estimatedMinutes": 100
+      }
+    },
+    {
+      "id": "INC-7866",
+      "title": "Customer usage metrics delayed in executive dashboard",
+      "body": "Executive reports show data lag exceeding four hours after ETL changes.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Data pipeline logs" ],
+      "execution": {
+        "definitionOfDone": "Usage metrics refresh within the agreed SLA.",
+        "process": [ "Inspect ETL jobs", "Review data freshness metrics", "Replay failed batches", "Validate dashboard accuracy" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7867",
+      "title": "Tenant provisioning workflow stuck in pending state",
+      "body": "New enterprise accounts remain unprovisioned after successful payment.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Infrastructure queue health check" ],
+      "execution": {
+        "definitionOfDone": "New tenants are provisioned successfully within SLA.",
+        "process": [ "Analyze workflow state", "Inspect provisioning queues", "Deploy fix", "Validate onboarding" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7868",
+      "title": "Customer password reset emails not delivered",
+      "body": "Users unable to complete password recovery flow.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Email provider logs" ],
+      "execution": {
+        "definitionOfDone": "Password reset emails are delivered within one minute.",
+        "process": [ "Inspect email queues", "Review provider logs", "Deploy fix", "Verify email delivery" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7869",
+      "title": "Session audit trail missing login events",
+      "body": "Compliance reports do not include successful login records.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Compliance validation" ],
+      "execution": {
+        "definitionOfDone": "Audit trails capture all authentication events.",
+        "process": [ "Inspect audit pipeline", "Validate event schema", "Backfill missing events", "Confirm compliance export" ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "INC-7870",
+      "title": "Notification service queue depth increasing rapidly",
+      "body": "High message backlog causing delayed customer notifications.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Infrastructure scaling approval" ],
+      "execution": {
+        "definitionOfDone": "Queue backlog remains below alert threshold.",
+        "process": [ "Analyze queue metrics", "Scale consumers", "Validate throughput", "Monitor delivery times" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7871",
+      "title": "Scheduled billing jobs skipping annual subscriptions",
+      "body": "Annual customers not invoiced after renewal date.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Finance validation" ],
+      "execution": {
+        "definitionOfDone": "All subscription renewals generate invoices correctly.",
+        "process": [ "Review billing rules", "Replay missed jobs", "Validate invoices", "Notify finance" ],
+        "estimatedMinutes": 190
+      }
+    },
+    {
+      "id": "INC-7872",
+      "title": "Customer profile images not rendering in dashboard",
+      "body": "Image CDN returns intermittent access errors.",
+      "severity": "P3",
+      "due": "2026-06-27",
+      "impact": 4,
+      "status": "New",
+      "owner": "Rohan",
+      "team": "Platform Apps",
+      "dependencies": [ "CDN provider logs" ],
+      "execution": {
+        "definitionOfDone": "Profile images load successfully for all users.",
+        "process": [ "Review CDN errors", "Inspect cache rules", "Deploy fix", "Validate rendering" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "INC-7873",
+      "title": "SSO metadata sync not updating certificates",
+      "body": "Enterprise customers unable to rotate expired SAML certificates.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Customer IdP coordination" ],
+      "execution": {
+        "definitionOfDone": "SSO metadata updates synchronize automatically.",
+        "process": [ "Review certificate sync", "Update metadata parser", "Validate SAML flow", "Confirm customer access" ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "INC-7874",
+      "title": "Webhook retries creating duplicate transactions",
+      "body": "Duplicate partner requests causing inconsistent order states.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner confirmation" ],
+      "execution": {
+        "definitionOfDone": "Webhook retries are idempotent and do not create duplicates.",
+        "process": [ "Analyze webhook logs", "Implement idempotency checks", "Replay transactions", "Validate order state" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7875",
+      "title": "Search autocomplete failing for large datasets",
+      "body": "Customers experience missing suggestions during search.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "Search cluster metrics" ],
+      "execution": {
+        "definitionOfDone": "Autocomplete returns relevant results within SLA.",
+        "process": [ "Inspect search queries", "Optimize indexing", "Deploy changes", "Validate suggestions" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7876",
+      "title": "API request tracing unavailable in production logs",
+      "body": "Support teams unable to investigate customer incidents efficiently.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 6,
+      "status": "Assigned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Logging pipeline update" ],
+      "execution": {
+        "definitionOfDone": "All API requests include trace identifiers.",
+        "process": [ "Review log format", "Update middleware", "Deploy changes", "Verify traceability" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7877",
+      "title": "Invoice tax calculations incorrect for EU customers",
+      "body": "VAT values differ from expected calculations.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Assigned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Tax rules validation" ],
+      "execution": {
+        "definitionOfDone": "VAT calculations match regulatory requirements.",
+        "process": [ "Review tax engine", "Validate VAT rules", "Generate test invoices", "Confirm finance approval" ],
+        "estimatedMinutes": 200
+      }
+    },
+    {
+      "id": "INC-7878",
+      "title": "Authentication tokens invalidated after deployment",
+      "body": "Active users forced to reauthenticate unexpectedly.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Assigned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "Security sign-off" ],
+      "execution": {
+        "definitionOfDone": "Existing sessions remain valid after deployments.",
+        "process": [ "Inspect token store", "Review deployment changes", "Deploy fix", "Validate sessions" ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "INC-7879",
+      "title": "Analytics export API returning partial datasets",
+      "body": "Customer exports omit records generated during peak traffic.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Assigned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Warehouse consistency check" ],
+      "execution": {
+        "definitionOfDone": "Exports contain all expected customer records.",
+        "process": [ "Compare source counts", "Inspect export jobs", "Patch query logic", "Validate exports" ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "INC-7880",
+      "title": "Infrastructure auto-scaling not responding to load spikes",
+      "body": "Application latency increases during high traffic periods.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "Cloud metrics analysis" ],
+      "execution": {
+        "definitionOfDone": "Infrastructure scales automatically during load spikes.",
+        "process": [ "Inspect scaling rules", "Review metrics", "Adjust thresholds", "Run load tests" ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "INC-7881",
+      "title": "Customer import validation rejects valid addresses",
+      "body": "Bulk uploads fail for international customer data.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "Business rules review" ],
+      "execution": {
+        "definitionOfDone": "Address validation supports all approved formats.",
+        "process": [ "Review validation logic", "Add test coverage", "Deploy patch", "Validate imports" ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "INC-7882",
+      "title": "Compliance retention policy not applied to archived records",
+      "body": "Archived data exceeds configured retention period.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Legal approval" ],
+      "execution": {
+        "definitionOfDone": "Retention policies apply consistently to archived data.",
+        "process": [ "Review retention jobs", "Identify gaps", "Apply fixes", "Validate archived records" ],
+        "estimatedMinutes": 190
+      }
+    },
+    {
+      "id": "INC-7883",
+      "title": "Partner API rate limits exceeded unexpectedly",
+      "body": "External integrations receive elevated 429 responses.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Assigned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Partner traffic analysis" ],
+      "execution": {
+        "definitionOfDone": "Partner requests remain within allowed rate limits.",
+        "process": [ "Review traffic patterns", "Adjust limits", "Coordinate with partners", "Validate requests" ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "INC-7884",
+      "title": "Dashboard filters resetting unexpectedly",
+      "body": "Saved customer preferences not retained between sessions.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "New",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "Frontend state management review" ],
+      "execution": {
+        "definitionOfDone": "Dashboard filters persist across user sessions.",
+        "process": [ "Reproduce issue", "Inspect preference storage", "Deploy fix", "Verify persistence" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "INC-7885",
+      "title": "Customer notification preferences not synchronized",
+      "body": "Preference updates fail to propagate across services.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 6,
+      "status": "Assigned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Event bus validation" ],
+      "execution": {
+        "definitionOfDone": "Notification preferences synchronize across all services.",
+        "process": [ "Review event propagation", "Inspect message bus", "Deploy fix", "Validate preferences" ],
+        "estimatedMinutes": 140
+      }
+    }
+
+  ]
+}

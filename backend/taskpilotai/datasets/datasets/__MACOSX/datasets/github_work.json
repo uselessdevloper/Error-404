@@ -1,0 +1,1298 @@
+{
+  "id": "github",
+  "name": "GitHub",
+  "type": "code",
+  "color": "#24292f",
+  "items": [
+    {
+      "id": "PR-118",
+      "title": "Review auth token rotation pull request",
+      "body": "Teammate is blocked on review before release freeze. Security labeled this high impact.",
+      "severity": "P2",
+      "due": "2026-06-21",
+      "impact": 8,
+      "status": "Review requested",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [ "Blocks Riya release branch" ],
+      "execution": {
+        "definitionOfDone": "PR receives actionable review or approval and release branch is unblocked.",
+        "process": [ "Review token rotation logic", "Run auth regression checklist", "Comment security findings", "Approve or request changes" ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "GH-220",
+      "title": "Investigate flaky invoice export test",
+      "body": "CI noise causing one retry per merge.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "Open",
+      "owner": "Utkarsh",
+      "team": "Billing",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Flaky test is either stabilized or quarantined with linked follow-up.",
+        "process": [ "Collect failing CI logs", "Run test repeatedly", "Identify time/order dependency", "Patch assertion" ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "GH-221",
+      "title": "Fix payment webhook retry storm",
+      "body": "Duplicate webhook deliveries are increasing queue latency and delaying customer notifications.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Depends on vendor API logs" ],
+      "execution": {
+        "definitionOfDone": "Webhook retry volume is reduced below threshold and customer notifications are delivered once.",
+        "process": [
+          "Analyze retry metrics",
+          "Identify duplicate events",
+          "Patch idempotency logic",
+          "Validate queue throughput"
+        ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "PR-119",
+      "title": "Review RBAC permission matrix update",
+      "body": "Access control changes require approval before identity rollout.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Review requested",
+      "owner": "Rohan",
+      "team": "Identity",
+      "dependencies": [ "Blocks access management rollout" ],
+      "execution": {
+        "definitionOfDone": "Permission changes are reviewed and approved.",
+        "process": [
+          "Validate permission mappings",
+          "Review audit coverage",
+          "Check regression scenarios",
+          "Approve or request changes"
+        ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "GH-222",
+      "title": "Resolve search indexing delay",
+      "body": "New records appear in search results after significant delay.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Open",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Search indexing latency remains below five minutes.",
+        "process": [
+          "Review indexing pipeline",
+          "Inspect queue backlog",
+          "Optimize batch size",
+          "Validate indexing SLA"
+        ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "GH-223",
+      "title": "Investigate mobile login timeout",
+      "body": "Users report intermittent authentication failures on mobile devices.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Waiting for mobile telemetry" ],
+      "execution": {
+        "definitionOfDone": "Authentication timeout issue is reproduced, fixed, and verified.",
+        "process": [
+          "Collect device logs",
+          "Reproduce timeout issue",
+          "Patch timeout handling",
+          "Verify authentication flow"
+        ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "PR-120",
+      "title": "Review database failover automation",
+      "body": "Database resilience changes require peer review before deployment.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Review requested",
+      "owner": "Karan",
+      "team": "Platform",
+      "dependencies": [ "Blocks disaster recovery drill" ],
+      "execution": {
+        "definitionOfDone": "Failover automation changes are reviewed and approved.",
+        "process": [
+          "Review failover scripts",
+          "Validate rollback plan",
+          "Check monitoring hooks",
+          "Approve pull request"
+        ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "GH-224",
+      "title": "Fix duplicate email notifications",
+      "body": "Customers receive repeated status update emails.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Aisha",
+      "team": "Messaging",
+      "dependencies": [ "Depends on email provider logs" ],
+      "execution": {
+        "definitionOfDone": "Duplicate notifications are eliminated across all workflows.",
+        "process": [
+          "Inspect event stream",
+          "Review deduplication logic",
+          "Patch notification workflow",
+          "Verify email delivery"
+        ],
+        "estimatedMinutes": 100
+      }
+    },
+
+    {
+      "id": "GH-225",
+      "title": "Audit secret scanning alerts",
+      "body": "Multiple repositories were flagged for potential credential exposure.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Open",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "All alerts are triaged and exposed credentials are rotated.",
+        "process": [
+          "Review alerts",
+          "Rotate secrets",
+          "Update policies",
+          "Close incidents"
+        ],
+        "estimatedMinutes": 140
+      }
+    },
+
+    {
+      "id": "GH-226",
+      "title": "Reduce CI pipeline execution time",
+      "body": "Long build times are slowing release cadence.",
+      "severity": "P3",
+      "due": "2026-07-01",
+      "impact": 5,
+      "status": "Open",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Average build duration is reduced by at least twenty percent.",
+        "process": [
+          "Analyze build stages",
+          "Parallelize tests",
+          "Cache dependencies",
+          "Measure improvements"
+        ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "GH-227",
+      "title": "Address API rate limiting alerts",
+      "body": "Traffic spikes are causing elevated error rates for public APIs.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Platform",
+      "dependencies": [ "Depends on traffic forecast" ],
+      "execution": {
+        "definitionOfDone": "API error rates return to baseline and rate limits are optimized.",
+        "process": [
+          "Analyze traffic patterns",
+          "Tune rate limit thresholds",
+          "Load test changes",
+          "Monitor production metrics"
+        ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "PR-121",
+      "title": "Review customer data retention changes",
+      "body": "Compliance update requires urgent engineering approval before release.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Review requested",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Blocks compliance release" ],
+      "execution": {
+        "definitionOfDone": "Retention changes are reviewed and approved.",
+        "process": [
+          "Validate retention policy",
+          "Review migration scripts",
+          "Check audit coverage",
+          "Approve changes"
+        ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "GH-228",
+      "title": "Fix broken Slack notification links",
+      "body": "Users cannot open linked incidents directly from Slack messages.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 6,
+      "status": "Open",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Slack notifications redirect users to the correct incident pages.",
+        "process": [
+          "Reproduce issue",
+          "Inspect payload format",
+          "Patch URL generator",
+          "Verify notifications"
+        ],
+        "estimatedMinutes": 80
+      }
+    },
+    {
+      "id": "GH-229",
+      "title": "Implement GitHub issue auto-tagging",
+      "body": "Reduce manual triage effort through workflow automation.",
+      "severity": "P3",
+      "due": "2026-07-02",
+      "impact": 5,
+      "status": "Open",
+      "owner": "Arjun",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "New issues are automatically tagged based on content and labels.",
+        "process": [
+          "Define tagging rules",
+          "Build workflow",
+          "Test edge cases",
+          "Deploy automation"
+        ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "GH-230",
+      "title": "Investigate cache invalidation bug",
+      "body": "Users are seeing stale profile information after updates.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Blocked",
+      "owner": "Karan",
+      "team": "Platform",
+      "dependencies": [ "Waiting for production traces" ],
+      "execution": {
+        "definitionOfDone": "Updated profile data is consistently reflected across services.",
+        "process": [
+          "Capture traces",
+          "Review cache keys",
+          "Patch invalidation logic",
+          "Run verification"
+        ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "PR-122",
+      "title": "Review feature flag cleanup",
+      "body": "Legacy feature flags must be removed before the next release.",
+      "severity": "P3",
+      "due": "2026-06-26",
+      "impact": 4,
+      "status": "Review requested",
+      "owner": "Neha",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Flag cleanup changes are reviewed and merged.",
+        "process": [
+          "Review removed flags",
+          "Check rollout history",
+          "Validate defaults",
+          "Approve pull request"
+        ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "GH-231",
+      "title": "Fix onboarding workflow failure",
+      "body": "New users are unable to complete profile setup.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Growth",
+      "dependencies": [ "Waiting for third-party callback logs" ],
+      "execution": {
+        "definitionOfDone": "Onboarding completion rates return to expected levels.",
+        "process": [
+          "Reproduce failure",
+          "Inspect callback flow",
+          "Patch workflow",
+          "Verify conversion metrics"
+        ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "GH-232",
+      "title": "Upgrade observability agent",
+      "body": "Current monitoring agent version is missing critical metrics.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 6,
+      "status": "Open",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "New agent version is deployed across all environments.",
+        "process": [
+          "Upgrade agent",
+          "Validate metrics",
+          "Update dashboards",
+          "Monitor rollout"
+        ],
+        "estimatedMinutes": 95
+      }
+    },
+    {
+      "id": "PR-123",
+      "title": "Review billing reconciliation changes",
+      "body": "Finance release requires engineering sign-off before deployment.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Review requested",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Blocks monthly reconciliation" ],
+      "execution": {
+        "definitionOfDone": "Reconciliation changes are reviewed and approved.",
+        "process": [
+          "Validate calculations",
+          "Review edge cases",
+          "Check test coverage",
+          "Approve pull request"
+        ],
+        "estimatedMinutes": 55
+      }
+    },
+    {
+      "id": "GH-233",
+      "title": "Optimize analytics dashboard query",
+      "body": "Slow dashboards are impacting customer success workflows.",
+      "severity": "P3",
+      "due": "2026-06-30",
+      "impact": 5,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Dashboard response time meets performance SLA.",
+        "process": [
+          "Profile queries",
+          "Add indexes",
+          "Compare execution plans",
+          "Deploy optimization"
+        ],
+        "estimatedMinutes": 90
+      }
+    },
+    {
+      "id": "GH-234",
+      "title": "Resolve duplicate session creation issue",
+      "body": "Users are intermittently receiving multiple active sessions after login retries.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Rohan",
+      "team": "Identity",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Duplicate sessions are prevented across all authentication flows.",
+        "process": [
+          "Inspect login retry flow",
+          "Review session creation logic",
+          "Patch concurrency handling",
+          "Validate session consistency"
+        ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "GH-235",
+      "title": "Investigate delayed invoice generation",
+      "body": "Invoice creation jobs are delayed during peak processing windows.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Open",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Waiting for queue metrics" ],
+      "execution": {
+        "definitionOfDone": "Invoices are generated within SLA limits.",
+        "process": [
+          "Analyze processing queues",
+          "Review job execution times",
+          "Optimize worker allocation",
+          "Validate invoice throughput"
+        ],
+        "estimatedMinutes": 135
+      }
+    },
+    {
+      "id": "PR-124",
+      "title": "Review Kubernetes autoscaling changes",
+      "body": "Infrastructure update requires approval before production rollout.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Review requested",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Blocks infrastructure release" ],
+      "execution": {
+        "definitionOfDone": "Autoscaling configuration is reviewed and approved.",
+        "process": [
+          "Validate scaling policies",
+          "Review resource limits",
+          "Verify rollback strategy",
+          "Approve changes"
+        ],
+        "estimatedMinutes": 75
+      }
+    },
+    {
+      "id": "GH-236",
+      "title": "Fix stale analytics cache",
+      "body": "Dashboard metrics are showing outdated information.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Blocked",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Waiting for production traces" ],
+      "execution": {
+        "definitionOfDone": "Dashboard metrics refresh correctly across all environments.",
+        "process": [
+          "Capture cache traces",
+          "Review invalidation logic",
+          "Patch refresh workflow",
+          "Verify dashboard data"
+        ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "GH-237",
+      "title": "Optimize notification delivery queue",
+      "body": "Message delays are increasing during traffic spikes.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Notification latency remains within target SLA.",
+        "process": [
+          "Analyze queue metrics",
+          "Tune worker allocation",
+          "Optimize retry logic",
+          "Monitor latency improvements"
+        ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "GH-238",
+      "title": "Investigate API gateway memory leak",
+      "body": "Memory utilization continues to increase after traffic spikes.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Requires production heap dump" ],
+      "execution": {
+        "definitionOfDone": "Memory usage stabilizes under peak load.",
+        "process": [
+          "Collect heap dumps",
+          "Analyze memory growth",
+          "Patch resource handling",
+          "Run load tests"
+        ],
+        "estimatedMinutes": 180
+      }
+    },
+    {
+      "id": "PR-125",
+      "title": "Review audit logging enhancements",
+      "body": "Compliance release requires peer approval.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Review requested",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Blocks compliance deployment" ],
+      "execution": {
+        "definitionOfDone": "Audit logging changes are approved and merged.",
+        "process": [
+          "Review event coverage",
+          "Validate retention rules",
+          "Check audit exports",
+          "Approve pull request"
+        ],
+        "estimatedMinutes": 65
+      }
+    },
+    {
+      "id": "GH-239",
+      "title": "Automate dependency vulnerability reporting",
+      "body": "Manual security triage is slowing remediation efforts.",
+      "severity": "P3",
+      "due": "2026-07-03",
+      "impact": 5,
+      "status": "Open",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Automated reports identify vulnerable dependencies daily.",
+        "process": [
+          "Define reporting workflow",
+          "Integrate scanning tools",
+          "Generate notifications",
+          "Validate report accuracy"
+        ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "GH-240",
+      "title": "Fix webhook signature validation failures",
+      "body": "Partner integrations are rejecting valid webhook events.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner logs" ],
+      "execution": {
+        "definitionOfDone": "Webhook signatures validate successfully for all partners.",
+        "process": [
+          "Collect integration logs",
+          "Reproduce validation issue",
+          "Patch signature handling",
+          "Verify partner workflows"
+        ],
+        "estimatedMinutes": 125
+      }
+    },
+    {
+      "id": "GH-241",
+      "title": "Resolve OAuth token refresh failures",
+      "body": "Users are being logged out unexpectedly when refresh tokens expire.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [ "Waiting for authentication logs" ],
+      "execution": {
+        "definitionOfDone": "Token refresh succeeds consistently across all clients.",
+        "process": [
+          "Analyze authentication logs",
+          "Reproduce token expiry flow",
+          "Patch refresh handling",
+          "Verify session continuity"
+        ],
+        "estimatedMinutes": 135
+      }
+    },
+    {
+      "id": "GH-242",
+      "title": "Optimize invoice reconciliation jobs",
+      "body": "Nightly reconciliation processing exceeds the scheduled execution window.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "Open",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Reconciliation jobs complete within target duration.",
+        "process": [
+          "Profile job execution",
+          "Identify bottlenecks",
+          "Optimize database queries",
+          "Validate processing time"
+        ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "PR-126",
+      "title": "Review API gateway routing changes",
+      "body": "Routing configuration updates require approval before release.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Review requested",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Blocks API gateway deployment" ],
+      "execution": {
+        "definitionOfDone": "Routing changes are reviewed and approved.",
+        "process": [
+          "Validate routing rules",
+          "Review fallback behavior",
+          "Verify rollback plan",
+          "Approve pull request"
+        ],
+        "estimatedMinutes": 70
+      }
+    },
+    {
+      "id": "GH-243",
+      "title": "Fix delayed push notifications",
+      "body": "Mobile users receive notifications several minutes after events occur.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Depends on provider delivery metrics" ],
+      "execution": {
+        "definitionOfDone": "Push notifications are delivered within SLA targets.",
+        "process": [
+          "Analyze delivery metrics",
+          "Inspect notification queue",
+          "Optimize dispatch workflow",
+          "Verify delivery latency"
+        ],
+        "estimatedMinutes": 125
+      }
+    },
+    {
+      "id": "GH-244",
+      "title": "Investigate intermittent analytics data gaps",
+      "body": "Daily reports are missing data from selected customer accounts.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 7,
+      "status": "Blocked",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Waiting for ETL pipeline logs" ],
+      "execution": {
+        "definitionOfDone": "Analytics reports contain complete and accurate data.",
+        "process": [
+          "Inspect ETL logs",
+          "Trace missing records",
+          "Patch ingestion workflow",
+          "Validate reporting accuracy"
+        ],
+        "estimatedMinutes": 145
+      }
+    },
+    {
+      "id": "GH-245",
+      "title": "Upgrade container security policies",
+      "body": "Current runtime policies do not meet updated security standards.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "Open",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Requires security team approval" ],
+      "execution": {
+        "definitionOfDone": "Container workloads comply with updated security requirements.",
+        "process": [
+          "Review policy changes",
+          "Update security rules",
+          "Run compliance checks",
+          "Validate production rollout"
+        ],
+        "estimatedMinutes": 160
+      }
+    },
+    {
+      "id": "PR-127",
+      "title": "Review infrastructure cost optimization changes",
+      "body": "Cloud cost reduction initiative requires technical approval.",
+      "severity": "P3",
+      "due": "2026-06-30",
+      "impact": 5,
+      "status": "Review requested",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Cost optimization changes are reviewed and approved.",
+        "process": [
+          "Validate resource sizing",
+          "Review scaling thresholds",
+          "Assess performance impact",
+          "Approve changes"
+        ],
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "id": "GH-246",
+      "title": "Automate repository ownership validation",
+      "body": "Missing code owners are slowing pull request reviews.",
+      "severity": "P3",
+      "due": "2026-07-04",
+      "impact": 4,
+      "status": "Open",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "All repositories enforce ownership validation automatically.",
+        "process": [
+          "Define validation rules",
+          "Build automation workflow",
+          "Test repository coverage",
+          "Deploy enforcement checks"
+        ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "GH-247",
+      "title": "Fix partner API schema mismatch",
+      "body": "Recent API changes introduced compatibility issues for integration partners.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Riya",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner validation environment" ],
+      "execution": {
+        "definitionOfDone": "Partner integrations work correctly with the updated API schema.",
+        "process": [
+          "Review schema changes",
+          "Reproduce compatibility issue",
+          "Implement backward compatibility",
+          "Validate partner integrations"
+        ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "GH-248",
+      "title": "Reduce flaky end-to-end test failures",
+      "body": "Unstable tests are delaying merge approvals and release readiness.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 6,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "End-to-end test failure rate remains below one percent.",
+        "process": [
+          "Collect failure metrics",
+          "Identify unstable scenarios",
+          "Stabilize test workflows",
+          "Monitor execution results"
+        ],
+        "estimatedMinutes": 115
+      }
+    },
+    {
+      "id": "GH-249",
+      "title": "Investigate database connection pool exhaustion",
+      "body": "API requests are intermittently failing during peak traffic due to connection shortages.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [ "Requires production connection metrics" ],
+      "execution": {
+        "definitionOfDone": "Connection pool utilization remains stable under peak load.",
+        "process": [
+          "Analyze connection metrics",
+          "Identify pool bottlenecks",
+          "Tune connection settings",
+          "Run load validation"
+        ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "PR-128",
+      "title": "Review authentication audit enhancements",
+      "body": "Security improvements require peer approval before release.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Review requested",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "Blocks audit compliance rollout" ],
+      "execution": {
+        "definitionOfDone": "Audit enhancements are reviewed and merged.",
+        "process": [
+          "Validate event coverage",
+          "Review logging changes",
+          "Check compliance requirements",
+          "Approve pull request"
+        ],
+        "estimatedMinutes": 65
+      }
+    },
+    {
+      "id": "GH-250",
+      "title": "Fix delayed billing webhook acknowledgements",
+      "body": "External providers are retrying requests due to slow acknowledgement responses.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 8,
+      "status": "Open",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "Depends on provider retry metrics" ],
+      "execution": {
+        "definitionOfDone": "Webhook acknowledgements are processed within SLA.",
+        "process": [
+          "Analyze response times",
+          "Optimize acknowledgement workflow",
+          "Validate retry reduction",
+          "Monitor provider metrics"
+        ],
+        "estimatedMinutes": 120
+      }
+    },
+    {
+      "id": "GH-251",
+      "title": "Optimize search query performance",
+      "body": "Large customer accounts experience increased response times in search results.",
+      "severity": "P2",
+      "due": "2026-06-28",
+      "impact": 7,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Search queries meet performance targets for enterprise accounts.",
+        "process": [
+          "Profile search queries",
+          "Review execution plans",
+          "Add performance indexes",
+          "Validate latency improvements"
+        ],
+        "estimatedMinutes": 145
+      }
+    },
+    {
+      "id": "GH-252",
+      "title": "Implement automated release note generation",
+      "body": "Manual release documentation is slowing deployment cycles.",
+      "severity": "P3",
+      "due": "2026-07-05",
+      "impact": 5,
+      "status": "Open",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Release notes are automatically generated for each deployment.",
+        "process": [
+          "Define release templates",
+          "Build automation workflow",
+          "Validate generated notes",
+          "Integrate deployment pipeline"
+        ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "GH-253",
+      "title": "Investigate message queue backlog growth",
+      "body": "Notification processing delays increase significantly during traffic spikes.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for queue diagnostics" ],
+      "execution": {
+        "definitionOfDone": "Queue backlog remains within operational thresholds.",
+        "process": [
+          "Collect queue metrics",
+          "Analyze consumer throughput",
+          "Tune worker scaling",
+          "Validate queue stability"
+        ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "PR-129",
+      "title": "Review incident response automation updates",
+      "body": "SRE workflow improvements require engineering approval.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 7,
+      "status": "Review requested",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Blocks incident automation rollout" ],
+      "execution": {
+        "definitionOfDone": "Automation updates are reviewed and approved.",
+        "process": [
+          "Review escalation workflows",
+          "Validate alert routing",
+          "Check rollback procedures",
+          "Approve changes"
+        ],
+        "estimatedMinutes": 55
+      }
+    },
+    {
+      "id": "GH-254",
+      "title": "Resolve mobile session synchronization issue",
+      "body": "Users experience inconsistent account state across multiple devices.",
+      "severity": "P2",
+      "due": "2026-06-27",
+      "impact": 8,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Waiting for device telemetry" ],
+      "execution": {
+        "definitionOfDone": "Session state remains consistent across supported devices.",
+        "process": [
+          "Collect synchronization logs",
+          "Reproduce state mismatch",
+          "Patch sync workflow",
+          "Validate multi-device behavior"
+        ],
+        "estimatedMinutes": 130
+      }
+    },
+    {
+      "id": "GH-255",
+      "title": "Automate infrastructure drift detection",
+      "body": "Manual environment checks are delaying incident response.",
+      "severity": "P3",
+      "due": "2026-07-04",
+      "impact": 5,
+      "status": "Open",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Infrastructure drift is detected automatically and reported.",
+        "process": [
+          "Define baseline configurations",
+          "Implement drift detection",
+          "Configure alerting",
+          "Validate reporting"
+        ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "GH-256",
+      "title": "Fix integration timeout during partner onboarding",
+      "body": "Partner setup requests fail intermittently due to long-running API calls.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner network traces" ],
+      "execution": {
+        "definitionOfDone": "Partner onboarding completes successfully within SLA.",
+        "process": [
+          "Capture network traces",
+          "Identify timeout source",
+          "Optimize API workflow",
+          "Validate onboarding process"
+        ],
+        "estimatedMinutes": 170
+      }
+    },
+    {
+      "id": "PR-130",
+      "title": "Review distributed tracing instrumentation updates",
+      "body": "Observability enhancements require approval before production deployment.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Review requested",
+      "owner": "Vikram",
+      "team": "SRE",
+      "dependencies": [ "Blocks observability rollout" ],
+      "execution": {
+        "definitionOfDone": "Tracing updates are reviewed, approved, and ready for deployment.",
+        "process": [
+          "Validate trace coverage",
+          "Review sampling configuration",
+          "Verify dashboard integration",
+          "Approve pull request"
+        ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "GH-257",
+      "title": "Investigate failed user provisioning jobs",
+      "body": "Enterprise user provisioning requests fail intermittently during bulk imports.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "In progress",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "Waiting for customer import samples" ],
+      "execution": {
+        "definitionOfDone": "Provisioning jobs complete successfully for all supported import formats.",
+        "process": [
+          "Analyze provisioning logs",
+          "Reproduce import failures",
+          "Patch processing workflow",
+          "Validate customer imports"
+        ],
+        "estimatedMinutes": 150
+      }
+    },
+    {
+      "id": "GH-258",
+      "title": "Optimize recurring billing calculations",
+      "body": "Monthly billing cycles are exceeding expected processing windows.",
+      "severity": "P2",
+      "due": "2026-06-29",
+      "impact": 7,
+      "status": "Open",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Recurring billing jobs complete within target execution time.",
+        "process": [
+          "Profile calculation engine",
+          "Optimize processing queries",
+          "Benchmark improvements",
+          "Validate billing accuracy"
+        ],
+        "estimatedMinutes": 140
+      }
+    },
+    {
+      "id": "GH-259",
+      "title": "Fix duplicate search indexing events",
+      "body": "Redundant indexing operations are increasing infrastructure costs.",
+      "severity": "P3",
+      "due": "2026-07-02",
+      "impact": 5,
+      "status": "In progress",
+      "owner": "Meera",
+      "team": "Platform",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Duplicate indexing events are eliminated across all services.",
+        "process": [
+          "Inspect indexing workflow",
+          "Identify duplicate triggers",
+          "Patch event handling",
+          "Verify index consistency"
+        ],
+        "estimatedMinutes": 110
+      }
+    },
+    {
+      "id": "GH-260",
+      "title": "Investigate delayed SMS notifications",
+      "body": "Critical customer alerts are arriving later than expected.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 10,
+      "status": "Blocked",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "Waiting for provider delivery logs" ],
+      "execution": {
+        "definitionOfDone": "SMS notifications are delivered within defined SLA targets.",
+        "process": [
+          "Collect delivery metrics",
+          "Analyze provider latency",
+          "Optimize routing logic",
+          "Validate notification delivery"
+        ],
+        "estimatedMinutes": 145
+      }
+    },
+    {
+      "id": "PR-131",
+      "title": "Review infrastructure backup policy changes",
+      "body": "Updated disaster recovery requirements need engineering approval.",
+      "severity": "P2",
+      "due": "2026-06-26",
+      "impact": 8,
+      "status": "Review requested",
+      "owner": "Karan",
+      "team": "SRE",
+      "dependencies": [ "Blocks disaster recovery audit" ],
+      "execution": {
+        "definitionOfDone": "Backup policy updates are reviewed and approved.",
+        "process": [
+          "Validate retention periods",
+          "Review recovery objectives",
+          "Check compliance requirements",
+          "Approve changes"
+        ],
+        "estimatedMinutes": 70
+      }
+    },
+    {
+      "id": "GH-261",
+      "title": "Implement automated dependency update workflow",
+      "body": "Outdated dependencies are increasing maintenance effort across repositories.",
+      "severity": "P3",
+      "due": "2026-07-06",
+      "impact": 4,
+      "status": "Open",
+      "owner": "Sanya",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Dependencies are automatically updated with review workflows.",
+        "process": [
+          "Configure update rules",
+          "Integrate automation tool",
+          "Validate update pipelines",
+          "Monitor adoption metrics"
+        ],
+        "estimatedMinutes": 155
+      }
+    },
+    {
+      "id": "GH-262",
+      "title": "Resolve API contract mismatch for partner integrations",
+      "body": "Recent API changes introduced compatibility issues for enterprise partners.",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "Blocked",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "Waiting for partner validation environment" ],
+      "execution": {
+        "definitionOfDone": "Partner integrations work correctly with the updated API contracts.",
+        "process": [
+          "Review API schema changes",
+          "Reproduce partner failures",
+          "Implement compatibility fixes",
+          "Validate partner integrations"
+        ],
+        "estimatedMinutes": 165
+      }
+    },
+    {
+      "id": "GH-263",
+      "title": "Reduce flaky deployment verification tests",
+      "body": "Intermittent failures are delaying production deployments.",
+      "severity": "P2",
+      "due": "2026-06-30",
+      "impact": 6,
+      "status": "In progress",
+      "owner": "Utkarsh",
+      "team": "Developer Experience",
+      "dependencies": [],
+      "execution": {
+        "definitionOfDone": "Deployment verification tests pass consistently across environments.",
+        "process": [
+          "Analyze failure patterns",
+          "Stabilize test scenarios",
+          "Improve test isolation",
+          "Monitor execution results"
+        ],
+        "estimatedMinutes": 125
+      }
+    },
+    {
+      "id": "GH-264",
+      "title": "Investigate high error rates in metrics ingestion pipeline",
+      "body": "Monitoring dashboards are missing critical telemetry data.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 10,
+      "status": "In progress",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "Requires ingestion service logs" ],
+      "execution": {
+        "definitionOfDone": "Telemetry ingestion error rates remain below acceptable thresholds.",
+        "process": [
+          "Analyze ingestion logs",
+          "Identify failure patterns",
+          "Patch processing workflow",
+          "Validate data completeness"
+        ],
+        "estimatedMinutes": 160
+      }
+    }
+  ]
+}

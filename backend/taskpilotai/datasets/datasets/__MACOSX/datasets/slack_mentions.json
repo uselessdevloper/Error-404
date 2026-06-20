@@ -1,0 +1,1572 @@
+{
+  "id": "slack",
+  "name": "Slack Mentions",
+  "type": "message",
+  "color": "#6e5dc6",
+  "items": [
+    {
+      "id": "SLACK-54",
+      "title": "Riya needs auth token review today",
+      "body": "@you can you review PR-118 before standup tomorrow? Release branch is blocked.",
+      "severity": "P2",
+      "due": "2026-06-20",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [ "Blocks Riya" ],
+      "execution": {
+        "definitionOfDone": "Riya receives review result and release branch can proceed.",
+        "process": [ "Open PR-118", "Check security-sensitive changes", "Run review checklist", "Reply in Slack thread" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-55",
+      "title": "Customer escalation on CSV imports requires update",
+      "body": "@Utkarsh Acme is asking for an ETA on INC-7741. Customer success needs an update before 2 PM.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Production Support",
+      "dependencies": [ "INC-7741", "Customer success update" ],
+      "execution": {
+        "definitionOfDone": "Customer receives ETA and incident status is communicated.",
+        "process": [ "Review incident status", "Confirm ETA with engineering", "Reply in Slack thread", "Update customer success" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-56",
+      "title": "Dashboard mismatch issue needs RCA before Monday",
+      "body": "@Utkarsh can you share findings for INC-7818? Leadership wants the root cause analysis today.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Analytics",
+      "dependencies": [ "INC-7818", "Data team logs" ],
+      "execution": {
+        "definitionOfDone": "Root cause is documented and shared with stakeholders.",
+        "process": [ "Review dashboard issue", "Collect data team inputs", "Draft RCA", "Respond in thread" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-57",
+      "title": "Security team waiting for token rotation review",
+      "body": "@Utkarsh PR-118 is blocking tomorrow's release. Can you review it before end of day?",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [ "PR-118", "Release branch" ],
+      "execution": {
+        "definitionOfDone": "PR review is completed and release branch is unblocked.",
+        "process": [ "Open PR", "Review security changes", "Approve or request changes", "Update Slack thread" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-58",
+      "title": "Platform team requesting support for upload timeout issue",
+      "body": "@Utkarsh can you join the bridge for JIRA-421? Customer imports are timing out again.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "JIRA-421", "Platform team" ],
+      "execution": {
+        "definitionOfDone": "Bridge call completed and ownership assigned.",
+        "process": [ "Join bridge call", "Review logs", "Confirm action items", "Post updates" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-59",
+      "title": "Billing export test causing repeated CI failures",
+      "body": "@Utkarsh GH-220 failed again in CI. Can you investigate before the next merge window?",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Billing",
+      "dependencies": [ "GH-220", "CI logs" ],
+      "execution": {
+        "definitionOfDone": "Flaky test is stabilized or quarantined.",
+        "process": [ "Inspect CI logs", "Reproduce issue", "Identify root cause", "Update Slack thread" ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "SLACK-60",
+      "title": "Finance team blocked by missing reconciliation data",
+      "body": "@Aisha finance cannot close the month until the reconciliation job issue is fixed.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "INC-7821", "Finance approval" ],
+      "execution": {
+        "definitionOfDone": "Finance team receives corrected reconciliation data.",
+        "process": [ "Review incident status", "Validate reconciliation output", "Communicate ETA", "Close thread" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-61",
+      "title": "Authentication failures increasing across regions",
+      "body": "@Karan login success rate dropped below threshold. Can you investigate the 401 spikes?",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7822", "Authentication logs" ],
+      "execution": {
+        "definitionOfDone": "Authentication errors return to normal levels.",
+        "process": [ "Review logs", "Identify regression", "Deploy mitigation", "Post status update" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-62",
+      "title": "Push notification delays impacting onboarding",
+      "body": "@Arjun customer onboarding is blocked because mobile alerts are delayed.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7823", "Notification provider" ],
+      "execution": {
+        "definitionOfDone": "Push notification delivery meets SLA.",
+        "process": [ "Check provider metrics", "Analyze queues", "Reply in channel", "Track resolution" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-63",
+      "title": "Search indexing delays affecting customer support",
+      "body": "@Meera support agents cannot find updated accounts. Need an ETA for search indexing fixes.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "INC-7824", "Search service logs" ],
+      "execution": {
+        "definitionOfDone": "Search indexing issue is resolved and ETA shared.",
+        "process": [ "Review indexing metrics", "Estimate fix timeline", "Communicate status", "Monitor progress" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-64",
+      "title": "Security team needs audit export validation",
+      "body": "@Vikram compliance demo starts tomorrow. Can you confirm audit exports are fixed?",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7825", "Compliance approval" ],
+      "execution": {
+        "definitionOfDone": "Compliance team confirms audit export accuracy.",
+        "process": [ "Validate exports", "Confirm with compliance", "Reply in thread", "Document status" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-65",
+      "title": "Database alerts need immediate triage",
+      "body": "@Sanya multiple failover alerts triggered overnight. Please investigate before standup.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7838", "Infrastructure metrics" ],
+      "execution": {
+        "definitionOfDone": "Failover alerts are analyzed and triaged.",
+        "process": [ "Review alerts", "Analyze metrics", "Coordinate with SRE", "Post findings" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-66",
+      "title": "OAuth integration issue impacting enterprise onboarding",
+      "body": "@Riya several customers cannot complete SSO setup due to callback failures.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "INC-7847", "Partner validation" ],
+      "execution": {
+        "definitionOfDone": "Enterprise customers complete SSO onboarding successfully.",
+        "process": [ "Review callback logs", "Validate fix", "Communicate status", "Monitor onboarding" ],
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "id": "SLACK-67",
+      "title": "Revenue dashboard discrepancies escalated by leadership",
+      "body": "@Neha leadership noticed inconsistent totals in the revenue dashboard. Need updates today.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7862", "Warehouse reconciliation" ],
+      "execution": {
+        "definitionOfDone": "Dashboard values are corrected and stakeholders informed.",
+        "process": [ "Review discrepancies", "Validate data sources", "Share findings", "Update leadership" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-68",
+      "title": "Partner API credentials expiring unexpectedly",
+      "body": "@Rohan multiple integration partners reported authentication failures this morning.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7864", "Partner coordination" ],
+      "execution": {
+        "definitionOfDone": "Partner API authentication is restored.",
+        "process": [ "Review credential lifecycle", "Coordinate with partners", "Validate fix", "Post update" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-69",
+      "title": "Secrets rotation failure needs urgent review",
+      "body": "@Vikram production secrets rotation failed overnight. Security leadership needs an update.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7863", "Infrastructure access" ],
+      "execution": {
+        "definitionOfDone": "Secrets rotation is completed and security team informed.",
+        "process": [ "Inspect rotation logs", "Validate secrets", "Coordinate with SRE", "Communicate status" ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "SLACK-70",
+      "title": "Customer onboarding blocked due to provisioning delays",
+      "body": "@Utkarsh three enterprise customers are waiting for tenant provisioning. Can you provide an ETA for INC-7867?",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7867", "Infrastructure queue health check" ],
+      "execution": {
+        "definitionOfDone": "Provisioning ETA is communicated and customers are unblocked.",
+        "process": [ "Review provisioning status", "Coordinate with infrastructure team", "Share ETA", "Update Slack thread" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-71",
+      "title": "Notification queue backlog impacting customer alerts",
+      "body": "@Arjun queue depth crossed the critical threshold again. Need immediate triage for INC-7870.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7870", "Infrastructure scaling approval" ],
+      "execution": {
+        "definitionOfDone": "Queue backlog is reduced and status is communicated.",
+        "process": [ "Review queue metrics", "Coordinate with SRE", "Post status update", "Monitor recovery" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-72",
+      "title": "Annual subscription invoices missing",
+      "body": "@Aisha finance identified missing invoices for annual renewals. Can you prioritize INC-7871?",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "INC-7871", "Finance validation" ],
+      "execution": {
+        "definitionOfDone": "Finance receives an ETA and invoice generation is restored.",
+        "process": [ "Review billing jobs", "Estimate recovery timeline", "Reply in thread", "Coordinate with finance" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-73",
+      "title": "SSO certificate sync issue escalated by customer success",
+      "body": "@Riya customer success reported multiple SAML setup failures linked to INC-7873.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "INC-7873", "Customer IdP coordination" ],
+      "execution": {
+        "definitionOfDone": "SSO certificate sync issue is acknowledged and ETA is shared.",
+        "process": [ "Review customer impact", "Validate issue scope", "Provide ETA", "Update support team" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-74",
+      "title": "Duplicate webhook transactions affecting partners",
+      "body": "@Rohan partner support flagged duplicate orders again. Need an update on INC-7874.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7874", "Partner confirmation" ],
+      "execution": {
+        "definitionOfDone": "Partner teams receive status update and mitigation plan.",
+        "process": [ "Analyze duplicate events", "Coordinate with partners", "Share mitigation steps", "Update channel" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-75",
+      "title": "Infrastructure scaling issue causing elevated latency",
+      "body": "@Sanya latency alerts fired again during peak traffic. Can you investigate INC-7880 immediately?",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7880", "Cloud metrics analysis" ],
+      "execution": {
+        "definitionOfDone": "Scaling issue is triaged and next steps are shared.",
+        "process": [ "Review autoscaling metrics", "Identify bottleneck", "Coordinate with platform team", "Post findings" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-76",
+      "title": "Export API returning incomplete datasets",
+      "body": "@Neha customer success needs an ETA for INC-7879 before the executive review.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7879", "Warehouse consistency check" ],
+      "execution": {
+        "definitionOfDone": "Stakeholders receive ETA and export status update.",
+        "process": [ "Validate export issue", "Estimate fix timeline", "Reply in thread", "Track customer impact" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-77",
+      "title": "Authentication tokens invalidated after deployment",
+      "body": "@Karan support volume increased after yesterday's deployment. Please update the team on INC-7878.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7878", "Security sign-off" ],
+      "execution": {
+        "definitionOfDone": "Support team receives mitigation guidance and ETA.",
+        "process": [ "Review deployment changes", "Confirm rollback options", "Share customer guidance", "Post update" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-78",
+      "title": "Retention policy issue raised by compliance team",
+      "body": "@Vikram compliance needs confirmation that archived records meet retention requirements.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7882", "Legal approval" ],
+      "execution": {
+        "definitionOfDone": "Compliance receives validated retention status.",
+        "process": [ "Review archived records", "Coordinate with legal", "Document findings", "Respond in Slack" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-79",
+      "title": "Address validation blocking customer imports",
+      "body": "@Utkarsh support escalated import failures for international customers linked to INC-7881.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7881", "Business rules review" ],
+      "execution": {
+        "definitionOfDone": "Support receives workaround or ETA for affected imports.",
+        "process": [ "Review validation rules", "Assess customer impact", "Provide workaround", "Update support team" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-80",
+      "title": "Partner rate limit errors increasing",
+      "body": "@Rohan multiple partners are reporting 429 errors. Need a status update for INC-7883.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7883", "Partner traffic analysis" ],
+      "execution": {
+        "definitionOfDone": "Partners receive guidance and ETA.",
+        "process": [ "Analyze traffic patterns", "Coordinate with partners", "Share mitigation plan", "Monitor updates" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-81",
+      "title": "Dashboard filter preferences resetting unexpectedly",
+      "body": "@Meera product leadership wants to know when the dashboard preference issue will be resolved.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "Mentioned",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "INC-7884", "Frontend state management review" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives an ETA and impact assessment.",
+        "process": [ "Review issue scope", "Estimate fix effort", "Communicate impact", "Update Slack thread" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-82",
+      "title": "Notification preferences not syncing across services",
+      "body": "@Arjun customer support needs guidance for users affected by INC-7885.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 6,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7885", "Event bus validation" ],
+      "execution": {
+        "definitionOfDone": "Support team receives workaround instructions.",
+        "process": [ "Review preference sync issue", "Document workaround", "Respond in channel", "Track customer impact" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-83",
+      "title": "Executive escalation for login failures",
+      "body": "@Karan executive team is requesting updates every hour until authentication metrics recover.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7822", "Executive communications" ],
+      "execution": {
+        "definitionOfDone": "Hourly status updates are provided until resolution.",
+        "process": [ "Collect metrics", "Prepare summary", "Share update", "Track progress" ],
+        "estimatedMinutes": 15
+      }
+    },
+    {
+      "id": "SLACK-84",
+      "title": "Production incident review requested by leadership",
+      "body": "@Sanya leadership wants a postmortem owner assigned for the recent failover alerts.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7838", "Postmortem review" ],
+      "execution": {
+        "definitionOfDone": "Postmortem owner and timeline are communicated.",
+        "process": [ "Assign owner", "Schedule review", "Document action items", "Share details" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-85",
+      "title": "Customer success requesting update on import failures",
+      "body": "@Utkarsh Northstar is asking for an immediate ETA on CSV import issues affecting onboarding.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Production Support",
+      "dependencies": [ "INC-7741", "Customer success escalation" ],
+      "execution": {
+        "definitionOfDone": "Customer success receives an ETA and communication plan.",
+        "process": [ "Review incident status", "Confirm ETA", "Reply in thread", "Update customer success" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-86",
+      "title": "Platform leadership requesting update on upload timeout fix",
+      "body": "@Utkarsh leadership wants a progress update for JIRA-421 before the release checkpoint.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "JIRA-421", "Release checkpoint" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives status and remaining risks.",
+        "process": [ "Review issue status", "Summarize risks", "Post update", "Track actions" ],
+        "estimatedMinutes": 15
+      }
+    },
+    {
+      "id": "SLACK-87",
+      "title": "Finance blocked by delayed reconciliation data",
+      "body": "@Aisha finance cannot complete month-end close until reconciliation jobs succeed.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "INC-7821", "Finance sign-off" ],
+      "execution": {
+        "definitionOfDone": "Finance team receives corrected reconciliation data.",
+        "process": [ "Review job status", "Estimate recovery", "Share update", "Confirm with finance" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-88",
+      "title": "Security requesting immediate review for secrets rotation failure",
+      "body": "@Vikram production secrets rotation failed overnight and requires urgent attention.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7863", "Infrastructure access" ],
+      "execution": {
+        "definitionOfDone": "Secrets rotation is completed and verified.",
+        "process": [ "Review logs", "Validate secrets", "Coordinate with SRE", "Post status" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-89",
+      "title": "Authentication incident bridge requires owner update",
+      "body": "@Karan can you join the bridge call? Login failure rates continue to increase.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7822", "Incident bridge" ],
+      "execution": {
+        "definitionOfDone": "Bridge participants receive next steps and ETA.",
+        "process": [ "Join bridge", "Analyze logs", "Provide update", "Assign actions" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-90",
+      "title": "Search indexing delays affecting support workflows",
+      "body": "@Meera support teams are unable to locate updated customer records.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "INC-7824", "Search service metrics" ],
+      "execution": {
+        "definitionOfDone": "Support teams can search updated records successfully.",
+        "process": [ "Review indexing status", "Estimate fix timeline", "Respond in thread", "Track resolution" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-91",
+      "title": "Messaging queue backlog requires escalation",
+      "body": "@Arjun notification delivery latency crossed the critical threshold.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7870", "Infrastructure scaling" ],
+      "execution": {
+        "definitionOfDone": "Notification backlog is reduced below threshold.",
+        "process": [ "Review queue depth", "Coordinate with SRE", "Share update", "Monitor delivery" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-92",
+      "title": "Infrastructure scaling issue impacting customer traffic",
+      "body": "@Sanya customer latency is increasing during peak traffic periods.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7880", "Cloud metrics" ],
+      "execution": {
+        "definitionOfDone": "Scaling issue is mitigated and latency returns to normal.",
+        "process": [ "Analyze metrics", "Adjust scaling rules", "Share update", "Validate performance" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-93",
+      "title": "Partner integrations failing due to expired credentials",
+      "body": "@Rohan multiple partners reported authentication failures this morning.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7864", "Partner coordination" ],
+      "execution": {
+        "definitionOfDone": "Partners can authenticate successfully.",
+        "process": [ "Review token lifecycle", "Coordinate with partners", "Share ETA", "Verify access" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-94",
+      "title": "Analytics export issue escalated by customer success",
+      "body": "@Neha customer success needs an ETA for incomplete analytics exports.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7879", "Warehouse validation" ],
+      "execution": {
+        "definitionOfDone": "Customer success receives ETA and workaround.",
+        "process": [ "Review export status", "Estimate fix", "Communicate workaround", "Update thread" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-95",
+      "title": "Compliance team requesting audit export confirmation",
+      "body": "@Vikram can you validate audit exports before tomorrow's compliance review?",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7825", "Compliance review" ],
+      "execution": {
+        "definitionOfDone": "Compliance team confirms audit exports are accurate.",
+        "process": [ "Validate exports", "Review records", "Confirm findings", "Reply in channel" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-96",
+      "title": "Revenue dashboard discrepancies raised by leadership",
+      "body": "@Neha executive team noticed revenue mismatches in today's dashboard.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7862", "Executive review" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives validated metrics and ETA.",
+        "process": [ "Review dashboard", "Compare sources", "Prepare update", "Respond in Slack" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-97",
+      "title": "Customer onboarding blocked by SSO failures",
+      "body": "@Riya customer onboarding is delayed because SSO setup is failing.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "INC-7873", "Customer onboarding" ],
+      "execution": {
+        "definitionOfDone": "Customers can complete SSO onboarding successfully.",
+        "process": [ "Review SAML logs", "Validate configuration", "Share ETA", "Monitor onboarding" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-98",
+      "title": "Import validation issue affecting international customers",
+      "body": "@Utkarsh support reported another batch of failed imports for global accounts.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7881", "Support team" ],
+      "execution": {
+        "definitionOfDone": "Support team receives workaround and ETA.",
+        "process": [ "Review validation issue", "Assess impact", "Document workaround", "Update support" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-99",
+      "title": "Partner webhook duplication issue needs immediate response",
+      "body": "@Rohan partners are seeing duplicate transactions again after retry attempts.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7874", "Partner escalation" ],
+      "execution": {
+        "definitionOfDone": "Partners receive mitigation guidance and ETA.",
+        "process": [ "Review duplicate events", "Coordinate with engineering", "Respond in thread", "Monitor impact" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-100",
+      "title": "Executive team requesting hourly updates on production incident",
+      "body": "@Sanya leadership requested hourly updates until customer latency returns to normal.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7880", "Executive communications" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives scheduled updates until resolution.",
+        "process": [ "Collect metrics", "Prepare summary", "Post update", "Track recovery" ],
+        "estimatedMinutes": 15
+      }
+    },
+    {
+      "id": "SLACK-101",
+      "title": "Production support requesting customer-facing workaround",
+      "body": "@Utkarsh customer success needs a workaround for CSV upload failures before the next onboarding session.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Production Support",
+      "dependencies": [ "INC-7741", "Customer success team" ],
+      "execution": {
+        "definitionOfDone": "Customer success receives an approved workaround.",
+        "process": [ "Review incident status", "Document workaround", "Validate with support", "Respond in Slack" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-102",
+      "title": "Engineering manager requesting release readiness update",
+      "body": "@Utkarsh release freeze starts tomorrow. Need confirmation that JIRA-421 remains on track.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "JIRA-421", "Release checklist" ],
+      "execution": {
+        "definitionOfDone": "Release readiness status is shared with stakeholders.",
+        "process": [ "Review open tasks", "Assess release risk", "Post status update", "Track blockers" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-103",
+      "title": "Security review blocking identity release",
+      "body": "@Karan security team is waiting for validation results before approving the authentication deployment.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7822", "Security approval" ],
+      "execution": {
+        "definitionOfDone": "Security team receives validation results and deployment decision.",
+        "process": [ "Review logs", "Validate fixes", "Prepare summary", "Respond in thread" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-104",
+      "title": "Finance requesting immediate update on duplicate invoices",
+      "body": "@Aisha duplicate invoice issue is impacting customer billing. Need ETA for resolution.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "INC-7834", "Finance reconciliation" ],
+      "execution": {
+        "definitionOfDone": "Finance receives ETA and customer impact assessment.",
+        "process": [ "Review incident status", "Estimate fix timeline", "Prepare update", "Notify finance" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-105",
+      "title": "Compliance team awaiting retention policy confirmation",
+      "body": "@Vikram legal needs confirmation that archived records comply with retention requirements.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7882", "Legal approval" ],
+      "execution": {
+        "definitionOfDone": "Compliance and legal teams receive validated findings.",
+        "process": [ "Review archived records", "Coordinate with legal", "Document findings", "Reply in thread" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-106",
+      "title": "Search latency issue escalated by support operations",
+      "body": "@Meera support agents are reporting increased search delays across customer accounts.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "INC-7824", "Support operations" ],
+      "execution": {
+        "definitionOfDone": "Support teams receive ETA and mitigation guidance.",
+        "process": [ "Analyze search metrics", "Assess impact", "Provide ETA", "Update support" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-107",
+      "title": "Infrastructure team requesting assistance with scaling alerts",
+      "body": "@Sanya autoscaling rules failed to trigger during peak traffic. Need immediate review.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7880", "Cloud metrics analysis" ],
+      "execution": {
+        "definitionOfDone": "Scaling issue is triaged and mitigation plan is shared.",
+        "process": [ "Review metrics", "Validate scaling rules", "Coordinate with platform team", "Post update" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-108",
+      "title": "Partner integration errors increasing after deployment",
+      "body": "@Rohan partner support observed higher authentication failures after the latest release.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7864", "Partner support" ],
+      "execution": {
+        "definitionOfDone": "Partners receive root cause summary and ETA.",
+        "process": [ "Review integration logs", "Coordinate with partners", "Draft update", "Monitor incidents" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-109",
+      "title": "Executive review requires analytics export update",
+      "body": "@Neha leadership is preparing for the customer review meeting and needs export status.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7879", "Executive review" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives current status and risk assessment.",
+        "process": [ "Validate export metrics", "Prepare summary", "Share update", "Track follow-ups" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-110",
+      "title": "Messaging service degradation impacting onboarding",
+      "body": "@Arjun delayed notifications are causing onboarding failures for new customers.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7870", "Customer onboarding" ],
+      "execution": {
+        "definitionOfDone": "Notification delivery meets onboarding SLA targets.",
+        "process": [ "Review queue metrics", "Coordinate with SRE", "Validate recovery", "Update support teams" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-111",
+      "title": "Identity team requesting PR review before release cutoff",
+      "body": "@Utkarsh PR-118 still needs review approval before tonight's deployment window.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [ "PR-118", "Release window" ],
+      "execution": {
+        "definitionOfDone": "PR review is completed and release proceeds.",
+        "process": [ "Open PR", "Review security changes", "Approve or request updates", "Respond in thread" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-112",
+      "title": "Customer support requesting ETA for profile update failures",
+      "body": "@Meera users are reporting intermittent failures when saving profile changes.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7831", "Customer support" ],
+      "execution": {
+        "definitionOfDone": "Support team receives ETA and workaround guidance.",
+        "process": [ "Review issue status", "Estimate timeline", "Document workaround", "Update support" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-113",
+      "title": "Billing leadership requesting tax calculation validation",
+      "body": "@Aisha finance needs confirmation that EU invoice calculations are accurate before month end.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "INC-7877", "Finance approval" ],
+      "execution": {
+        "definitionOfDone": "Finance confirms invoice calculations are accurate.",
+        "process": [ "Review tax rules", "Validate invoices", "Prepare findings", "Respond in channel" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-114",
+      "title": "Security operations requesting update on audit log issue",
+      "body": "@Vikram audit records are missing user context for compliance exports.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7842", "Compliance validation" ],
+      "execution": {
+        "definitionOfDone": "Security operations receive updated audit export status.",
+        "process": [ "Review audit pipeline", "Validate records", "Document findings", "Post update" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-115",
+      "title": "Engineering manager requesting update on failed password resets",
+      "body": "@Arjun password reset emails are still delayed for some customers.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7868", "Email provider logs" ],
+      "execution": {
+        "definitionOfDone": "Password reset flow is restored and managers are informed.",
+        "process": [ "Check delivery metrics", "Validate provider status", "Share update", "Monitor recovery" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-116",
+      "title": "Customer success requesting update on onboarding delays",
+      "body": "@Riya multiple enterprise customers are blocked by SSO onboarding failures. Need ETA for INC-7853.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Riya",
+      "team": "Identity",
+      "dependencies": [ "INC-7853", "Customer onboarding" ],
+      "execution": {
+        "definitionOfDone": "Customer success receives ETA and onboarding guidance.",
+        "process": [ "Review SSO failures", "Validate customer impact", "Provide ETA", "Update Slack thread" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-117",
+      "title": "Platform team blocked by API gateway errors",
+      "body": "@Utkarsh support volume increased after customers reported intermittent 403 responses.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7856", "Gateway configuration review" ],
+      "execution": {
+        "definitionOfDone": "Support receives mitigation steps and ETA.",
+        "process": [ "Review gateway logs", "Assess customer impact", "Prepare update", "Respond in channel" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-118",
+      "title": "Finance requesting update on invoice PDF generation issue",
+      "body": "@Aisha enterprise customers cannot download invoices for month-end reporting.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "INC-7848", "Finance reporting" ],
+      "execution": {
+        "definitionOfDone": "Finance receives ETA and workaround instructions.",
+        "process": [ "Review rendering status", "Validate customer impact", "Document workaround", "Reply in thread" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-119",
+      "title": "Security leadership requesting credential rotation status",
+      "body": "@Vikram leadership needs confirmation that all production secrets were rotated successfully.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7863", "Security approval" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives validated rotation results.",
+        "process": [ "Verify secret versions", "Prepare summary", "Coordinate with SRE", "Post update" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-120",
+      "title": "Support team requesting update on profile cache issue",
+      "body": "@Karan customers continue to see outdated profile information after updates.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7843", "Cache metrics review" ],
+      "execution": {
+        "definitionOfDone": "Support receives ETA and customer guidance.",
+        "process": [ "Review cache metrics", "Assess issue scope", "Prepare workaround", "Update support" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-121",
+      "title": "Analytics dashboard timeout issue escalated",
+      "body": "@Neha executive stakeholders are experiencing dashboard timeouts during reviews.",
+      "severity": "P2",
+      "due": "2026-06-22",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7826", "Database query analysis" ],
+      "execution": {
+        "definitionOfDone": "Stakeholders receive ETA and performance updates.",
+        "process": [ "Review dashboard metrics", "Analyze slow queries", "Communicate status", "Track improvements" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-122",
+      "title": "Messaging team alerted on duplicate notifications",
+      "body": "@Arjun customers are reporting repeated alerts for the same event.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7845", "Notification service logs" ],
+      "execution": {
+        "definitionOfDone": "Duplicate notifications are eliminated and customers informed.",
+        "process": [ "Analyze event stream", "Review deduplication logic", "Share ETA", "Monitor customer impact" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-123",
+      "title": "Partner team reporting increased webhook failures",
+      "body": "@Rohan partner systems are missing critical events due to webhook delivery issues.",
+      "severity": "P1",
+      "due": "2026-06-23",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7857", "Webhook queue inspection" ],
+      "execution": {
+        "definitionOfDone": "Partners receive mitigation guidance and updated ETA.",
+        "process": [ "Review delivery metrics", "Coordinate with partners", "Document mitigation", "Post update" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-124",
+      "title": "SRE team investigating cross-region replication delays",
+      "body": "@Sanya replication lag exceeded SLA for multiple regions overnight.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7858", "Network analysis" ],
+      "execution": {
+        "definitionOfDone": "Replication metrics return within SLA targets.",
+        "process": [ "Review replication metrics", "Analyze network latency", "Coordinate with infrastructure", "Share findings" ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "SLACK-125",
+      "title": "Product team requesting update on dashboard filter resets",
+      "body": "@Meera customers continue losing saved dashboard preferences after login.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "Mentioned",
+      "owner": "Meera",
+      "team": "Analytics",
+      "dependencies": [ "INC-7884", "Frontend state review" ],
+      "execution": {
+        "definitionOfDone": "Product team receives timeline and impact assessment.",
+        "process": [ "Review issue reports", "Estimate fix effort", "Prepare summary", "Respond in channel" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-126",
+      "title": "Identity release blocked by role assignment delays",
+      "body": "@Karan role changes are not taking effect immediately for enterprise customers.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7859", "Session cache validation" ],
+      "execution": {
+        "definitionOfDone": "Role updates apply without reauthentication.",
+        "process": [ "Review permission propagation", "Validate cache behavior", "Share ETA", "Update stakeholders" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-127",
+      "title": "Support team requesting update on data import validation",
+      "body": "@Utkarsh invalid customer records are entering production after imports.",
+      "severity": "P1",
+      "due": "2026-06-22",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7860", "Business rules confirmation" ],
+      "execution": {
+        "definitionOfDone": "Support receives validated import rules and ETA.",
+        "process": [ "Review validation logic", "Assess impact", "Document mitigation", "Respond in Slack" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-128",
+      "title": "Customer support escalating notification preference resets",
+      "body": "@Arjun users report notification settings reverting after profile changes.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 6,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7861", "User preference audit" ],
+      "execution": {
+        "definitionOfDone": "Support team receives workaround and resolution timeline.",
+        "process": [ "Review preference updates", "Validate issue scope", "Document workaround", "Update support" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-129",
+      "title": "Executive review requires warehouse synchronization update",
+      "body": "@Neha leadership wants confirmation that customer metrics are fully synchronized.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7846", "Warehouse replay approval" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives synchronization status and risk assessment.",
+        "process": [ "Validate metrics", "Prepare summary", "Coordinate with data team", "Share update" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-130",
+      "title": "Compliance review blocked by missing audit context",
+      "body": "@Vikram audit records still lack user attribution details for compliance exports.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7842", "Compliance validation" ],
+      "execution": {
+        "definitionOfDone": "Compliance team confirms audit records are complete.",
+        "process": [ "Review audit logs", "Validate user context", "Document findings", "Respond in channel" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-131",
+      "title": "Customer escalation bridge requesting status update",
+      "body": "@Utkarsh Acme leadership joined the incident bridge and needs an ETA for CSV import recovery.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Production Support",
+      "dependencies": [ "INC-7741", "Customer escalation bridge" ],
+      "execution": {
+        "definitionOfDone": "Customers receive ETA and next communication schedule.",
+        "process": [ "Review incident progress", "Confirm ETA", "Post customer update", "Document action items" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-132",
+      "title": "Release manager requesting final approval for token rotation",
+      "body": "@Utkarsh PR-118 is the final blocker for tonight's deployment window.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [ "PR-118", "Release approval" ],
+      "execution": {
+        "definitionOfDone": "PR review is completed and deployment proceeds.",
+        "process": [ "Review code changes", "Validate security checklist", "Approve PR", "Reply in thread" ],
+        "estimatedMinutes": 40
+      }
+    },
+    {
+      "id": "SLACK-133",
+      "title": "Engineering manager requesting CI stability update",
+      "body": "@Utkarsh GH-220 failed twice today and is delaying merge approvals.",
+      "severity": "P3",
+      "due": "2026-06-28",
+      "impact": 5,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Billing",
+      "dependencies": [ "GH-220", "CI logs" ],
+      "execution": {
+        "definitionOfDone": "CI test stability plan is communicated to stakeholders.",
+        "process": [ "Inspect CI failures", "Assess impact", "Prepare summary", "Update thread" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-134",
+      "title": "Finance leadership requesting billing incident update",
+      "body": "@Aisha duplicate invoice issue is affecting customer trust and requires executive visibility.",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Aisha",
+      "team": "Billing",
+      "dependencies": [ "INC-7834", "Executive review" ],
+      "execution": {
+        "definitionOfDone": "Leadership receives impact assessment and recovery timeline.",
+        "process": [ "Review incident scope", "Estimate resolution time", "Prepare executive summary", "Share update" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-135",
+      "title": "Identity support team reporting increased lockouts",
+      "body": "@Karan account lockouts increased after the latest security rule deployment.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7850", "Security investigation" ],
+      "execution": {
+        "definitionOfDone": "Support receives mitigation guidance and updated ETA.",
+        "process": [ "Analyze lockout events", "Validate security rules", "Prepare customer guidance", "Update channel" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-136",
+      "title": "Security operations requesting incident review",
+      "body": "@Vikram audit exports are required for tomorrow's compliance review meeting.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Vikram",
+      "team": "Security",
+      "dependencies": [ "INC-7825", "Compliance meeting" ],
+      "execution": {
+        "definitionOfDone": "Audit exports are validated and approved by compliance.",
+        "process": [ "Review exports", "Validate records", "Coordinate with compliance", "Post update" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-137",
+      "title": "Analytics team requesting export completion timeline",
+      "body": "@Neha customer success cannot deliver reports until export jobs are restored.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7832", "Customer success" ],
+      "execution": {
+        "definitionOfDone": "Customer success receives ETA and export status.",
+        "process": [ "Review export jobs", "Estimate completion time", "Communicate ETA", "Track customer impact" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-138",
+      "title": "SRE team alerted on backup maintenance overrun",
+      "body": "@Sanya nightly backups exceeded the maintenance window for the second day in a row.",
+      "severity": "P2",
+      "due": "2026-06-25",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7844", "Storage optimization review" ],
+      "execution": {
+        "definitionOfDone": "Backup schedule returns within maintenance targets.",
+        "process": [ "Analyze backup jobs", "Review storage metrics", "Prepare mitigation plan", "Share findings" ],
+        "estimatedMinutes": 35
+      }
+    },
+    {
+      "id": "SLACK-139",
+      "title": "Partner success team requesting integration status",
+      "body": "@Rohan multiple customers are reporting malformed payload errors from partner APIs.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 8,
+      "status": "Mentioned",
+      "owner": "Rohan",
+      "team": "Integrations",
+      "dependencies": [ "INC-7835", "Vendor response" ],
+      "execution": {
+        "definitionOfDone": "Partner teams receive mitigation guidance and ETA.",
+        "process": [ "Review payload samples", "Coordinate with vendor", "Prepare update", "Respond in channel" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-140",
+      "title": "Messaging platform requesting duplicate alert investigation",
+      "body": "@Arjun customers continue receiving repeated notifications after recent changes.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Arjun",
+      "team": "Messaging",
+      "dependencies": [ "INC-7845", "Notification service logs" ],
+      "execution": {
+        "definitionOfDone": "Notification duplication is resolved and customers informed.",
+        "process": [ "Analyze event stream", "Review deduplication logic", "Document findings", "Update support" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-141",
+      "title": "Product leadership requesting customer profile update ETA",
+      "body": "@Meera profile updates continue to fail intermittently for enterprise users.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Meera",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7831", "Application logs" ],
+      "execution": {
+        "definitionOfDone": "Stakeholders receive ETA and customer impact summary.",
+        "process": [ "Review issue status", "Assess impact", "Prepare update", "Respond in Slack" ],
+        "estimatedMinutes": 20
+      }
+    },
+    {
+      "id": "SLACK-142",
+      "title": "Compliance manager requesting warehouse sync confirmation",
+      "body": "@Neha audit reports depend on complete warehouse synchronization before tomorrow.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Neha",
+      "team": "Analytics",
+      "dependencies": [ "INC-7846", "Warehouse replay approval" ],
+      "execution": {
+        "definitionOfDone": "Compliance receives verified warehouse synchronization status.",
+        "process": [ "Validate metrics", "Coordinate with data team", "Prepare summary", "Share findings" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-143",
+      "title": "Identity team requesting immediate session timeout update",
+      "body": "@Karan enterprise customers are reporting unexpected session expirations during transactions.",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Mentioned",
+      "owner": "Karan",
+      "team": "Identity",
+      "dependencies": [ "INC-7833", "Security review" ],
+      "execution": {
+        "definitionOfDone": "Session timeout behavior returns to expected levels.",
+        "process": [ "Inspect session metrics", "Validate timeout policies", "Share ETA", "Update stakeholders" ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "SLACK-144",
+      "title": "Platform support requesting API rate limit review",
+      "body": "@Utkarsh partner integrations are exceeding current API thresholds after traffic growth.",
+      "severity": "P2",
+      "due": "2026-06-24",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [ "INC-7830", "Traffic analysis report" ],
+      "execution": {
+        "definitionOfDone": "API thresholds are reviewed and customer impact is reduced.",
+        "process": [ "Analyze traffic", "Review rate limits", "Prepare update", "Respond in thread" ],
+        "estimatedMinutes": 25
+      }
+    },
+    {
+      "id": "SLACK-145",
+      "title": "Executive team requesting postmortem owner assignment",
+      "body": "@Sanya leadership wants a postmortem owner identified for the recent replication incident.",
+      "severity": "P2",
+      "due": "2026-06-23",
+      "impact": 7,
+      "status": "Mentioned",
+      "owner": "Sanya",
+      "team": "SRE",
+      "dependencies": [ "INC-7858", "Postmortem review" ],
+      "execution": {
+        "definitionOfDone": "Postmortem owner and review timeline are communicated.",
+        "process": [ "Assign owner", "Schedule review", "Document action items", "Post update" ],
+        "estimatedMinutes": 20
+      }
+    }
+  ]
+}
