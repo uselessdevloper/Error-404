@@ -267,6 +267,7 @@ const server = createServer(async (request, response) => {
         managerTaskPosts: agent.managerTaskPosts,
         engineerPortalPosts: agent.engineerPortalPosts,
         addedTasks: agent.addedTasks,
+        reassignedTaskOwners: agent.reassignedTaskOwners || {},
         tasks: agent.allTasks
       });
     } catch (err) {
@@ -409,6 +410,240 @@ const server = createServer(async (request, response) => {
       const newTask = body ? JSON.parse(body) : {};
       const result = await agent.addNewTask(newTask);
       sendJson(response, result);
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Ingest: show agent consuming all source data ────────────────────────────
+  if (url.pathname === "/api/agent/ingest" && request.method === "POST") {
+    try {
+      const agent = await initializeAgent();
+      const summary = await agent.ingestAllSources();
+      const allItems = summary.reduce((sum, s) => sum + (s.itemCount || 0), 0);
+      sendJson(response, { success: true, sources: summary, totalItems: allItems });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Extract: action items from emails + meeting notes ───────────────────────
+  if (url.pathname === "/api/agent/extract-actions" && request.method === "POST") {
+    try {
+      const agent = await initializeAgent();
+      const actions = await agent.extractActionItems();
+      sendJson(response, { success: true, actions, count: actions.length });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Dedup log: show detected duplicate/merged tasks ─────────────────────────
+  if (url.pathname === "/api/agent/dedup-log" && request.method === "GET") {
+    try {
+      const agent = await initializeAgent();
+      sendJson(response, { success: true, duplicates: agent.deduplicationLog, count: agent.deduplicationLog.length });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Prioritized task list (top N with explanations) ─────────────────────────
+  if (url.pathname === "/api/agent/prioritized" && request.method === "GET") {
+    try {
+      const agent = await initializeAgent();
+      const limit = parseInt(url.searchParams.get('limit') || '10');
+      const tasks = agent.allTasks.slice(0, limit).map((t, i) => ({
+        rank: i + 1,
+        id: t.id,
+        title: t.title,
+        source: t.source || (t.sources || []).join(' + '),
+        score: t.priorityScore,
+        explanation: t.priorityExplanation,
+        severity: t.severity,
+        status: t.status,
+        deadline: t.deadline,
+        manualPriority: t.manualPriority || false
+      }));
+      sendJson(response, { success: true, tasks, total: agent.allTasks.length });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── VP emails: find and summarize VP emails ──────────────────────────────────
+  if (url.pathname === "/api/agent/vp-emails" && request.method === "GET") {
+    try {
+      const agent = await initializeAgent();
+      const vpEmails = await agent.getVpEmails();
+      sendJson(response, { success: true, emails: vpEmails, count: vpEmails.length });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/agent/summarize-email" && request.method === "POST") {
+    try {
+      const agent = await initializeAgent();
+      const body = await readBody(request);
+      const { emailId } = body ? JSON.parse(body) : {};
+      if (!emailId) { sendJson(response, { error: "emailId required" }, 400); return; }
+      const summary = await agent.summarizeEmail(emailId);
+      sendJson(response, { success: true, emailId, summary });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Mark task as priority (with AI assessment) ──────────────────────────────
+  if (url.pathname === "/api/agent/mark-priority" && request.method === "POST") {
+    try {
+      const agent = await initializeAgent();
+      const body = await readBody(request);
+      const { taskId, reason } = body ? JSON.parse(body) : {};
+      if (!taskId) { sendJson(response, { error: "taskId required" }, 400); return; }
+      const result = await agent.markAsPriority(taskId, reason || "");
+      // Always 200 — let the client inspect result.priorityNeeded to decide how to display
+      sendJson(response, result);
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Teammate blockers ────────────────────────────────────────────────────────
+  if (url.pathname === "/api/agent/blockers" && request.method === "GET") {
+    try {
+      const agent = await initializeAgent();
+      const result = await agent.getTeammateBlockers();
+      sendJson(response, { success: true, ...result });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Project Genome: build fingerprint, match history, detect mutations, predict risks ──
+  if (url.pathname === "/api/agent/genome-analyze" && request.method === "POST") {
+    try {
+      const agent = await initializeAgent();
+      const body = await readBody(request);
+      const { currentGenome } = body ? JSON.parse(body) : {};
+      if (!currentGenome) { sendJson(response, { error: "currentGenome required" }, 400); return; }
+
+      // Synthetic historical sprint genomes (in production, read from DB)
+      const pastGenomes = [
+        { sprintLabel: "Sprint 5", workload: 22, p1Count: 3, bugCount: 5, apiCount: 4, meetingLoad: 6, ownerCount: 4, reviewLoad: 8, blockerCount: 3, overdueCount: 4, velocity: 38, outcome: "delayed" },
+        { sprintLabel: "Sprint 8", workload: 14, p1Count: 1, bugCount: 2, apiCount: 1, meetingLoad: 2, ownerCount: 5, reviewLoad: 4, blockerCount: 1, overdueCount: 1, velocity: 72, outcome: "healthy" },
+        { sprintLabel: "Sprint 10", workload: 18, p1Count: 2, bugCount: 3, apiCount: 3, meetingLoad: 4, ownerCount: 4, reviewLoad: 6, blockerCount: 2, overdueCount: 2, velocity: 55, outcome: "delayed" },
+        { sprintLabel: "Sprint 11", workload: 12, p1Count: 0, bugCount: 1, apiCount: 2, meetingLoad: 3, ownerCount: 5, reviewLoad: 3, blockerCount: 0, overdueCount: 0, velocity: 85, outcome: "healthy" }
+      ];
+
+      // Similarity scoring
+      const KEYS = ["workload","bugCount","apiCount","meetingLoad","reviewLoad","blockerCount","overdueCount"];
+      function similarity(a, b) {
+        let diff = 0;
+        for (const k of KEYS) {
+          const scale = Math.max(a[k] || 0, b[k] || 0, 1);
+          diff += Math.abs((a[k] || 0) - (b[k] || 0)) / scale;
+        }
+        return Math.round(100 - (diff / KEYS.length) * 100);
+      }
+
+      let bestMatch = pastGenomes[0], bestScore = 0;
+      for (const past of pastGenomes) {
+        const score = similarity(currentGenome, past);
+        if (score > bestScore) { bestScore = score; bestMatch = past; }
+      }
+
+      // Mutations
+      const mutations = KEYS.map(k => ({
+        field: k,
+        label: { workload:"Total tasks", bugCount:"Bug/defect count", apiCount:"Pending API tasks", meetingLoad:"Meeting-sourced tasks", reviewLoad:"Code review load", blockerCount:"Blockers", overdueCount:"Overdue items" }[k],
+        current: currentGenome[k] || 0,
+        past: bestMatch[k] || 0,
+        delta: (currentGenome[k] || 0) - (bestMatch[k] || 0)
+      })).filter(m => m.delta !== 0);
+
+      // Risks
+      const basePct = bestMatch.outcome === "delayed" ? Math.round(bestScore * 0.85) : Math.round(bestScore * 0.5);
+      const risks = [];
+      const bugMut = mutations.find(m => m.field === "bugCount");
+      const workMut = mutations.find(m => m.field === "workload");
+      const meetMut = mutations.find(m => m.field === "meetingLoad");
+      const apiMut  = mutations.find(m => m.field === "apiCount");
+      const blockMut = mutations.find(m => m.field === "blockerCount");
+      if (workMut?.delta > 3 || (bugMut?.current || 0) > 2) risks.push({ label: "Backend Bottleneck", pct: Math.min(95, basePct + 10), color: "#de350b", recommendation: "Add a backend engineer or reduce sprint scope" });
+      if (meetMut?.delta > 1 || meetMut?.current > 3) risks.push({ label: "Meeting Overload", pct: Math.min(90, basePct - 5), color: "#974f0c", recommendation: "Reduce non-critical meetings by 30%" });
+      if (apiMut?.current > 2) risks.push({ label: "API Backlog Risk", pct: Math.min(88, basePct - 8), color: "#ffab00", recommendation: "Prioritize API tasks — finish before new features" });
+      if (blockMut?.current > 1) risks.push({ label: "Dependency Deadlock", pct: Math.min(80, basePct - 12), color: "#6554c0", recommendation: "Resolve blockers in next standup" });
+      if (bestMatch.outcome === "delayed" && bestScore >= 70) risks.push({ label: "Release Delay", pct: Math.min(85, basePct - 3), color: "#bf2600", recommendation: "Start QA earlier — run parallel tracks" });
+      risks.sort((a, b) => b.pct - a.pct);
+
+      // AI narrative (optional)
+      let aiNarrative = "";
+      if (geminiApiKey && risks.length > 0) {
+        try {
+          const prompt = `You are TaskPilot AI. A sprint genome analysis has been run.
+
+Current sprint genome: ${JSON.stringify(currentGenome)}
+Best historical match: ${bestMatch.sprintLabel} (${bestScore}% similar, outcome: ${bestMatch.outcome})
+Mutations: ${JSON.stringify(mutations.slice(0, 5))}
+Top risks: ${risks.map(r => `${r.label}: ${r.pct}%`).join(", ")}
+
+Write a 2-3 sentence manager briefing: what the genome analysis found, what's most concerning, and what the manager should do TODAY. Be specific. Never mention Gemini.`;
+          aiNarrative = await callGemini(prompt, { maxTokens: 256, temperature: 0.5 });
+        } catch (e) { /* skip */ }
+      }
+
+      sendJson(response, {
+        success: true,
+        pastGenomes,
+        matchedSprint: bestMatch,
+        similarityScore: bestScore,
+        mutations,
+        risks,
+        recommendations: risks.map(r => r.recommendation),
+        aiNarrative
+      });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Adapt: inject P1 defect mid-demo and re-prioritize ──────────────────────
+  if (url.pathname === "/api/agent/inject-p1" && request.method === "POST") {
+    try {
+      const agent = await initializeAgent();
+      const body = await readBody(request);
+      const defect = body ? JSON.parse(body) : {};
+      const result = await agent.injectP1Defect(defect);
+      sendJson(response, { success: true, ...result });
+    } catch (error) {
+      sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── Learning profile: what the agent has learned about the user ──────────────
+  if (url.pathname === "/api/agent/learning-profile" && request.method === "GET") {
+    try {
+      const agent = await initializeAgent();
+      sendJson(response, {
+        success: true,
+        topicWeights: agent.learningProfile.topicWeights,
+        interactionCount: agent.learningProfile.interactionCount,
+        priorityOverrides: agent.learningProfile.priorityOverrides,
+        vpEmailsFound: agent.learningProfile.vpEmailIds.size
+      });
     } catch (error) {
       sendJson(response, { error: error.message }, 500);
     }
@@ -774,24 +1009,32 @@ Return ONLY valid JSON array. No markdown.`;
         return;
       }
 
-      const prompt = `You are TaskPilot AI. Analyze this meeting and extract structured intelligence.
-
-Meeting: "${title || "Untitled"}"
-Notes / Context:
-${notes || "No notes provided. Use the meeting title and agenda to infer."}
-
-Return a JSON object:
-{
-  "summary": string (2-3 sentences),
-  "decisions": string[],
-  "actionItems": [{ "title": string, "assignee": string, "deadline": string, "severity": "P1"|"P2"|"P3" }],
-  "followUpMeetings": [{ "title": string, "suggestedDate": string, "duration": integer, "attendees": string[], "agenda": string }],
-  "risks": string[],
-  "sentiment": "positive" | "neutral" | "tense",
-  "completionScore": integer 0-100
-}
-
-Return ONLY valid JSON.`;
+       const prompt = `You are TaskPilot AI. Analyze this meeting and extract structured intelligence.
+ 
+ Meeting: "${title || "Untitled"}"
+ Notes / Context:
+ ${notes || "No notes provided. Use the meeting title and agenda to infer."}
+ 
+ Return a JSON object:
+ {
+   "summary": string (2-3 sentences),
+   "decisions": string[],
+   "actionItems": [{ "title": string, "assignee": string, "deadline": string, "severity": "P1"|"P2"|"P3" }],
+   "followUpMeetings": [{ "title": string, "suggestedDate": string, "duration": integer, "attendees": string[], "agenda": string }],
+   "risks": string[],
+   "sentiment": "positive" | "neutral" | "tense",
+   "completionScore": integer 0-100,
+   "shouldwork": {
+     "recommendAttend": boolean (whether the engineer should attend),
+     "score": integer 0-100 (urgency/importance score),
+     "reasoning": string (detailed reasoning for attending or skipping)
+   },
+   "transcript": [
+     { "speaker": string, "text": string }
+   ] (simulate a realistic transcript of the meeting discussion in dialogue format, containing 4 to 6 statements aligning with the title and notes)
+ }
+ 
+ Return ONLY valid JSON.`;
 
       const raw = await callGemini(prompt, { maxTokens: 2048, temperature: 0.4 });
       const cleaned = raw.replace(/```json|```/g, "").trim();

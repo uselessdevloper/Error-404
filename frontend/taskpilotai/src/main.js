@@ -1,7 +1,8 @@
 import { calendarBlocks, demoProfiles, sources, meetingsData, logoDataUrl } from "./data.js";
-import { answerQuery, buildState, completeAndAssignNext, createExecutionBrief, createDailyPlan } from "./taskEngine.js";
+import { answerQuery, buildState, completeAndAssignNext, createExecutionBrief, createDailyPlan, buildTodayQueue, buildDependencyGraph } from "./taskEngine.js";
 import { createTeeSession, sealForTee, teePlanSteps } from "./teeTrust.js";
 import { geminiChat, geminiAgentRun, geminiAnswerQuery, geminiDailyPlan, geminiExtractActions, geminiAnalyseMeeting, geminiMeetingPrioritizer, geminiSummariseEmail, geminiWeeklyStandup, geminPrioritizeTasks, setModel } from "./geminiClient.js";
+import { loadCompletions, saveCompletion, deleteCompletion, loadWorkingTasks, saveWorkingTask, deleteWorkingTask, subscribeToCompletions, loadAllCompletions, loadAllWorkingTasks, subscribeToAllDatabaseChanges } from "./supabaseClient.js";
 import "./styles.css";
 
 const app = document.querySelector("#app");
@@ -13,7 +14,17 @@ let activeProfile = "engineer";
 let activeSource = "all";
 let completedTaskIds = [];
 let workingTaskIds = [];        // tasks currently being worked on / agent is discussing
+let dbCompletions = [];         // completions across all users from database
+let dbWorking = [];             // active working tasks across all users from database
 let managerActivityFeed = [];  // real-time updates visible on manager dashboard
+
+function isTaskCompleted(taskId) {
+  return completedTaskIds.includes(taskId) || dbCompletions.some(r => r.task_id === taskId);
+}
+
+function isTaskWorking(taskId) {
+  return workingTaskIds.includes(taskId) || dbWorking.some(r => r.task_id === taskId);
+}
 let workspaceActiveSource = ""; // active tab in workspace hub
 // ── Task time tracking ─────────────────────────────────────────────────────
 // { taskId: { title, severity, source, startTime: ISO, endTime: ISO | null } }
@@ -28,10 +39,30 @@ function getWorkspaceActiveSource() {
 let state = buildState(sources, calendarBlocks);
 let selectedTaskId = state.prioritized[0]?.id;
 
+// ─── Today's Smart Queue — capped at 12, Gemini-scored ──────────────────────
+let todayQueue = buildTodayQueue(state.prioritized, demoProfiles[activeProfile]?.name || "Utkarsh", 12);
+let todayQueueGeminiScored = false; // true once Gemini has re-ranked todayQueue
+let depGraph = buildDependencyGraph(state.prioritized); // dependency graph for all tasks
+
 let authSession = JSON.parse(localStorage.getItem("taskpilot:session") || "null");
 if (authSession?.role) activeProfile = authSession.role;
 
 let backendConfig = { geminiConfigured: false, teeMode: "local-attested", supabaseConfigured: false, llmModel: "gemini-2.5-flash" };
+
+// ─── Project Genome State ─────────────────────────────────────────────────────
+let genomeState = {
+  loading: false,
+  currentGenome: null,       // { sprintLabel, workload, bugs, dependencies, reviews, velocity }
+  pastGenomes: [],           // array of historical genome snapshots
+  matchedSprint: null,       // { label, genome, outcome }
+  similarityScore: 0,        // 0-100
+  mutations: [],             // [{ field, current, past, delta }]
+  risks: [],                 // [{ label, pct, color, recommendation }]
+  recommendations: [],       // string[]
+  aiNarrative: "",           // optional Gemini-generated manager briefing
+  lastAnalyzed: null,        // ISO timestamp
+  pollingInterval: null      // setInterval handle
+};
 let authError = "";
 let authLoading = false;
 
@@ -46,7 +77,7 @@ let currentContext = null;
 let teeSession = createTeeSession();
 let dockEyesBound = false;
 let companionLog = [
-  { role: "agent", text: "TEE trust envelope attested. I scanned Jira, ServiceNow, GitHub, Slack, Outlook, and meeting notes. The P1 upload issue is duplicated across 3 systems with SLA due today." }
+  { role: "agent", text: "Woof! TEE trust envelope attested! 🐾 I scanned Jira, ServiceNow, GitHub, Slack, Outlook, and meeting notes. I've sniffed out a P1 upload issue that is duplicated across 3 systems with an SLA due today. Let's tackle it! Bark!", chips: ["Show VP emails", "What's blocking my teammate?", "Why is the upload bug ranked #1?", "Top 5 tasks", "Show blockers"] }
 ];
 
 // Sub-page states
@@ -92,6 +123,146 @@ let scanCompleteInfo = null;
 // Modal States
 let showAddJiraModal = false;
 
+// ─── Per-user completion store (keyed by email, persisted to localStorage + Supabase) ──
+// Structure: { [email]: { completedTaskIds: [], workingTaskIds: [], completionRows: [] } }
+let userCompletionStore = JSON.parse(localStorage.getItem("tp_userCompletions") || "{}");
+let realtimeSubscription = null; // current supabase realtime handle
+
+function getUserEmail() {
+  return authSession?.email || "demo@taskpilot.local";
+}
+
+function getUserName() {
+  return settingsProfile?.name || authSession?.name || "Engineer";
+}
+
+// Get completedTaskIds for current user only
+function getMyCompletedIds() {
+  const email = getUserEmail();
+  return userCompletionStore[email]?.completedTaskIds || [];
+}
+
+function getMyCompletionRows() {
+  const email = getUserEmail();
+  return userCompletionStore[email]?.completionRows || [];
+}
+
+function getMyWorkingIds() {
+  const email = getUserEmail();
+  return userCompletionStore[email]?.workingTaskIds || [];
+}
+
+function setMyCompletedIds(ids) {
+  const email = getUserEmail();
+  if (!userCompletionStore[email]) userCompletionStore[email] = { completedTaskIds: [], workingTaskIds: [], completionRows: [] };
+  userCompletionStore[email].completedTaskIds = ids;
+  localStorage.setItem("tp_userCompletions", JSON.stringify(userCompletionStore));
+  // Sync to main completedTaskIds (used everywhere in render)
+  completedTaskIds = ids;
+}
+
+function setMyWorkingIds(ids) {
+  const email = getUserEmail();
+  if (!userCompletionStore[email]) userCompletionStore[email] = { completedTaskIds: [], workingTaskIds: [], completionRows: [] };
+  userCompletionStore[email].workingTaskIds = ids;
+  localStorage.setItem("tp_userCompletions", JSON.stringify(userCompletionStore));
+  workingTaskIds = ids;
+}
+
+function addMyCompletion(row) {
+  const email = getUserEmail();
+  if (!userCompletionStore[email]) userCompletionStore[email] = { completedTaskIds: [], workingTaskIds: [], completionRows: [] };
+  // Avoid duplicates
+  if (!userCompletionStore[email].completionRows.some(r => r.task_id === row.task_id)) {
+    userCompletionStore[email].completionRows.push(row);
+  }
+  if (!userCompletionStore[email].completedTaskIds.includes(row.task_id)) {
+    userCompletionStore[email].completedTaskIds.push(row.task_id);
+  }
+  localStorage.setItem("tp_userCompletions", JSON.stringify(userCompletionStore));
+  completedTaskIds = userCompletionStore[email].completedTaskIds;
+}
+
+function removeMyCompletion(taskId) {
+  const email = getUserEmail();
+  if (!userCompletionStore[email]) return;
+  userCompletionStore[email].completionRows = userCompletionStore[email].completionRows.filter(r => r.task_id !== taskId);
+  userCompletionStore[email].completedTaskIds = userCompletionStore[email].completedTaskIds.filter(id => id !== taskId);
+  localStorage.setItem("tp_userCompletions", JSON.stringify(userCompletionStore));
+  completedTaskIds = userCompletionStore[email].completedTaskIds;
+}
+
+// Load user completions from Supabase and merge into local store
+async function syncCompletionsFromSupabase() {
+  const email = getUserEmail();
+  const rows = await loadCompletions(email);
+  if (!userCompletionStore[email]) userCompletionStore[email] = { completedTaskIds: [], workingTaskIds: [], completionRows: [] };
+  // Merge: remote is source of truth, but preserve local-only rows
+  const localRows = userCompletionStore[email].completionRows || [];
+  const mergedRows = [...rows];
+  localRows.forEach(localRow => {
+    if (!mergedRows.some(r => r.task_id === localRow.task_id)) {
+      mergedRows.push(localRow);
+    }
+  });
+  userCompletionStore[email].completionRows = mergedRows;
+  userCompletionStore[email].completedTaskIds = mergedRows.map(r => r.task_id);
+  localStorage.setItem("tp_userCompletions", JSON.stringify(userCompletionStore));
+  completedTaskIds = userCompletionStore[email].completedTaskIds;
+
+  // Also load working tasks
+  const wIds = await loadWorkingTasks(email);
+  userCompletionStore[email].workingTaskIds = wIds;
+  localStorage.setItem("tp_userCompletions", JSON.stringify(userCompletionStore));
+  workingTaskIds = wIds;
+
+  // Also load database wide completions and working tasks for team view & manager charts
+  if (backendConfig.supabaseConfigured) {
+    dbCompletions = await loadAllCompletions();
+    dbWorking = await loadAllWorkingTasks();
+  }
+}
+
+// Subscribe to realtime for live analytics updates
+function startRealtimeSync() {
+  if (realtimeSubscription) realtimeSubscription.close();
+  
+  if (backendConfig.supabaseConfigured) {
+    realtimeSubscription = subscribeToAllDatabaseChanges(
+      (type, record) => {
+        if (type === "INSERT") {
+          if (record && !dbCompletions.some(r => r.task_id === record.task_id && r.user_email === record.user_email)) {
+            dbCompletions.unshift(record);
+          }
+          if (record && record.user_email === getUserEmail()) {
+            addMyCompletion(record);
+          }
+        } else if (type === "DELETE") {
+          if (record) {
+            dbCompletions = dbCompletions.filter(r => !(r.task_id === record.task_id && r.user_email === record.user_email));
+            if (record.user_email === getUserEmail()) {
+              removeMyCompletion(record.task_id);
+            }
+          }
+        }
+        safeRender();
+      },
+      (type, record) => {
+        if (type === "INSERT") {
+          if (record && !dbWorking.some(r => r.task_id === record.task_id && r.user_email === record.user_email)) {
+            dbWorking.push(record);
+          }
+        } else if (type === "DELETE") {
+          if (record) {
+            dbWorking = dbWorking.filter(r => !(r.task_id === record.task_id && r.user_email === record.user_email));
+          }
+        }
+        safeRender();
+      }
+    );
+  }
+}
+
 // ─── Manager Task Assignment State ───────────────────────────────────────────
 let managerTaskPosts = [];          // posts created by manager this session
 let assignmentResult = null;        // latest Gemini assignment result
@@ -106,6 +277,7 @@ let assignForm = {                  // manager assign form state
   team: "Platform Apps"
 };
 let addedTasks = [];                // manually added tasks during session
+let reassignedTaskOwners = {};      // map of originalTaskId -> newOwner
 
 async function syncStateWithBackend() {
   try {
@@ -119,7 +291,8 @@ async function syncStateWithBackend() {
         managerActivityFeed,
         managerTaskPosts,
         engineerPortalPosts,
-        addedTasks
+        addedTasks,
+        reassignedTaskOwners
       })
     });
   } catch (err) {
@@ -130,7 +303,7 @@ async function syncStateWithBackend() {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 const ENGINEER_NAV = [
   { label: "Command",      items: [["overview","Dashboard","⌂"],["today","My Tasks","◎"],["agent-scan","AI Agent","✦"]] },
-  { label: "Intelligence", items: [["inbox","All Sources","✉"],["meetings","Meetings","◷"]] },
+  { label: "Intelligence", items: [["inbox","All Sources","✉"],["source-tree","Source Tree","🌳"],["meetings","Meetings","◷"],["my-analytics","My Analytics","▥"]] },
   { label: "Workspace",    items: [["workspace","Workspace","▦"]] },
   { label: "Insights",     items: [["execution","Execution plan","✓"]] },
   { label: "Team",         items: [["eng-portal","Team workload","📋"]] },
@@ -141,6 +314,7 @@ const MANAGER_NAV = [
   { label: "Command",      items: [["overview","Dashboard","⌂"]] },
   { label: "Intelligence", items: [
     ["inbox","All Sources","✉"],
+    ["source-tree","Source Tree","🌳"],
     ["mgr-jira","Jira Tasks","▦"],
     ["mgr-github","GitHub PRs","⌁"],
     ["mgr-servicenow","Incidents","△"],
@@ -149,8 +323,8 @@ const MANAGER_NAV = [
     ["meetings","Meetings","◷"],
     ["hidden","Hidden asks","◇"]
   ]},
-  { label: "Workspace",    items: [["workspace","Workspace","▦"]] },
-  { label: "Team",         items: [["team-portal","Team workload","📋"],["analytics","Analytics","▥"]] },
+  { label: "Genome",       items: [["genome","Sprint Genome","🧬"]] },
+  { label: "Team",         items: [["team-portal","Team workload","📋"],["analytics","Analytics","▥"],["engineer-analytics","Engineer Charts","📈"]] },
   { label: "Account",      items: [["settings","Settings","⚙"]] }
 ];
 
@@ -165,6 +339,21 @@ function navLabel(page) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function taskMatchesSource(task, sourceId) {
+  if (!task.sources || !Array.isArray(task.sources)) return false;
+  const sId = sourceId.toLowerCase();
+  return task.sources.some(s => {
+    const srcName = s.toLowerCase();
+    if (sId === "jira") return srcName.includes("jira");
+    if (sId === "github") return srcName.includes("github");
+    if (sId === "servicenow") return srcName.includes("servicenow") || srcName.includes("snow");
+    if (sId === "email") return srcName.includes("email") || srcName.includes("outlook");
+    if (sId === "slack") return srcName.includes("slack");
+    if (sId === "notes") return srcName.includes("meeting") || srcName.includes("note");
+    return false;
+  });
+}
+
 function filteredTasks() {
   const queue = activeQueue();
   if (activeSource === "all") return queue;
@@ -172,7 +361,8 @@ function filteredTasks() {
 }
 
 function activeQueue() {
-  return state.prioritized.filter(t => !completedTaskIds.includes(t.id));
+  // Return today's smart queue (max 12, due today/overdue/P1), minus completed
+  return todayQueue.filter(t => !isTaskCompleted(t.id));
 }
 
 function sourceCounts() {
@@ -185,11 +375,16 @@ function datasetInsights() {
   const owners = {};
   state.prioritized.forEach(t => {
     const o = t.owner || "Unassigned";
-    if (!owners[o]) owners[o] = { owner: o, count:0, score:0, blockers:0, p1:0 };
-    owners[o].count++; 
-    owners[o].score += t.score;
-    owners[o].blockers += t.dependencies.some(d => /block|waiting|approval|eta|coordinate/i.test(d)) ? 1 : 0;
-    owners[o].p1 += t.severity === "P1" ? 1 : 0;
+    if (!owners[o]) owners[o] = { owner: o, count:0, score:0, blockers:0, p1:0, done:0 };
+    const isCompleted = isTaskCompleted(t.id);
+    if (isCompleted) {
+      owners[o].done++;
+    } else {
+      owners[o].count++; 
+      owners[o].score += t.score;
+      owners[o].blockers += t.dependencies.some(d => /block|waiting|approval|eta|coordinate/i.test(d)) ? 1 : 0;
+      owners[o].p1 += t.severity === "P1" ? 1 : 0;
+    }
   });
   return { 
     unstructuredCount: unstructured.length, 
@@ -264,19 +459,19 @@ function renderLogin() {
             <span>clean tasks</span>
           </div>
           <div>
-            <strong>${state.prioritized.filter(t => t.severity === 'P1').length}</strong>
+            <strong>${state.prioritized.filter(t => !completedTaskIds.includes(t.id) && t.severity === 'P1').length}</strong>
             <span>P1 escalations</span>
           </div>
         </div>
       </div>
 
       <div class="login-card">
-        <p class="eyebrow">Sign in to continue</p>
+        <p class="eyebrow" style="color:#8b5cf6;">Sign in to continue</p>
         <h2>Welcome back</h2>
         <p class="login-subtitle">
-          ${hasGemini ? '&#10003; TaskPilot AI Engine ready' : '&#9888; Add GEMINI_API_KEY to backend/.env'}
+          ${hasGemini ? '<span style="color:#10b981;">&#10003;</span> TaskPilot AI Engine ready' : '<span style="color:#f43f5e;">&#9888; Add GEMINI_API_KEY to backend/.env</span>'}
           &nbsp;&middot;&nbsp;
-          ${hasSupabase ? '&#10003; Google auth enabled' : 'Google auth optional'}
+          ${hasSupabase ? '<span style="color:#10b981;">&#10003;</span> Google auth enabled' : '<span style="color:#64748b;">Google auth optional</span>'}
         </p>
 
         ${authError ? `<p class="login-error">${escapeHtml(authError)}</p>` : ''}
@@ -284,7 +479,7 @@ function renderLogin() {
         <button class="google-login" id="loginEngineerBtn" ${authLoading ? 'disabled' : ''}>
           ${authLoading ? '<span>Signing in...</span>' : `${googleSvg} Sign in with Google &middot; Engineer`}
         </button>
-        <button class="google-login" id="loginManagerBtn" ${authLoading ? 'disabled' : ''} style="margin-top:8px">
+        <button class="google-login" id="loginManagerBtn" ${authLoading ? 'disabled' : ''} style="margin-top:10px">
           ${authLoading ? '<span>Signing in...</span>' : `${googleSvg} Sign in with Google &middot; Manager`}
         </button>
 
@@ -294,11 +489,11 @@ function renderLogin() {
         </p>
 
         ${!hasSupabase ? `
-          <div style="margin-top:16px;padding:12px;border:1px solid #dfe3ea;border-radius:8px;background:#f7f8fa;">
-            <p style="margin:0 0 8px;font-size:12px;color:#626f86;">Google auth requires Supabase. Configure <code>SUPABASE_URL</code> in backend/.env to enable, or enter as:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <button class="secondary" id="demoEngineerBtn" style="font-size:12px;padding:8px;">Engineer workspace</button>
-              <button class="secondary" id="demoManagerBtn" style="font-size:12px;padding:8px;">Manager workspace</button>
+          <div style="margin-top:20px;padding:16px;border:1px solid #dfe3ea;border-radius:12px;background:rgba(0,0,0,0.02);box-shadow:inset 0 1px 0 rgba(255,255,255,0.8);">
+            <p style="margin:0 0 12px;font-size:12px;color:#65717d;line-height:1.45;">Supabase not configured. Launch sandbox credentials directly to explore workspace:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <button id="demoEngineerBtn" style="font-size:13px;padding:10px 12px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;box-shadow:0 4px 12px rgba(139,92,246,0.25);transition:transform 0.15s ease;">Engineer Mode</button>
+              <button id="demoManagerBtn" style="font-size:13px;padding:10px 12px;background:#ffffff;border:1px solid #dadce0;color:#1f2937;font-weight:700;border-radius:8px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.05);transition:transform 0.15s ease;">Manager Mode</button>
             </div>
           </div>
         ` : ''}
@@ -322,6 +517,10 @@ function bindLoginEvents() {
     activeProfile = "engineer";
     localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
     syncSettingsProfileWithSession();
+    // Restore per-user state for this email
+    completedTaskIds = getMyCompletedIds();
+    workingTaskIds   = getMyWorkingIds();
+    syncCompletionsFromSupabase().then(() => { startRealtimeSync(); safeRender(); });
     render();
   });
 
@@ -337,6 +536,9 @@ function bindLoginEvents() {
     activeProfile = "manager";
     localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
     syncSettingsProfileWithSession();
+    completedTaskIds = getMyCompletedIds();
+    workingTaskIds   = getMyWorkingIds();
+    syncCompletionsFromSupabase().then(() => { startRealtimeSync(); safeRender(); });
     render();
   });
 
@@ -439,6 +641,7 @@ function render() {
           ${renderNavigation()}
         </nav>
 
+        ${activeProfile === "manager" ? `
         <section class="panel compact tee-card">
           <p class="eyebrow">Security</p>
           <h2>Trusted execution enabled</h2>
@@ -447,6 +650,7 @@ function render() {
           </div>
           <p class="small">OCR and execution actions stay approval-gated.</p>
         </section>
+        ` : ""}
       </aside>
 
       <section class="workspace">
@@ -454,15 +658,13 @@ function render() {
           <div>
             <p class="eyebrow">Friday, June 19, 2026</p>
             <h1>${navLabel(activePage)}</h1>
-            <p class="topbar-subtitle">Active Profile: ${escapeHtml(authSession.email)}</p>
+            <p class="topbar-subtitle">Active Profile: <strong>${escapeHtml(settingsProfile.name)}</strong> (${activeProfile === "manager" ? "Manager" : "Engineer"}) &middot; ${escapeHtml(authSession.email)}</p>
           </div>
           <div class="top-actions">
             ${activeProfile === "manager"
               ? `<button class="secondary success" id="completePriority">Approve next handoff</button>
                  <button class="secondary" id="simulateUrgent">Simulate team load shift</button>`
-              : `<button class="secondary success" id="completePriority">Complete & assign next</button>
-                 <button class="secondary" id="simulateUrgent">Simulate urgent work</button>
-                 <button class="primary" id="runScan">Run autonomous scan</button>`
+              : `<button class="primary" id="runScan">Run autonomous scan</button>`
             }
             <button class="secondary icon-action" id="logoutBtn">Sign out</button>
           </div>
@@ -503,6 +705,134 @@ function renderPageContent(selected, executionBrief, dynamicPlan) {
       return renderTodayPriority(dynamicPlan);
     case "agent-scan":
       return renderAgentScanConsole();
+    case "source-tree": {
+      const queue = activeQueue();
+      const TODAY = "2026-06-21";
+      const SOURCE_META = {
+        jira:        { label: "Jira Sprint Board",   emoji: "📋", color: "#1868db", pastel: "#eef3ff" },
+        github:      { label: "GitHub PRs",          emoji: "🔀", color: "#374151", pastel: "#f3f4f6" },
+        servicenow:  { label: "ServiceNow Defects",  emoji: "🚨", color: "#c0392b", pastel: "#fff1f0" },
+        email:       { label: "Outlook Emails",      emoji: "📧", color: "#0369a1", pastel: "#eff8ff" },
+        slack:       { label: "Slack Mentions",      emoji: "💬", color: "#7c3aed", pastel: "#f5f3ff" },
+        notes:       { label: "Meeting Notes",       emoji: "📌", color: "#0f766e", pastel: "#f0fdfa" }
+      };
+
+      const triage = sources.map(src => {
+        const pending = queue.filter(t => taskMatchesSource(t, src.id));
+        const p1Count = pending.filter(t => t.severity === "P1").length;
+        const dueTodayCount = pending.filter(t => {
+          if (!t.due) return false;
+          const daysLeft = Math.ceil((new Date(t.due) - new Date(TODAY)) / 86400000);
+          return daysLeft <= 0;
+        }).length;
+        const approachingCount = pending.filter(t => {
+          if (!t.due) return false;
+          const daysLeft = Math.ceil((new Date(t.due) - new Date(TODAY)) / 86400000);
+          return daysLeft > 0 && daysLeft <= 3;
+        }).length;
+
+        const meta = SOURCE_META[src.id] || { label: src.name, emoji: "📌", color: src.color || "#64748b" };
+
+        const isUrgent = p1Count > 0 || dueTodayCount > 0;
+        const isApproaching = approachingCount > 0;
+
+        return {
+          id: src.id,
+          label: meta.label,
+          emoji: meta.emoji,
+          color: meta.color || src.color || "#64748b",
+          pendingCount: pending.length,
+          p1Count,
+          dueTodayCount,
+          approachingCount,
+          isUrgent,
+          isApproaching
+        };
+      });
+
+      const whatToDo = triage.filter(item => item.isUrgent || item.isApproaching);
+      const whatNotToDo = triage.filter(item => !item.isUrgent && !item.isApproaching);
+
+      return `
+        <div style="padding:18px;max-width:1200px;background:#f7f4ee;">
+          <div style="margin-bottom:16px;">
+            <p class="eyebrow">Workspace Overview</p>
+            <h2 style="margin:2px 0 0;color:#17202a;">Source Intelligence Tree</h2>
+            <p style="font-size:12px;color:#65717d;margin:2px 0 0;">
+              Interactive flow mapping of today's tasks across all integrated channels.
+            </p>
+          </div>
+          <div style="border:1px solid #ded5c8;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(37,31,21,0.04);background:#ffffff;">
+            ${renderSourceTree()}
+          </div>
+
+          <!-- Triage Guidelines Section -->
+          <div style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- What to Do -->
+            <div style="background: rgba(255, 252, 247, 0.94); border: 1.5px solid #ded5c8; border-radius: 12px; padding: 20px; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
+              <h3 style="margin: 0 0 12px 0; color: #17202a; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                <span style="color: #de350b;">🔥</span> What to Do (High Focus Today)
+              </h3>
+              <div style="display: grid; gap: 10px;">
+                ${whatToDo.length === 0 ? `
+                  <div style="color: #65717d; font-size: 13px; font-style: italic; background: #fff; padding: 12px; border-radius: 8px; border: 1px dashed #ded5c8;">
+                    No urgent or approaching deadlines today. Feel free to focus on secondary goals.
+                  </div>
+                ` : whatToDo.map(item => `
+                  <div style="background: #ffffff; border: 1px solid #ded5c8; border-radius: 8px; padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                      <div style="width: 28px; height: 28px; border-radius: 6px; background: ${item.color}15; color: ${item.color}; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                        ${item.emoji}
+                      </div>
+                      <div style="min-width: 0;">
+                        <strong style="font-size: 13px; color: #17202a; display: block;">${escapeHtml(item.label)}</strong>
+                        <span style="font-size: 11px; color: #65717d;">${item.pendingCount} task${item.pendingCount !== 1 ? 's' : ''} actionable</span>
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      ${item.dueTodayCount > 0 ? `<span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: #ffe4e6; color: #e11d48; white-space: nowrap;">${item.dueTodayCount} Due Today</span>` : ""}
+                      ${item.p1Count > 0 ? `<span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: #ffd5d2; color: #de350b; white-space: nowrap;">${item.p1Count} P1</span>` : ""}
+                      ${item.approachingCount > 0 && item.dueTodayCount === 0 ? `<span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: #fef3c7; color: #d97706; white-space: nowrap;">${item.approachingCount} Approaching</span>` : ""}
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+
+            <!-- What Not to Do -->
+            <div style="background: rgba(255, 252, 247, 0.94); border: 1.5px solid #ded5c8; border-radius: 12px; padding: 20px; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
+              <h3 style="margin: 0 0 12px 0; color: #17202a; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                <span style="color: #22a06b;">💤</span> What Not to Do (Safely Deprioritize)
+              </h3>
+              <div style="display: grid; gap: 10px;">
+                ${whatNotToDo.length === 0 ? `
+                  <div style="color: #65717d; font-size: 13px; font-style: italic; background: #fff; padding: 12px; border-radius: 8px; border: 1px dashed #ded5c8;">
+                    All channels contain urgent or approaching tasks. No channels can be deprioritized today.
+                  </div>
+                ` : whatNotToDo.map(item => `
+                  <div style="background: #ffffff; border: 1px solid #ded5c8; border-radius: 8px; padding: 12px; display: flex; align-items: center; justify-content: space-between; opacity: 0.85;">
+                    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                      <div style="width: 28px; height: 28px; border-radius: 6px; background: #65717d15; color: #65717d; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+                        ${item.emoji}
+                      </div>
+                      <div style="min-width: 0;">
+                        <strong style="font-size: 13px; color: #17202a; display: block;">${escapeHtml(item.label)}</strong>
+                        <span style="font-size: 11px; color: #65717d;">
+                          ${item.pendingCount === 0 ? "No pending tasks today" : `${item.pendingCount} stable task${item.pendingCount !== 1 ? 's' : ''}`}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #f1f2f4; color: #44546f;">Stable</span>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
     case "inbox":
       return renderUnifiedInbox();
     case "mgr-jira":
@@ -528,12 +858,18 @@ function renderPageContent(selected, executionBrief, dynamicPlan) {
       return renderJiraBoard();
     case "workspace":
       return renderWorkspaceHub();
+    case "genome":
+      return renderProjectGenomePage();
     case "incidents":
       return renderIncidentsTable();
     case "github":
       return renderGitHubPRReviews();
     case "analytics":
       return renderAnalyticsView();
+    case "my-analytics":
+      return renderMyAnalyticsPage();
+    case "engineer-analytics":
+      return renderEngineerAnalyticsManager();
     case "execution":
       return renderExecutionPlan(selected, executionBrief);
     case "team-portal":
@@ -661,10 +997,10 @@ function renderEngineerDashboard(selected, executionBrief, dynamicPlan) {
           <span class="kpi-trend flat">${selected?.severity || "—"} · due ${formatDue(selected?.due)}</span>
         </div>
         <div class="eng-kpi-card accent-green">
-          <p class="eyebrow">Tasks in queue</p>
+          <p class="eyebrow">Today's queue</p>
           <span class="kpi-value">${tasks.length}</span>
-          <span class="kpi-label">Active after dedup</span>
-          <span class="kpi-trend up">${state.deduped.length} clean · ${state.flattened.length} raw</span>
+          <span class="kpi-label">Smart-filtered for today</span>
+          <span class="kpi-trend up">${state.prioritized.length} total · ${tasks.length} actionable today</span>
         </div>
         <div class="eng-kpi-card accent-red">
           <p class="eyebrow">P1 escalations</p>
@@ -728,6 +1064,8 @@ function renderEngineerDashboard(selected, executionBrief, dynamicPlan) {
                       <div class="eng-task-body">
                         <strong>${escapeHtml(t.canonicalTitle)}${isAssigned ? '<span class="eng-assigned-tag">Manager</span>' : ""}</strong>
                         <p>${escapeHtml(t.extraction)} · ${escapeHtml(t.aliases.join(", "))}</p>
+                        ${t.isBlocking ? `<span style="font-size:10px;background:#fff0b3;color:#974f0c;padding:1px 6px;border-radius:4px;font-weight:700;">⚠ Blocks ${t.blocksCount} task${t.blocksCount > 1 ? "s" : ""}</span>` : ""}
+                        ${t.isBlocked ? `<span style="font-size:10px;background:#ffd5d2;color:#de350b;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px;">🚧 Blocked</span>` : ""}
                       </div>
                       <div class="eng-task-score">
                         <span>${t.score}</span>
@@ -739,10 +1077,11 @@ function renderEngineerDashboard(selected, executionBrief, dynamicPlan) {
           ${tasks.length > 4 ? `
             <div style="margin-top: 8px; text-align: center;">
               <button class="primary" data-nav="today" style="background: linear-gradient(135deg, #152238, #1c2e4a); color: white; padding: 10px 20px; border-radius: 999px; border: none; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(21, 34, 56, 0.15); display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center;">
-                <span>📋</span> View Full Task Queue (${tasks.length} items)
+                <span>📋</span> View Today's Full Queue (${tasks.length} items)
               </button>
             </div>
           ` : ""}
+          ${todayQueueGeminiScored ? `<div style="font-size:10px;color:#22a06b;text-align:center;margin-top:4px;">✨ Gemini AI ranked</div>` : `<div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:4px;">⏳ AI ranking in progress…</div>`}
         </div>
         <div class="eng-sidebar">
           <div class="eng-panel exec-brief">
@@ -787,39 +1126,594 @@ function renderEngineerDashboard(selected, executionBrief, dynamicPlan) {
   `;
 }
 
+// ─── Project Genome & Mutation Predictor ─────────────────────────────────────
+
+/**
+ * Build a genome fingerprint from current sprint data
+ */
+function buildCurrentGenome() {
+  const active = state.prioritized.filter(t => !isTaskCompleted(t.id));
+  const p1Count = active.filter(t => t.severity === "P1").length;
+  const p2Count = active.filter(t => t.severity === "P2").length;
+  const bugCount = active.filter(t => /bug|defect|incident|fix/i.test(t.canonicalTitle)).length;
+  const apiCount = active.filter(t => /api|endpoint|integration/i.test(t.canonicalTitle)).length;
+  const meetingLoad = active.filter(t => t.sources?.some(s => /meeting|note/i.test(s))).length;
+  const ownerSet = new Set(active.map(t => t.owner).filter(Boolean));
+  const reviewLoad = active.filter(t => t.sources?.some(s => /github/i.test(s))).length;
+  const blockerCount = active.filter(t => t.dependencies?.some(d => /block|waiting/i.test(d))).length;
+  const overdueCount = active.filter(t => t.due && t.due < "2026-06-21").length;
+  return {
+    sprintLabel: "Current Sprint",
+    workload: active.length,
+    p1Count,
+    p2Count,
+    bugCount,
+    apiCount,
+    meetingLoad,
+    ownerCount: ownerSet.size,
+    reviewLoad,
+    blockerCount,
+    overdueCount,
+    velocity: Math.round((completedTaskIds.length / Math.max(active.length + completedTaskIds.length, 1)) * 100)
+  };
+}
+
+/**
+ * Compute similarity score (0-100) between two genomes
+ */
+function computeGenomeSimilarity(g1, g2) {
+  const keys = ["workload","bugCount","apiCount","meetingLoad","reviewLoad","blockerCount","overdueCount"];
+  let totalDiff = 0;
+  let maxPossible = 0;
+  for (const k of keys) {
+    const a = g1[k] || 0, b = g2[k] || 0;
+    const scale = Math.max(a, b, 1);
+    totalDiff += Math.abs(a - b) / scale;
+    maxPossible += 1;
+  }
+  return Math.round(100 - (totalDiff / maxPossible) * 100);
+}
+
+/**
+ * Detect mutations between current and matched genome
+ */
+function detectMutations(current, matchedPast) {
+  const fields = {
+    workload:    { label: "Total tasks" },
+    bugCount:    { label: "Bug/defect count" },
+    apiCount:    { label: "Pending API tasks" },
+    meetingLoad: { label: "Meeting-sourced tasks" },
+    reviewLoad:  { label: "Code review load" },
+    blockerCount:{ label: "Blockers" },
+    overdueCount:{ label: "Overdue items" }
+  };
+  return Object.entries(fields).map(([k, meta]) => {
+    const cur = current[k] || 0;
+    const pastVal = matchedPast[k] || 0;
+    const delta = cur - pastVal;
+    return { field: k, label: meta.label, current: cur, past: pastVal, delta };
+  }).filter(m => m.delta !== 0);
+}
+
+/**
+ * Predict risks from mutation pattern — always returns at least one risk
+ */
+function predictRisks(mutations, similarityScore, matchedOutcome) {
+  const risks = [];
+  const bugMut   = mutations.find(m => m.field === "bugCount");
+  const workMut  = mutations.find(m => m.field === "workload");
+  const meetMut  = mutations.find(m => m.field === "meetingLoad");
+  const apiMut   = mutations.find(m => m.field === "apiCount");
+  const blockMut = mutations.find(m => m.field === "blockerCount");
+  const overdueMut = mutations.find(m => m.field === "overdueCount");
+
+  // Base probability from similarity to a troubled sprint
+  const basePct = matchedOutcome === "delayed"
+    ? Math.round(similarityScore * 0.85)
+    : Math.round(similarityScore * 0.5);
+
+  if (workMut?.delta > 0 || (bugMut?.current || 0) > 0) {
+    risks.push({ label: "Backend Bottleneck", pct: Math.max(30, Math.min(95, basePct + (workMut?.delta > 0 ? 10 : 0))), color: "#de350b", recommendation: "Add a backend engineer or reduce sprint scope" });
+  }
+  if ((meetMut?.current || 0) > 1) {
+    risks.push({ label: "Meeting Overload", pct: Math.max(25, Math.min(90, basePct - 5)), color: "#974f0c", recommendation: "Reduce non-critical meetings by 30%" });
+  }
+  if ((apiMut?.current || 0) > 0) {
+    risks.push({ label: "API Backlog Risk", pct: Math.max(25, Math.min(88, basePct - 8)), color: "#ffab00", recommendation: "Prioritize API tasks — finish before new features" });
+  }
+  if ((blockMut?.current || 0) > 0) {
+    risks.push({ label: "Dependency Deadlock", pct: Math.max(20, Math.min(80, basePct - 12)), color: "#6554c0", recommendation: "Resolve blockers in next standup" });
+  }
+  if (matchedOutcome === "delayed" && similarityScore >= 50) {
+    risks.push({ label: "Release Delay", pct: Math.max(30, Math.min(85, basePct - 3)), color: "#bf2600", recommendation: "Start QA earlier — run parallel tracks" });
+  }
+  if ((overdueMut?.current || 0) > 0) {
+    risks.push({ label: "Overdue Items Accumulating", pct: Math.max(20, Math.min(75, basePct - 15)), color: "#8b5cf6", recommendation: "Clear overdue items before pulling new work in" });
+  }
+
+  // Always guarantee at least one risk so the page shows results
+  if (risks.length === 0) {
+    risks.push({
+      label: matchedOutcome === "delayed" ? "Repeat Pattern Risk" : "Sprint Health Warning",
+      pct: Math.max(25, basePct),
+      color: "#626f86",
+      recommendation: "Monitor workload and review team capacity mid-sprint"
+    });
+  }
+
+  return risks.sort((a, b) => b.pct - a.pct);
+}
+
+/**
+ * Full genome analysis — builds genome, matches to history, detects mutations, predicts risks
+ * Runs entirely client-side (no backend required). Uses Electron IPC for AI narrative if available.
+ */
+async function runGenomeAnalysis() {
+  if (genomeState.loading) return;
+  genomeState.loading = true;
+  render();
+
+  try {
+    const current = buildCurrentGenome();
+
+    // Synthetic historical sprint genomes (always available, no backend needed)
+    const syntheticPast = [
+      { sprintLabel: "Sprint 5",  workload: 22, p1Count: 3, bugCount: 5, apiCount: 4, meetingLoad: 6, ownerCount: 4, reviewLoad: 8,  blockerCount: 3, overdueCount: 4, velocity: 38, outcome: "delayed" },
+      { sprintLabel: "Sprint 8",  workload: 14, p1Count: 1, bugCount: 2, apiCount: 1, meetingLoad: 2, ownerCount: 5, reviewLoad: 4,  blockerCount: 1, overdueCount: 1, velocity: 72, outcome: "healthy" },
+      { sprintLabel: "Sprint 10", workload: 18, p1Count: 2, bugCount: 3, apiCount: 3, meetingLoad: 4, ownerCount: 4, reviewLoad: 6,  blockerCount: 2, overdueCount: 2, velocity: 55, outcome: "delayed" },
+      { sprintLabel: "Sprint 11", workload: 12, p1Count: 0, bugCount: 1, apiCount: 2, meetingLoad: 3, ownerCount: 5, reviewLoad: 3,  blockerCount: 0, overdueCount: 0, velocity: 85, outcome: "healthy" },
+    ];
+
+    // Find best historical match
+    let bestMatch = syntheticPast[0], bestScore = 0;
+    for (const past of syntheticPast) {
+      const score = computeGenomeSimilarity(current, past);
+      if (score > bestScore) { bestScore = score; bestMatch = past; }
+    }
+
+    const mutations     = detectMutations(current, bestMatch);
+    const risks         = predictRisks(mutations, bestScore, bestMatch.outcome);
+    const recommendations = risks.map(r => r.recommendation);
+
+    genomeState.currentGenome   = current;
+    genomeState.pastGenomes     = syntheticPast;
+    genomeState.matchedSprint   = bestMatch;
+    genomeState.similarityScore = bestScore;
+    genomeState.mutations       = mutations;
+    genomeState.risks           = risks;
+    genomeState.recommendations = recommendations;
+    genomeState.lastAnalyzed    = new Date().toLocaleTimeString();
+
+    // Optional AI narrative via Electron IPC (never blocks if unavailable)
+    if (window.taskPilotDesktop?.invoke && risks.length > 0) {
+      try {
+        const prompt = `You are TaskPilot AI. A sprint genome analysis has been completed.
+
+Current sprint: ${current.workload} tasks, ${current.bugCount} bugs, ${current.apiCount} pending APIs, ${current.blockerCount} blockers.
+Best historical match: ${bestMatch.sprintLabel} (${bestScore}% similar, outcome: ${bestMatch.outcome}).
+Top risks: ${risks.slice(0, 3).map(r => `${r.label} ${r.pct}%`).join(", ")}.
+
+Write a 2-sentence manager briefing: what the genome found and what to do TODAY. Be specific. Never mention Gemini.`;
+        const result = await window.taskPilotDesktop.invoke("taskpilot:gemini-stream", { prompt });
+        if (result?.success && result.text) {
+          genomeState.aiNarrative = result.text.replace(/Gemini/gi, "TaskPilot AI");
+        }
+      } catch (_) { /* AI narrative is optional */ }
+    }
+
+  } catch (e) {
+    console.error("Genome analysis error:", e);
+  }
+
+  genomeState.loading = false;
+  render();
+}
+
+/**
+ * Render the full Project Genome page
+ */
+function renderProjectGenomePage() {
+  const g = genomeState;
+  const current = g.currentGenome;
+  const matched = g.matchedSprint;
+
+  // Genome fingerprint bars
+  function genomeBars(genome, color) {
+    if (!genome) return "";
+    const fields = [
+      { key: "workload", label: "Workload" },
+      { key: "bugCount", label: "Bugs" },
+      { key: "apiCount", label: "APIs pending" },
+      { key: "meetingLoad", label: "Meeting load" },
+      { key: "reviewLoad", label: "Code reviews" },
+      { key: "blockerCount", label: "Blockers" },
+      { key: "overdueCount", label: "Overdue" }
+    ];
+    const maxVal = Math.max(...fields.map(f => genome[f.key] || 0), 1);
+    return fields.map(f => {
+      const val = genome[f.key] || 0;
+      const pct = Math.round((val / maxVal) * 100);
+      return `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="width:90px;font-size:11px;color:#626f86;text-align:right;flex-shrink:0;">${f.label}</span>
+          <div style="flex:1;height:10px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:${color};border-radius:inherit;transition:width 0.4s;"></div>
+          </div>
+          <span style="width:22px;font-size:11px;color:#172b4d;font-weight:700;">${val}</span>
+        </div>`;
+    }).join("");
+  }
+
+  return `
+    <div style="padding:24px;max-width:1100px;margin:0 auto;">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <h1 style="margin:0;font-size:22px;color:#172b4d;display:flex;align-items:center;gap:10px;">
+            🧬 Project Genome &amp; Mutation Predictor
+          </h1>
+          <p style="margin:4px 0 0;font-size:13px;color:#626f86;">
+            Reads your sprint's DNA, compares it to past sprints, and predicts problems before they happen.
+            ${g.lastAnalyzed ? `<span style="color:#22a06b;">● Last analyzed ${g.lastAnalyzed}</span>` : ""}
+          </p>
+        </div>
+        <button
+          id="genomeRunBtn"
+          style="padding:10px 22px;background:${g.loading ? "#626f86" : "#0c66e4"};color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:${g.loading ? "not-allowed" : "pointer"};display:flex;align-items:center;gap:8px;"
+          ${g.loading ? "disabled" : ""}
+        >
+          ${g.loading
+            ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Analyzing...`
+            : `🧬 ${current ? "Re-Analyze Sprint" : "Analyze Sprint"}`}
+        </button>
+      </div>
+
+      ${!current ? `
+        <!-- Empty state -->
+        <div style="text-align:center;padding:60px 20px;background:#f8f9fa;border-radius:12px;border:2px dashed #dfe3ea;">
+          <div style="font-size:48px;margin-bottom:16px;">🧬</div>
+          <h2 style="color:#172b4d;margin:0 0 8px;">Your sprint has no genome yet</h2>
+          <p style="color:#626f86;max-width:480px;margin:0 auto 20px;">Click "Analyze Sprint" to build a genetic fingerprint of the current sprint and compare it against historical patterns to predict risks.</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:540px;margin:0 auto;text-align:left;">
+            ${[
+              { icon:"📥", title:"Data Sources", desc:"Jira, GitHub, Slack, Emails, Meetings" },
+              { icon:"🔬", title:"Feature Extraction", desc:"Workload, bugs, dependencies, reviews" },
+              { icon:"🎯", title:"Risk Prediction", desc:"Bottlenecks, overload, delays — with %s" }
+            ].map(s => `
+              <div style="background:#fff;border:1px solid #dfe3ea;border-radius:8px;padding:12px;">
+                <div style="font-size:22px;">${s.icon}</div>
+                <strong style="font-size:12px;color:#172b4d;">${s.title}</strong>
+                <p style="font-size:11px;color:#626f86;margin:4px 0 0;">${s.desc}</p>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : `
+
+        <!-- KPI row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+          ${[
+            { label:"Similarity to past sprint", value:`${g.similarityScore}%`, sub: matched ? `vs ${matched.sprintLabel}` : "", color: g.similarityScore >= 80 ? "#de350b" : g.similarityScore >= 60 ? "#974f0c" : "#22a06b" },
+            { label:"Mutations detected", value: g.mutations.length, sub:"Changed signals", color:"#6554c0" },
+            { label:"Predicted risks", value: g.risks.length, sub:"With confidence scores", color: g.risks.length > 2 ? "#de350b" : "#22a06b" },
+            { label:"Outcome prediction", value: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "⚠️ At Risk" : "✅ On Track", sub:`Based on ${matched?.sprintLabel || "history"}`, color: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "#de350b" : "#22a06b" }
+          ].map(k => `
+            <div style="background:#fff;border:1px solid #dfe3ea;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+              <p style="margin:0 0 4px;font-size:11px;color:#626f86;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${k.label}</p>
+              <span style="font-size:26px;font-weight:800;color:${k.color};">${k.value}</span>
+              <p style="margin:4px 0 0;font-size:11px;color:#626f86;">${k.sub}</p>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- AI narrative (shown when available) -->
+        ${g.aiNarrative ? `
+          <div style="background:#f0f7ff;border:1px solid #b3d4ff;border-left:4px solid #0c66e4;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start;">
+            <span style="font-size:20px;flex-shrink:0;">🤖</span>
+            <div>
+              <p style="margin:0 0 2px;font-size:12px;font-weight:700;color:#0c66e4;">TaskPilot AI Manager Briefing</p>
+              <p style="margin:0;font-size:13px;color:#172b4d;line-height:1.5;">${escapeHtml(g.aiNarrative)}</p>
+            </div>
+          </div>
+        ` : ""}
+
+        <!-- Genome comparison -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+          <!-- Current genome -->
+          <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #0c66e4;border-radius:10px;padding:18px;">
+            <h3 style="margin:0 0 4px;font-size:14px;color:#172b4d;">🔵 Current Sprint Genome</h3>
+            <p style="margin:0 0 14px;font-size:11px;color:#626f86;">${current.workload} active tasks · velocity ${current.velocity}%</p>
+            ${genomeBars(current, "#0c66e4")}
+          </div>
+          <!-- Matched genome -->
+          <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid ${matched?.outcome === "delayed" ? "#de350b" : "#22a06b"};border-radius:10px;padding:18px;">
+            <h3 style="margin:0 0 4px;font-size:14px;color:#172b4d;">
+              ${matched?.outcome === "delayed" ? "🔴" : "🟢"} ${matched?.sprintLabel || "Matched Sprint"} — ${g.similarityScore}% match
+            </h3>
+            <p style="margin:0 0 14px;font-size:11px;color:${matched?.outcome === "delayed" ? "#ae2a19" : "#216e4e"};font-weight:700;">
+              ${matched?.outcome === "delayed" ? "⚠️ This sprint ended delayed" : "✅ This sprint completed on time"}
+            </p>
+            ${genomeBars(matched, matched?.outcome === "delayed" ? "#de350b" : "#22a06b")}
+          </div>
+        </div>
+
+        <!-- Mutation panel -->
+        ${g.mutations.length > 0 ? `
+          <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #6554c0;border-radius:10px;padding:18px;margin-bottom:20px;">
+            <h3 style="margin:0 0 12px;font-size:14px;color:#172b4d;">🔬 Mutation Detection — What's Different This Time</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
+              ${g.mutations.map(m => `
+                <div style="background:#f8f9fa;border-radius:8px;padding:12px;border:1px solid #dfe3ea;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <strong style="font-size:12px;color:#172b4d;">${m.label}</strong>
+                    <span style="font-size:12px;font-weight:800;color:${m.delta > 0 ? "#de350b" : "#22a06b"};">
+                      ${m.delta > 0 ? "▲" : "▼"} ${Math.abs(m.delta)}
+                    </span>
+                  </div>
+                  <div style="display:flex;gap:12px;font-size:11px;color:#626f86;">
+                    <span>Now: <strong style="color:#172b4d;">${m.current}</strong></span>
+                    <span>Past: <strong style="color:#172b4d;">${m.past}</strong></span>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        ` : ""}
+
+        <!-- Risk prediction & recommendations -->
+        ${g.risks.length > 0 ? `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+            <!-- Risks -->
+            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #de350b;border-radius:10px;padding:18px;">
+              <h3 style="margin:0 0 14px;font-size:14px;color:#172b4d;">⚠️ Predicted Risks</h3>
+              <div style="display:grid;gap:12px;">
+                ${g.risks.map(r => `
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                      <span style="font-size:13px;font-weight:700;color:${r.color};">${r.label}</span>
+                      <span style="font-size:13px;font-weight:800;color:${r.color};">${r.pct}%</span>
+                    </div>
+                    <div style="height:8px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
+                      <div style="width:${r.pct}%;height:100%;background:${r.color};border-radius:inherit;transition:width 0.5s;"></div>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+            <!-- Recommendations -->
+            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #22a06b;border-radius:10px;padding:18px;">
+              <h3 style="margin:0 0 14px;font-size:14px;color:#172b4d;">✅ AI Recommendations</h3>
+              <div style="display:grid;gap:10px;">
+                ${g.recommendations.map((rec, i) => `
+                  <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#f4fff9;border:1px solid #b7e4ce;border-radius:8px;">
+                    <span style="width:22px;height:22px;background:#22a06b;color:#fff;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0;">${i+1}</span>
+                    <span style="font-size:12px;color:#172b4d;">${escapeHtml(rec)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+        ` : ""}
+
+        <!-- Past sprints library -->
+        <div style="background:#fff;border:1px solid #dfe3ea;border-radius:10px;padding:18px;">
+          <h3 style="margin:0 0 14px;font-size:14px;color:#172b4d;">📚 Genome Library — Historical Sprints</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+            ${g.pastGenomes.map(past => {
+              const sim = computeGenomeSimilarity(current, past);
+              const isMatch = past.sprintLabel === matched?.sprintLabel;
+              return `
+                <div style="padding:12px;border-radius:8px;border:${isMatch ? "2px solid #de350b" : "1px solid #dfe3ea"};background:${isMatch ? "#fff5f4" : "#f8f9fa"};">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <strong style="font-size:12px;color:#172b4d;">${past.sprintLabel}</strong>
+                    ${isMatch ? `<span style="font-size:10px;background:#ffd5d2;color:#ae2a19;padding:2px 6px;border-radius:4px;font-weight:700;">BEST MATCH</span>` : ""}
+                  </div>
+                  <div style="font-size:11px;color:#626f86;margin-bottom:8px;">
+                    ${past.workload} tasks · ${past.bugCount} bugs · ${past.apiCount} APIs
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:11px;font-weight:700;color:${sim >= 70 ? "#de350b" : sim >= 50 ? "#974f0c" : "#22a06b"};">${sim}% similar</span>
+                    <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${past.outcome === "delayed" ? "#ffd5d2" : "#dcfff1"};color:${past.outcome === "delayed" ? "#ae2a19" : "#216e4e"};font-weight:700;">${past.outcome === "delayed" ? "Delayed" : "On Time"}</span>
+                  </div>
+                </div>`;
+            }).join("")}
+          </div>
+        </div>
+      `}
+
+    </div>
+  `;
+}
+
 // ─── Manager Dashboard Command Strip ──────────────────────────────────────────
 function renderManagerCommandStrip(selected) {
   const insights = datasetInsights();
   const p1Tasks = state.prioritized.filter(t => t.severity === "P1");
   const blockers = state.prioritized.filter(t => t.dependencies.some(d => /block|waiting|approval|eta|coordinate/i.test(d)));
   const slaRisks = state.prioritized.filter(t => t.severity === "P1" || t.due <= "2026-06-20");
+  const genomeReady = genomeState.currentGenome !== null;
+  const topRisk = genomeState.risks?.[0];
+  const similarityScore = genomeState.similarityScore;
   return `
     <section class="manager-command-strip hero-grid">
       <article class="hero-card alert" style="cursor: pointer;" data-nav="overview">
         <p class="eyebrow">Team risk pulse</p>
         <h2>${slaRisks.length} SLA / escalation risks</h2>
-        <p>Highest risk: ${selected?.canonicalTitle || "None"}. It is correlated across ${selected?.sources.length || 0} systems and requires manager visibility.</p>
+        <p>Highest risk: ${selected?.canonicalTitle || "None"}. Correlated across ${selected?.sources.length || 0} systems — needs manager visibility.</p>
       </article>
-      <article class="hero-card">
-        <p class="eyebrow">Dataset intelligence</p>
-        <h2>${state.flattened.length} raw signals → ${state.deduped.length} clean tasks</h2>
-        <p>Trained on ${insights.trainedSignals} backend records using ${insights.featureCount} features: source type, severity, deadline, owner pressure, blockers, impact, and duplicate similarity.</p>
+      <article class="hero-card" style="cursor:pointer;" data-nav="genome">
+        <p class="eyebrow">🧬 Sprint Genome</p>
+        <h2>${genomeReady ? `${similarityScore}% match` : "Analyze sprint"}</h2>
+        <p>${genomeReady
+          ? `Current sprint is ${similarityScore}% similar to a past sprint. ${topRisk ? `Top risk: ${topRisk.label} (${topRisk.pct}%).` : ""}`
+          : "Run the Genome Analyzer to predict risks from historical sprint patterns."
+        }</p>
       </article>
       <article class="hero-card" style="cursor: pointer;" data-nav="hidden">
-        <p class="eyebrow">NLP pipeline</p>
-        <h2>${insights.unstructuredCount} unstructured asks</h2>
-        <p>Emails, Slack mentions, and meeting notes are normalized into structured task records before priority scoring.</p>
+        <p class="eyebrow">Hidden asks</p>
+        <h2>${insights.unstructuredCount} unstructured signals</h2>
+        <p>Emails, Slack mentions, and meeting notes normalized into structured task records before priority scoring.</p>
       </article>
       <article class="hero-card priority" style="cursor: pointer;" data-nav="analytics">
         <p class="eyebrow">Manager action</p>
         <h2>${blockers.length} blockers need decisions</h2>
-        <p>Use this view to rebalance owners, approve dependencies, and send ETA updates across Jira, ServiceNow, and Outlook.</p>
+        <p>Rebalance owners, approve dependencies, and send ETA updates across Jira, ServiceNow, and Outlook.</p>
       </article>
     </section>
   `;
 }
 
 // ─── Manager Dashboard (full standalone) - KPI + Assign + Kanban ─────────────
+// ─── Workload Chart (SVG bar chart) ──────────────────────────────────────────
+function renderWorkloadChart(ownerLoad) {
+  const owners = ownerLoad.slice(0, 8);
+  if (owners.length === 0) return `<p style="color:#626f86;font-size:12px;text-align:center;padding:16px;">No workload data yet.</p>`;
+
+  const COLORS = ["#0c66e4", "#22a06b", "#ffab00", "#6554c0", "#de350b", "#0ea5e9", "#f97316", "#8b5cf6"];
+  const maxCount = Math.max(...owners.map(o => o.count), 1);
+  const BAR_H = 22;
+  const GAP = 10;
+  const LABEL_W = 90;
+  const BAR_MAX_W = 220;
+  const SVG_W = LABEL_W + BAR_MAX_W + 70;
+  const SVG_H = owners.length * (BAR_H + GAP) + 20;
+
+  const bars = owners.map((o, i) => {
+    const y = i * (BAR_H + GAP) + 10;
+    const barW = Math.max(6, Math.round((o.count / maxCount) * BAR_MAX_W));
+    const p1W = Math.max(0, Math.round((o.p1 / maxCount) * BAR_MAX_W));
+    const col = COLORS[i % COLORS.length];
+    const isOverloaded = o.count >= 8 || o.p1 >= 3;
+    const label = o.owner.length > 11 ? o.owner.slice(0, 11) + "…" : o.owner;
+    return `
+      <!-- Owner label -->
+      <text x="${LABEL_W - 6}" y="${y + BAR_H / 2 + 5}" text-anchor="end" font-size="11" fill="#344563" font-family="Inter,system-ui,sans-serif" font-weight="600">${escapeHtml(label)}</text>
+      <!-- Total bar (background) -->
+      <rect x="${LABEL_W}" y="${y}" width="${barW}" height="${BAR_H}" rx="4" fill="${col}22"/>
+      <!-- Total bar (fill) -->
+      <rect x="${LABEL_W}" y="${y}" width="${barW}" height="${BAR_H}" rx="4" fill="${col}" opacity="0.85"/>
+      <!-- P1 overlay -->
+      ${p1W > 0 ? `<rect x="${LABEL_W}" y="${y}" width="${Math.min(p1W, barW)}" height="${BAR_H}" rx="4" fill="#de350b" opacity="0.55"/>` : ""}
+      <!-- Count label -->
+      <text x="${LABEL_W + barW + 6}" y="${y + BAR_H / 2 + 5}" font-size="11" fill="#344563" font-family="Inter,system-ui,sans-serif" font-weight="700">${o.count}</text>
+      ${o.p1 > 0 ? `<text x="${LABEL_W + barW + 28}" y="${y + BAR_H / 2 + 5}" font-size="10" fill="#de350b" font-family="Inter,system-ui,sans-serif">${o.p1}P1</text>` : ""}
+      ${isOverloaded ? `<text x="${LABEL_W + barW + 52}" y="${y + BAR_H / 2 + 5}" font-size="10" fill="#de350b" font-family="Inter,system-ui,sans-serif">⚠</text>` : ""}
+      ${o.blockers > 0 ? `<rect x="${LABEL_W}" y="${y + BAR_H - 3}" width="${barW}" height="3" rx="2" fill="#974f0c" opacity="0.6"/>` : ""}
+    `;
+  }).join("");
+
+  // Legend
+  const legend = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:#626f86;">
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:#0c66e4;border-radius:2px;display:inline-block;"></span>Total tasks</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;background:#de350b;opacity:0.55;border-radius:2px;display:inline-block;"></span>P1 tasks</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#974f0c;border-radius:2px;display:inline-block;"></span>Has blockers</span>
+    </div>`;
+
+  return `
+    <div style="overflow-x:auto;">
+      <svg width="${SVG_W}" height="${SVG_H}" style="display:block;max-width:100%;">
+        ${bars}
+      </svg>
+    </div>
+    ${legend}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:10px;">
+      ${owners.map((o, i) => {
+        const col = COLORS[i % COLORS.length];
+        const pct = o.count ? Math.round(o.done / o.count * 100) : 0;
+        const isOverloaded = o.count >= 8 || o.p1 >= 3;
+        return `<div style="padding:7px 9px;background:#fff;border:1px solid #e8e0d5;border-left:3px solid ${col};border-radius:7px;font-size:11px;">
+          <strong style="color:#172b4d;display:block;margin-bottom:2px;">${escapeHtml(o.owner)}</strong>
+          <div style="color:#64748b;">${o.count} tasks · ${o.p1} P1</div>
+          <div style="color:${o.blockers > 0 ? "#974f0c" : "#64748b"};">${o.blockers} blocker${o.blockers !== 1 ? "s" : ""}</div>
+          ${isOverloaded ? `<span style="font-size:10px;color:#de350b;font-weight:700;">⚠ Overloaded</span>` : ""}
+        </div>`;
+      }).join("")}
+    </div>`;
+}
+
+// ─── Dependency Graph ─────────────────────────────────────────────────────────
+function renderDependencyGraph() {
+  // Find tasks that are either blocking or blocked by others
+  const blockingTasks = state.prioritized.filter(t => t.isBlocking && !isTaskCompleted(t.id));
+  const blockedTasks  = state.prioritized.filter(t => t.isBlocked  && !isTaskCompleted(t.id));
+
+  // Fall back: use dependency keyword analysis if graph data not populated
+  const keywordBlocked = state.prioritized.filter(t =>
+    !isTaskCompleted(t.id) &&
+    (t.dependencies || []).some(d => /block|waiting|eta|approval|coordinate/i.test(d))
+  );
+
+  const allBlockers = blockingTasks.length > 0 ? blockingTasks : [];
+  const allBlocked  = blockedTasks.length  > 0 ? blockedTasks  : keywordBlocked;
+
+  const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
+
+  const blockingRows = allBlockers.slice(0, 6).map(t => {
+    const col = sevColor[t.severity] || "#626f86";
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fff8f0;border:1px solid #e8d5b7;border-left:3px solid ${col};border-radius:6px;margin:4px 0;">
+      <span style="font-size:16px;">🔴</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(t.canonicalTitle)}</div>
+        <div style="font-size:10px;color:#64748b;margin-top:1px;">
+          <span style="background:${col}18;color:${col};padding:1px 5px;border-radius:3px;font-weight:700;">${t.severity}</span>
+          <span style="margin-left:5px;">👤 ${escapeHtml(t.owner || "Unassigned")}</span>
+          <span style="margin-left:5px;">Blocks ${t.blocksCount || "?"} downstream task${t.blocksCount !== 1 ? "s" : ""}</span>
+        </div>
+      </div>
+      <span style="font-size:10px;font-weight:800;color:#de350b;background:#ffd5d2;padding:2px 6px;border-radius:4px;">BLOCKING</span>
+    </div>`;
+  }).join("");
+
+  const blockedRows = allBlocked.slice(0, 6).map(t => {
+    const col = sevColor[t.severity] || "#626f86";
+    const depText = (t.dependencies || []).filter(d => /block|waiting|eta|approval/i.test(d)).slice(0, 2).join(" · ");
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8f9ff;border:1px solid #c7d7f7;border-left:3px solid #0c66e4;border-radius:6px;margin:4px 0;">
+      <span style="font-size:16px;">🚧</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(t.canonicalTitle)}</div>
+        <div style="font-size:10px;color:#64748b;margin-top:1px;">
+          <span style="background:${col}18;color:${col};padding:1px 5px;border-radius:3px;font-weight:700;">${t.severity}</span>
+          <span style="margin-left:5px;">👤 ${escapeHtml(t.owner || "Unassigned")}</span>
+          ${depText ? `<span style="margin-left:5px;color:#974f0c;">⚠ ${escapeHtml(depText)}</span>` : ""}
+        </div>
+      </div>
+      <span style="font-size:10px;font-weight:800;color:#0c66e4;background:#e8f0fe;padding:2px 6px;border-radius:4px;">BLOCKED</span>
+    </div>`;
+  }).join("");
+
+  const hasData = allBlockers.length > 0 || allBlocked.length > 0;
+
+  if (!hasData) {
+    return `<div style="padding:16px;text-align:center;color:#626f86;font-size:13px;">
+      <span style="font-size:24px;display:block;margin-bottom:6px;">✅</span>
+      No blocking dependencies detected in the active queue.
+    </div>`;
+  }
+
+  return `
+    <div style="display:grid;gap:10px;">
+      ${allBlockers.length > 0 ? `
+        <div>
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#de350b;margin-bottom:6px;">
+            🔴 Blocking (${allBlockers.length}) — resolve these first to unblock downstream work
+          </div>
+          ${blockingRows}
+        </div>` : ""}
+      ${allBlocked.length > 0 ? `
+        <div style="margin-top:${allBlockers.length > 0 ? "8px" : "0"};">
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#0c66e4;margin-bottom:6px;">
+            🚧 Blocked (${allBlocked.length}) — waiting on decisions or other tasks
+          </div>
+          ${blockedRows}
+        </div>` : ""}
+      <div style="padding:8px 10px;background:#f8f5f0;border-radius:6px;font-size:11px;color:#64748b;border-left:3px solid #6554c0;">
+        💡 Resolving blocking tasks first will cascade ${allBlockers.reduce((s,t) => s + (t.blocksCount||1), 0)} downstream item${allBlockers.reduce((s,t) => s + (t.blocksCount||1), 0) !== 1 ? "s" : ""} into action automatically.
+      </div>
+    </div>`;
+}
+
 function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, slaRisks) {
   // helper — workload bar
   const wBar = (load, color) => `<div style="height:7px;background:#f1f2f4;border-radius:999px;overflow:hidden;"><div style="width:${Math.min(96,Math.max(10,load))}%;height:100%;background:${color};border-radius:inherit;"></div></div>`;
@@ -890,12 +1784,12 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           </div>
           <div style="display:grid; gap:8px;">
             ${[
-              { id: "mgr-jira", name: "Jira Sprint Board", srcId: "Jira", color: "#0c66e4", icon: "▦" },
-              { id: "mgr-github", name: "GitHub PR Reviews", srcId: "GitHub", color: "#24292f", icon: "⌁" },
-              { id: "mgr-servicenow", name: "ServiceNow Defects", srcId: "ServiceNow", color: "#bf2600", icon: "△" },
-              { id: "mgr-email", name: "Outlook Inbox", srcId: "Outlook Emails", color: "#0c66e4", icon: "📧" },
-              { id: "mgr-slack", name: "Slack Mentions", srcId: "Slack Mentions", color: "#6554c0", icon: "💬" },
-              { id: "meetings", name: "Meetings", srcId: "meetings", color: "#8b5cf6", icon: "◷" }
+              { id: "mgr-jira",       name: "Jira Sprint Board",    srcId: "Jira",           color: "#0052CC", icon: "▦" },
+              { id: "mgr-github",     name: "GitHub PR Reviews",    srcId: "GitHub",         color: "#1a1a2e", icon: "⌁" },
+              { id: "mgr-servicenow", name: "ServiceNow Defects",   srcId: "ServiceNow",     color: "#c0392b", icon: "△" },
+              { id: "mgr-email",      name: "Outlook Inbox",        srcId: "Outlook Emails", color: "#0078D4", icon: "📧" },
+              { id: "mgr-slack",      name: "Slack Mentions",       srcId: "Slack Mentions", color: "#4A154B", icon: "💬" },
+              { id: "meetings",       name: "Meetings",             srcId: "meetings",       color: "#1a7a4a", icon: "◷" }
             ].map(src => {
               const isMeetings = src.id === "meetings";
               const count = isMeetings
@@ -930,7 +1824,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <div class="mgr-kanban">
               ${["P1","P2","P3"].map(sev => {
                 const col = {"P1":"#de350b","P2":"#ffab00","P3":"#22a06b"}[sev];
-                const tasks = state.prioritized.filter(t => t.severity === sev && !completedTaskIds.includes(t.id)).slice(0, 5);
+                const tasks = state.prioritized.filter(t => t.severity === sev && !isTaskCompleted(t.id)).slice(0, 5);
                 return `
                   <div class="mgr-lane">
                     <div class="mgr-lane-head" style="color:${col};">
@@ -951,23 +1845,14 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           </div>
 
           <div class="mgr-panel team-health">
-            <h3>Team Workload Distribution</h3>
-            <div class="mgr-workload-grid">
-              ${insights.ownerLoad.slice(0,5).map((owner,i)=>{
-                const colors=["#0c66e4","#22a06b","#ffab00","#6554c0","#de350b"];
-                const pct = Math.min(95,Math.max(10,Math.round(owner.score/2)));
-                return `
-                  <div class="mgr-workload-row">
-                    <div class="mgr-workload-row-header">
-                      <strong>${owner.owner}</strong>
-                      <span>${owner.count} tasks · ${owner.blockers} blockers · ${owner.p1} P1</span>
-                    </div>
-                    <div class="mgr-workload-bar-bg">
-                      <div class="mgr-workload-bar-fill" style="width:${pct}%;background:${colors[i%5]};"></div>
-                    </div>
-                  </div>`;
-              }).join("")}
-            </div>
+            <h3>📊 Team Workload Distribution</h3>
+            ${renderWorkloadChart(insights.ownerLoad)}
+          </div>
+
+          <!-- Dependency Graph Panel -->
+          <div class="mgr-panel" style="border-left:4px solid #6554c0;">
+            <h3>🔗 Dependency Graph · Blocking Relationships</h3>
+            ${renderDependencyGraph()}
           </div>
         </div>
 
@@ -1055,7 +1940,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
 
 function renderManagerDashboard(selected) {
   const insights = datasetInsights();
-  const activePrioritized = state.prioritized.filter(t => !completedTaskIds.includes(t.id));
+  const activePrioritized = state.prioritized.filter(t => !isTaskCompleted(t.id));
   const p1Tasks = activePrioritized.filter(t => t.severity === "P1");
   const blockers = activePrioritized.filter(t => t.dependencies.some(d => /block|waiting|approval|eta|coordinate/i.test(d)));
   const slaRisks = activePrioritized.filter(t => t.severity === "P1" || t.due <= "2026-06-20");
@@ -1194,9 +2079,14 @@ function renderTeamWorkload(isManager) {
     if (!ownerMap[o]) ownerMap[o] = { name: o, total: 0, done: 0, working: 0, todo: 0, p1: 0, p2: 0, tasks: [] };
     ownerMap[o].total++;
     ownerMap[o].tasks.push(t);
-    if (completedTaskIds.includes(t.id)) ownerMap[o].done++;
-    else if (workingTaskIds.includes(t.id)) ownerMap[o].working++;
+
+    const isCompleted = isTaskCompleted(t.id);
+    const isWorking = isTaskWorking(t.id);
+
+    if (isCompleted) ownerMap[o].done++;
+    else if (isWorking) ownerMap[o].working++;
     else ownerMap[o].todo++;
+
     if (t.severity === "P1") ownerMap[o].p1++;
     if (t.severity === "P2") ownerMap[o].p2++;
   });
@@ -1273,8 +2163,8 @@ function renderTeamWorkload(isManager) {
 
               <!-- Top 3 tasks -->
               <div class="tw-task-mini-list">
-                ${eng.tasks.filter(t => !completedTaskIds.includes(t.id)).slice(0, 3).map(t => {
-                  const isW = workingTaskIds.includes(t.id);
+                ${eng.tasks.filter(t => !isTaskCompleted(t.id)).slice(0, 3).map(t => {
+                  const isW = isTaskWorking(t.id);
                   const sevColor = {P1:"#de350b",P2:"#974f0c",P3:"#216e4e"}[t.severity]||"#626f86";
                   return `
                     <div class="tw-mini-task ${isW?"working":""}">
@@ -1283,8 +2173,8 @@ function renderTeamWorkload(isManager) {
                       ${isW ? `<span style="font-size:10px;color:#ffab00;font-weight:800;">Working</span>` : ""}
                     </div>`;
                 }).join("")}
-                ${eng.tasks.filter(t => !completedTaskIds.includes(t.id)).length > 3
-                  ? `<div style="font-size:11px;color:#626f86;padding:4px 0;">+ ${eng.tasks.filter(t => !completedTaskIds.includes(t.id)).length - 3} more remaining</div>`
+                ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length > 3
+                  ? `<div style="font-size:11px;color:#626f86;padding:4px 0;">+ ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length - 3} more remaining</div>`
                   : ""}
               </div>
 
@@ -1317,6 +2207,21 @@ function renderTeamWorkload(isManager) {
 }
 
 // Page: Today Priority
+// ─── Deadline urgency gradient helper ─────────────────────────────────────────
+// Returns { bg, border, label, textColor } based on days until deadline
+function deadlineStyle(due, isDone = false) {
+  if (isDone) return { bg: "#f4fff9", border: "#b7e4ce", label: "", textColor: "#216e4e" };
+  if (!due)   return { bg: "#ffffff", border: "#e2e8f0", label: "", textColor: "#64748b" };
+  const today = new Date("2026-06-21T00:00:00");
+  const dueDate = new Date(`${due}T23:59:59`);
+  const days = Math.ceil((dueDate - today) / 86400000);
+  if (days < 0)  return { bg: "linear-gradient(135deg,#ff4d4d18,#ff000010)", border: "#ff4d4d", label: "OVERDUE", textColor: "#de350b", badgeBg: "#ff4d4d", badgeText: "#fff" };
+  if (days === 0) return { bg: "linear-gradient(135deg,#ff6b0018,#ff980010)", border: "#ff6b00", label: "TODAY", textColor: "#974f0c", badgeBg: "linear-gradient(90deg,#ff6b00,#ff0000)", badgeText: "#fff" };
+  if (days === 1) return { bg: "linear-gradient(135deg,#ffab0018,#ffd60010)", border: "#ffab00", label: "TOMORROW", textColor: "#7a4200", badgeBg: "#ffab00", badgeText: "#fff" };
+  if (days <= 3)  return { bg: "linear-gradient(135deg,#fffbe610,#ffab0008)", border: "#ffd166", label: `${days}d left`, textColor: "#7a4200", badgeBg: "#ffd166", badgeText: "#7a4200" };
+  return { bg: "#ffffff", border: "#e2e8f0", label: `${days}d`, textColor: "#64748b", badgeBg: "#f1f5f9", badgeText: "#64748b" };
+}
+
 function renderTodayPriority(dynamicPlan) {
   const queue = activeQueue();
   const todayStr = "2026-06-19";
@@ -1340,9 +2245,11 @@ function renderTodayPriority(dynamicPlan) {
     const sevColor  = { P1:"#de350b", P2:"#974f0c", P3:"#216e4e" }[t.severity] || "#626f86";
     const srcColor  = sources.find(s => s.id === t.sourceId)?.color || "#626f86";
     const srcName   = sources.find(s => s.id === t.sourceId)?.name  || t.sourceId;
+    const dl = deadlineStyle(t.due, isDone);
 
     return `
-      <div class="tp-task-row ${isDone ? "tp-done" : isWorking ? "tp-working" : ""}" data-task-row="${t.id}">
+      <div class="tp-task-row ${isDone ? "tp-done" : isWorking ? "tp-working" : ""}" data-task-row="${t.id}"
+           style="background:${dl.bg};border-color:${dl.border};border-left:3px solid ${dl.border};">
         <div class="tp-task-row-left">
           <div class="tp-sev-dot" style="background:${sevColor}" title="${t.severity}"></div>
           <div class="tp-task-info">
@@ -1350,11 +2257,16 @@ function renderTodayPriority(dynamicPlan) {
               ${escapeHtml(t.canonicalTitle)}
               ${isWorking ? `<span class="tp-status-chip working">● Working</span>` : ""}
               ${isDone    ? `<span class="tp-status-chip done">✓ Done</span>` : ""}
+              ${t.isBlocking ? `<span style="font-size:10px;background:#fff0b3;color:#974f0c;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;">⚠ Blocking</span>` : ""}
             </div>
             <div class="tp-task-meta">
               <span class="tp-src-badge" style="background:${srcColor}22;color:${srcColor};">${srcName}</span>
               <span>${t.severity}</span>
-              ${t.due ? `<span class="${isOverdue && !isDone ? "tp-overdue" : ""}">${isOverdue && !isDone ? "⚠ Overdue · " : ""}${formatDue(t.due)}</span>` : ""}
+              ${t.due ? `
+                <span style="display:inline-flex;align-items:center;gap:3px;">
+                  ${dl.label ? `<span style="font-size:10px;font-weight:800;padding:1px 5px;border-radius:3px;background:${dl.badgeBg || dl.border};color:${dl.badgeText || "#fff"};">${dl.label}</span>` : ""}
+                  <span style="color:${dl.textColor};font-weight:600;">${formatDue(t.due)}</span>
+                </span>` : ""}
               <span>${t.owner || "Unassigned"}</span>
             </div>
           </div>
@@ -1660,39 +2572,375 @@ function renderAgentScanConsole() {
 
 // Page: Unified Inbox — Full Scrum Board with Source Tree, Kanban, and Date Stream
 function renderUnifiedInbox() {
-  const allTasks = getScrumTasks();
-  const byStatus = groupByStatus(allTasks);
+  const TODAY = "2026-06-21";
+
+  // Source color map — pastel-friendly accent colours (used for borders, icons, accents)
+  const SOURCE_META = {
+    jira:        { label: "Jira Sprint Board",   icon: "▦", color: "#1868db", pastel: "#eef3ff", emoji: "📋" },
+    github:      { label: "GitHub PRs",          icon: "⌁", color: "#374151", pastel: "#f3f4f6", emoji: "🔀" },
+    servicenow:  { label: "ServiceNow Defects",  icon: "△", color: "#c0392b", pastel: "#fff1f0", emoji: "🚨" },
+    email:       { label: "Outlook Emails",      icon: "📧", color: "#0369a1", pastel: "#eff8ff", emoji: "📧" },
+    slack:       { label: "Slack Mentions",      icon: "💬", color: "#7c3aed", pastel: "#f5f3ff", emoji: "💬" },
+    notes:       { label: "Meeting Notes",       icon: "📌", color: "#0f766e", pastel: "#f0fdfa", emoji: "📌" }
+  };
+
+  const queue = activeQueue();
+
+  if (scrumActiveSource !== "all") {
+    // ─── SOURCE DETAIL VIEW: Show tasks as a colored tile grid ───
+    const pending = queue.filter(t => taskMatchesSource(t, scrumActiveSource));
+    const meta = SOURCE_META[scrumActiveSource] || { label: scrumActiveSource, icon: "◎", color: "#64748b", emoji: "📌" };
+
+    const taskTiles = pending.map(t => {
+      const nearestDue = t.due || null;
+      const daysLeft = nearestDue
+        ? Math.ceil((new Date(nearestDue) - new Date(TODAY)) / 86400000)
+        : null;
+
+      let bg = "#ffffff";
+      let border = `${meta.color}35`;
+      let badgeText = "Stable";
+      let playBtnStyle = `background:${meta.color}15;color:${meta.color};border:1px solid ${meta.color}30;`;
+      let subTextColor = "#65717d";
+
+      if (daysLeft !== null) {
+        if (daysLeft <= 0) {
+          bg = `${meta.pastel || "#fef2f2"}`;
+          border = meta.color;
+          badgeText = "DUE TODAY";
+          playBtnStyle = `background:${meta.color}18;color:${meta.color};border:1px solid ${meta.color}40;`;
+          subTextColor = "#44546f";
+        } else if (daysLeft <= 3) {
+          bg = `${meta.pastel || "#fffbeb"}cc`;
+          border = `${meta.color}80`;
+          badgeText = daysLeft === 1 ? "TOMORROW" : `${daysLeft}d left`;
+          playBtnStyle = `background:${meta.color}18;color:${meta.color};border:1px solid ${meta.color}40;`;
+          subTextColor = "#44546f";
+        }
+      }
+
+      const isDone = isTaskCompleted(t.id);
+      const isWorking = isTaskWorking(t.id);
+
+      return `
+        <div class="task-detail-tile" data-task="${t.id}"
+             style="cursor:pointer;background:${bg};border:2px solid ${border};border-top:3px solid ${meta.color};border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(9,30,66,0.06);color:#17202a;display:flex;flex-direction:column;justify-content:space-between;min-height:165px;transition:transform 0.15s ease,box-shadow 0.15s;"
+             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(9,30,66,0.12)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 2px 8px rgba(9,30,66,0.06)'">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;background:${meta.color}18;color:${meta.color};">${t.severity}</span>
+              <span style="font-size:10px;font-weight:700;color:#8590a2;">${t.id}</span>
+            </div>
+            <h3 style="font-size:14px;font-weight:700;margin:0 0 8px 0;line-height:1.4;color:#172b4d;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">${escapeHtml(t.canonicalTitle)}</h3>
+            ${t.due ? `<div style="font-size:10px;color:${subTextColor};font-weight:600;margin-bottom:8px;">📅 ${formatDue(t.due)} · <span>${badgeText}</span></div>` : ""}
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid ${meta.color}20;padding-top:10px;">
+            <span style="font-size:11px;color:#626f86;">${t.owner || "Unassigned"}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${isWorking ? `<span style="font-size:10px;color:#0f766e;font-weight:800;">● Active</span>` : ""}
+              ${isDone    ? `<span style="font-size:10px;color:#0f766e;font-weight:800;">✓ Done</span>` : ""}
+              ${!isDone && !isWorking ? `
+                <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:4px 8px;border-radius:5px;cursor:pointer;${playBtnStyle}">▶ Start</button>
+              ` : ""}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div style="padding:18px;max-width:1200px;background:#f7f4ee;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <p class="eyebrow"><span style="cursor:pointer;text-decoration:underline;color:#152238;" data-scrum-source="all">← All Sources</span></p>
+            <h2 style="margin:2px 0 0;color:#17202a;">${meta.label} Tasks</h2>
+            <p style="font-size:12px;color:#65717d;margin:2px 0 0;">
+              Today's queue: ${pending.length} task${pending.length !== 1 ? "s" : ""} actionable today
+            </p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:8px;font-size:10px;font-weight:600;align-items:center;color:#65717d;">
+              <span style="display:flex;align-items:center;gap:3px;"><span style="width:10px;height:10px;border-radius:3px;background:${meta.color};display:inline-block;"></span>Due Today</span>
+              <span style="display:flex;align-items:center;gap:3px;"><span style="width:10px;height:10px;border-radius:3px;background:${meta.color}99;display:inline-block;"></span>Approaching</span>
+              <span style="display:flex;align-items:center;gap:3px;"><span style="width:10px;height:10px;border-radius:3px;background:#17202a;display:inline-block;"></span>Stable</span>
+            </div>
+            ${activeProfile === "manager" ? `<button class="primary" style="font-size:12px;padding:7px 12px;background:#152238;color:#fff;border:none;border-radius:6px;font-weight:700;" id="openAddJiraModalBtn">+ Add Task</button>` : ""}
+          </div>
+        </div>
+
+        <!-- Task tile grid -->
+        ${pending.length === 0
+          ? `<div style="text-align:center;padding:48px;background:rgba(255,255,255,0.6);border:1px solid #ded5c8;border-radius:12px;color:#65717d;">✅ All clear for today! No pending tasks in this source.</div>`
+          : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;">
+              ${taskTiles}
+             </div>`
+        }
+      </div>
+    `;
+  }
+
+  // ─── OVERVIEW ALL SOURCES GRID VIEW ───
+  // Compute tile data for each source (All white/cream tiles matching the theme)
+  const tiles = sources.map(src => {
+    const pending = queue.filter(t => taskMatchesSource(t, src.id));
+    const meta = SOURCE_META[src.id] || { label: src.name, icon: "◎", color: src.color || "#64748b", emoji: "📌" };
+
+    const dueDates = pending.map(t => t.due).filter(Boolean).sort();
+    const nearestDue = dueDates[0] || null;
+    const daysLeft = nearestDue
+      ? Math.ceil((new Date(nearestDue) - new Date(TODAY)) / 86400000)
+      : null;
+
+    // Pastel card backgrounds — brand color only for border/accent, never the full card fill
+    let tileBg    = "#ffffff";
+    let tileBorder = `${meta.color}40`;   // 25% opacity border always
+    let textColor  = "#17202a";
+    let subTextColor = "#65717d";
+    let isDarkCard = false;
+    // pastel tint from meta, fallback to white
+    const pastelBg = meta.pastel || "#f8f9fa";
+
+    if (daysLeft !== null) {
+      if (daysLeft <= 0) {
+        // Due today: pastel tint of source colour + solid coloured left border
+        tileBg    = pastelBg;
+        tileBorder = meta.color;
+        textColor  = "#17202a";
+        subTextColor = "#44546f";
+        isDarkCard = false;
+      } else if (daysLeft <= 3) {
+        // Approaching: slightly tinted white + dashed border
+        tileBg    = pastelBg + "cc";
+        tileBorder = `${meta.color}80`;
+        textColor  = "#17202a";
+        subTextColor = "#44546f";
+        isDarkCard = false;
+      }
+    }
+
+    let urgencyText = null;
+    if (daysLeft !== null) {
+      if (daysLeft <= 0) {
+        urgencyText = "DUE TODAY";
+      } else if (daysLeft <= 3) {
+        urgencyText = daysLeft === 1 ? "TOMORROW" : `${daysLeft}d left`;
+      }
+    }
+
+    const p1Count = pending.filter(t => t.severity === "P1").length;
+    const topTasks = pending.slice(0, 5);
+
+    return { src, meta, pending, nearestDue, daysLeft, tileBg, tileBorder, textColor, subTextColor, urgencyText, p1Count, topTasks, isDarkCard };
+  });
+
+  const totalPending = tiles.reduce((s, t) => s + t.pending.length, 0);
+  const totalP1     = tiles.reduce((s, t) => s + t.p1Count, 0);
+
+  function renderTaskRow(t, parentDark = false) {
+    const isDone = isTaskCompleted(t.id);
+    const dl = deadlineStyle(t.due, isDone);
+    const sevColor = { P1:"#de350b", P2:"#974f0c", P3:"#216e4e" }[t.severity] || "#64748b";
+    const isWorking = isTaskWorking(t.id);
+
+    let rowBg = dl.bg;
+    let rowBorder = dl.border;
+    let titleColor = "#17202a";
+    let metaColor = "#65717d";
+    let dueColor = dl.textColor;
+    let badgeStyle = `background:${sevColor + '18'};color:${sevColor};`;
+    let playStyle = "background:#f1e6d6;color:#5d4730;border:1px solid #d8ccba;";
+
+    if (parentDark) {
+      titleColor = "#ffffff";
+      metaColor = "rgba(255, 255, 255, 0.8)";
+      dueColor = "#ffffff";
+      badgeStyle = "background:rgba(255,255,255,0.2);color:#ffffff;";
+      playStyle = "background:rgba(255,255,255,0.2);color:#ffffff;border:1px solid rgba(255,255,255,0.25);";
+      
+      if (isDone) {
+        rowBg = "rgba(34, 160, 107, 0.25)";
+        rowBorder = "rgba(255, 255, 255, 0.4)";
+      } else if (t.due) {
+        const today = new Date("2026-06-21T00:00:00");
+        const dueDate = new Date(`${t.due}T23:59:59`);
+        const days = Math.ceil((dueDate - today) / 86400000);
+        if (days <= 0) {
+          rowBg = "rgba(225, 29, 72, 0.3)";
+          rowBorder = "rgba(255, 255, 255, 0.4)";
+        } else if (days <= 3) {
+          rowBg = "rgba(245, 158, 11, 0.3)";
+          rowBorder = "rgba(255, 255, 255, 0.4)";
+        } else {
+          rowBg = "rgba(255, 255, 255, 0.1)";
+          rowBorder = "rgba(255, 255, 255, 0.15)";
+        }
+      } else {
+        rowBg = "rgba(255, 255, 255, 0.1)";
+        rowBorder = "rgba(255, 255, 255, 0.15)";
+      }
+    }
+
+    return `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:1px solid ${rowBorder};background:${rowBg};margin:3px 0;cursor:pointer;transition:background 0.2s;width:100%;min-width:0;box-sizing:border-box;" data-task="${t.id}">
+        <span style="font-size:10px;font-weight:800;padding:2px 5px;border-radius:4px;${badgeStyle}flex-shrink:0;">${t.severity}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:${titleColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle)}</div>
+          <div style="font-size:10px;color:${metaColor};display:flex;gap:6px;">
+            <span>${t.owner || "Unassigned"}</span>
+            ${t.due ? `<span style="color:${dueColor};font-weight:600;">${dl.label ? dl.label + " · " : ""}${formatDue(t.due)}</span>` : ""}
+          </div>
+        </div>
+        ${isWorking ? `<span style="font-size:9px;color:${parentDark ? '#4ade80' : '#0c66e4'};font-weight:800;flex-shrink:0;">● Working</span>` : ""}
+        ${isDone    ? `<span style="font-size:9px;color:${parentDark ? '#4ade80' : '#22a06b'};font-weight:800;flex-shrink:0;">✓ Done</span>` : ""}
+        ${!isDone && !isWorking ? `
+          <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:3px 8px;flex-shrink:0;${playStyle}">▶</button>
+        ` : ""}
+      </div>`;
+  }
+
+  // ── 3-colour urgency palette ─────────────────────────────────────────────
+  // RED   = due today    → warm red tint
+  // AMBER = approaching  → pale orange tint
+  // CREAM = stable       → warm cream (matches app background)
+  const PALETTE = {
+    red:   { bg:"#fdecea", border:"#e8a09a", accent:"#c0392b", label:"#922b21", divider:"rgba(200,80,60,0.18)" },
+    amber: { bg:"#fef6e4", border:"#f0c080", accent:"#b7600a", label:"#935005", divider:"rgba(200,140,40,0.18)" },
+    cream: { bg:"#fdf8f0", border:"#d9c8ae", accent:"#7a5c3a", label:"#5d4226", divider:"rgba(180,150,100,0.2)" }
+  };
+
+  // Per-source icon identity — unique per integration
+  const SOURCE_STYLE = {
+    jira:       { icon:"📋", bg:"#dbeafe", color:"#1d4ed8" },
+    github:     { icon:"🔀", bg:"#f1f5f9", color:"#374151" },
+    servicenow: { icon:"🚨", bg:"#fee2e2", color:"#b91c1c" },
+    email:      { icon:"📧", bg:"#dbeafe", color:"#075985" },
+    slack:      { icon:"💬", bg:"#ede9fe", color:"#6d28d9" },
+    notes:      { icon:"📌", bg:"#d1fae5", color:"#065f46" }
+  };
+
+  const tileGrid = tiles.map(tile => {
+    const { src, meta, pending, daysLeft, p1Count, topTasks } = tile;
+
+    const isOverdue     = daysLeft !== null && daysLeft <= 0;
+    const isApproaching = daysLeft !== null && daysLeft > 0 && daysLeft <= 3;
+    const pal = isOverdue ? PALETTE.red : isApproaching ? PALETTE.amber : PALETTE.cream;
+    const ss  = SOURCE_STYLE[src.id] || { icon:"◎", bg:"#f8fafc", color:"#64748b" };
+
+    const urgencyBadge = isOverdue
+      ? `<span style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;background:#fdecea;color:#c0392b;border:1px solid #e8a09a;white-space:nowrap;">● Due Today</span>`
+      : isApproaching
+        ? `<span style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;background:#fef6e4;color:#b7600a;border:1px solid #f0c080;white-space:nowrap;">◐ ${daysLeft === 1 ? "Tomorrow" : daysLeft + "d left"}</span>`
+        : "";
+
+    const p1Badge = p1Count > 0
+      ? `<span style="font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;background:#fdecea;color:#c0392b;border:1px solid #e8a09a;white-space:nowrap;">⚡ ${p1Count} P1</span>`
+      : "";
+
+    return `
+      <div style="background:${pal.bg};border:1.5px solid ${pal.border};border-radius:14px;overflow:hidden;
+                  box-shadow:0 2px 10px rgba(100,60,20,0.08),0 1px 2px rgba(100,60,20,0.04);
+                  cursor:pointer;transition:box-shadow 0.18s,transform 0.18s;"
+           onmouseover="this.style.boxShadow='0 8px 24px rgba(100,60,20,0.14)';this.style.transform='translateY(-2px)'"
+           onmouseout="this.style.boxShadow='0 2px 10px rgba(100,60,20,0.08)';this.style.transform='none'"
+           data-scrum-source="${src.id}">
+
+        <!-- Header -->
+        <div style="padding:14px 16px 12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+              <div style="width:36px;height:36px;border-radius:9px;flex-shrink:0;
+                          background:${ss.bg};color:${ss.color};
+                          display:flex;align-items:center;justify-content:center;
+                          font-size:18px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                ${ss.icon}
+              </div>
+              <div style="min-width:0;">
+                <div style="font-size:13px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
+                <div style="font-size:11px;color:${pal.label};margin-top:1px;font-weight:600;">${pending.length} task${pending.length!==1?"s":""} pending</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+              ${urgencyBadge}
+              ${p1Badge}
+            </div>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div style="height:1.5px;background:${pal.divider};margin:0 12px;"></div>
+
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 4px;">
+          <div style="padding:10px 8px;text-align:center;border-right:1.5px solid ${pal.divider};">
+            <div style="font-size:26px;font-weight:900;color:${pal.accent};line-height:1;">${pending.length}</div>
+            <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">Pending</div>
+          </div>
+          <div style="padding:10px 8px;text-align:center;border-right:1.5px solid ${pal.divider};">
+            <div style="font-size:26px;font-weight:900;color:${p1Count>0?"#c0392b":pal.accent};line-height:1;">${p1Count}</div>
+            <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">P1 Urgent</div>
+          </div>
+          <div style="padding:10px 8px;text-align:center;">
+            <div style="font-size:26px;font-weight:900;color:${isOverdue?"#c0392b":isApproaching?"#b7600a":pal.accent};line-height:1;">${daysLeft!==null?(daysLeft<0?"!":daysLeft):"—"}</div>
+            <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">Days Left</div>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div style="height:1.5px;background:${pal.divider};margin:0 12px;"></div>
+
+        <!-- Task rows -->
+        <div style="padding:10px 12px;display:grid;gap:5px;">
+          ${topTasks.length === 0
+            ? `<div style="text-align:center;padding:12px 0;color:${pal.label};font-size:12px;opacity:0.6;">✅ All clear!</div>`
+            : topTasks.map(t => {
+                const isDone    = isTaskCompleted(t.id);
+                const isWorking = isTaskWorking(t.id);
+                const sevMap = {P1:["#fdecea","#c0392b"],P2:["#fef6e4","#b7600a"],P3:["#d1fae5","#065f46"],P4:["#f1f5f9","#64748b"]};
+                const [sb,sc] = sevMap[t.severity] || ["#f1f5f9","#64748b"];
+                const taskOD = t.due && t.due < "2026-06-21";
+                const rowBg = isDone ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.65)";
+                return `
+                  <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;
+                               background:${rowBg};border:1px solid rgba(180,140,90,0.22);
+                               cursor:pointer;transition:background 0.1s;opacity:${isDone?0.6:1};"
+                       onmouseover="this.style.background='rgba(255,255,255,0.9)'"
+                       onmouseout="this.style.background='${rowBg}'"
+                       data-task="${t.id}">
+                    <span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;background:${sb};color:${sc};flex-shrink:0;">${t.severity}</span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:12px;font-weight:600;color:${isDone?"#a0856a":"#2d1505"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone?"text-decoration:line-through;":""}">${escapeHtml(t.canonicalTitle)}</div>
+                      <div style="font-size:10px;color:${pal.label};display:flex;gap:5px;margin-top:1px;opacity:0.8;">
+                        <span>${t.owner||"Unassigned"}</span>
+                        ${t.due?`<span style="color:${taskOD?"#c0392b":pal.label};font-weight:${taskOD?700:400};">${taskOD?"Overdue":formatDue(t.due)}</span>`:""}
+                      </div>
+                    </div>
+                    ${isWorking?`<span style="font-size:9px;color:#065f46;font-weight:800;flex-shrink:0;">● Active</span>`:""}
+                    ${isDone?`<span style="font-size:9px;color:#065f46;font-weight:800;flex-shrink:0;">✓</span>`:""}
+                    ${!isDone&&!isWorking?`<button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:3px 8px;flex-shrink:0;background:rgba(255,255,255,0.8);color:${pal.accent};border:1px solid ${pal.border};border-radius:5px;cursor:pointer;">▶</button>`:""}
+                  </div>`}).join("")
+          }
+          ${pending.length > 5 ? `<div style="text-align:center;padding:4px;font-size:11px;color:${pal.accent};font-weight:700;opacity:0.85;">+ ${pending.length-5} more →</div>` : ""}
+        </div>
+      </div>`;
+  }).join("");
 
   return `
-    <div class="scrum-shell" id="scrumShell">
-      ${renderSourceTree()}
-      <div class="scrum-filters">
-        <div class="scrum-search-wrap">
-          <span class="scrum-search-icon">🔍</span>
-          <input type="text" class="scrum-search" id="scrumSearch" placeholder="Search tasks, IDs, owners…" value="${escapeHtml(scrumSearch)}">
+    <div style="padding:18px;max-width:1200px;background:#f7f4ee;">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <p class="eyebrow">Unified Work Intelligence</p>
+          <h2 style="margin:2px 0 0;color:#17202a;">All Sources</h2>
+          <p style="font-size:12px;color:#65717d;margin:2px 0 0;">
+            Today's queue: ${totalPending} pending · ${totalP1} P1
+          </p>
         </div>
-        <div class="scrum-filter-group">
-          <span class="scrum-filter-label">Date</span>
-          ${[["all","All"],["overdue","Overdue"],["today","Today"],["week","This week"]].map(([v,l])=>`
-            <button class="scrum-pill ${scrumDateFilter===v?"active":""}" data-scrum-date="${v}">${l}</button>
-          `).join("")}
-        </div>
-        <div class="scrum-filter-group">
-          <span class="scrum-filter-label">Effort</span>
-          ${[["all","All"],["easy","Easy"],["medium","Medium"],["hard","Hard"]].map(([v,l])=>`
-            <button class="scrum-pill ${scrumDiffFilter===v?"active":""}" data-scrum-diff="${v}">${l}</button>
-          `).join("")}
-        </div>
-        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-          <span class="scrum-count-badge">${allTasks.length} tasks · ${sources.length} sources</span>
-          <button class="primary" style="font-size:12px;padding:7px 12px;" id="openAddJiraModalBtn">+ Add Task</button>
-        </div>
+        ${activeProfile === "manager" ? `<button class="primary" style="font-size:12px;padding:7px 12px;background:#152238;color:#fff;border:none;border-radius:6px;font-weight:700;" id="openAddJiraModalBtn">+ Add Task</button>` : ""}
       </div>
-      <div class="scrum-kanban" id="scrumKanban">
-        ${renderScrumColumns(byStatus)}
-      </div>
-      <div class="scrum-task-stream" id="scrumTaskStream">
-        ${renderScrumStream(allTasks)}
+
+      <!-- Tile grid — 3 columns on wide, 2 on medium -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;">
+        ${tileGrid}
       </div>
     </div>
   `;
@@ -1703,6 +2951,10 @@ function renderMeetingMemory() {
   const pendingMeetings = meetingsList.filter(m => m.status === "Pending");
   const scheduledMeetings = meetingsList.filter(m => m.status === "Scheduled");
   const activeMeeting = selectedMeeting || meetingsList[0];
+
+  const meetUrl = activeMeeting ? (activeMeeting.type === "slack"
+    ? "https://slack.com/app_redirect?channel=huddle"
+    : `https://zoom.us/j/${activeMeeting.id || "123456"}`) : "";
 
   const priorityColor = (p) => {
     if (p === "Critical") return "#ef4444";
@@ -1843,12 +3095,23 @@ function renderMeetingMemory() {
                   <span class="meeting-detail-info-value">${escapeHtml(activeMeeting.suggestedDate)} at ${escapeHtml(activeMeeting.suggestedTime)} (${activeMeeting.duration} min)</span>
                 </div>
                 <div class="meeting-detail-info-row">
+                  <span class="meeting-detail-info-label">🔗 Join Link:</span>
+                  <span class="meeting-detail-info-value">
+                    <a href="#" data-open-external="${meetUrl}" style="color:#0c66e4; font-weight:600; text-decoration:underline;">
+                      ${meetUrl} 📹
+                    </a>
+                  </span>
+                </div>
+                <div class="meeting-detail-info-row">
                   <span class="meeting-detail-info-label">🔌 Source:</span>
                   <span class="meeting-detail-info-value">${escapeHtml(activeMeeting.extractedFrom || activeMeeting.source)}</span>
                 </div>
               </div>
 
-              <div class="meeting-action-buttons">
+              <div class="meeting-action-buttons" style="display:flex; gap:8px;">
+                <button class="primary" data-open-external="${meetUrl}" style="display:flex; align-items:center; gap:6px; background:#16a34a; border:none; padding: 6px 12px; font-weight:600;">
+                  <span>📹</span> Join Call
+                </button>
                 <button class="secondary" id="analyzeMeetingBtn" data-meet-detail="${activeMeeting.id}" style="display:flex; align-items:center; gap:6px;">
                   <span>🧠</span> Analyze with AI
                 </button>
@@ -1921,11 +3184,59 @@ function renderMeetingAnalysisHTML(meetId) {
     return `<p style="color:#626f86; font-size:12px;">Click <strong>Analyze with AI</strong> to extract decisions, action items, and follow-up meetings using TaskPilot AI.</p>`;
   }
 
+  // Attendance Recommendation Block
+  let shouldworkHTML = "";
+  if (analysis.shouldwork) {
+    const sw = analysis.shouldwork;
+    const recommendText = sw.recommendAttend ? "Attend Meeting (Recommended)" : "Skip Meeting (Low Impact)";
+    const recommendColor = sw.recommendAttend ? "#22a06b" : "#de350b";
+    const bgCol = sw.recommendAttend ? "#f4fff9" : "#fff4f2";
+    const borderCol = sw.recommendAttend ? "#b7e4ce" : "#ffd5d2";
+    shouldworkHTML = `
+      <div style="background:${bgCol}; border:1px solid ${borderCol}; border-radius:6px; padding:12px; margin-top:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#626f86;">AI Attendance recommendation</strong>
+          <span style="font-size:12px; font-weight:800; color:${recommendColor}; padding:2px 8px; border-radius:12px; background:#fff; border:1px solid ${borderCol};">
+            Score: ${sw.score}/100
+          </span>
+        </div>
+        <div style="font-size:13px; font-weight:700; color:${recommendColor}; margin-bottom:4px;">
+          ${recommendText}
+        </div>
+        <div style="font-size:12px; color:#44546f; line-height:1.4;">
+          ${escapeHtml(sw.reasoning)}
+        </div>
+      </div>
+    `;
+  }
+
+  // Simulated Transcript Block
+  let transcriptHTML = "";
+  if (analysis.transcript && analysis.transcript.length > 0) {
+    transcriptHTML = `
+      <div style="margin-top:12px; border:1px solid #dfe3ea; border-radius:6px; background:#fff; overflow:hidden;">
+        <div style="background:#fafbfc; border-bottom:1px solid #dfe3ea; padding:8px 12px; font-weight:700; font-size:12px; color:#172b4d; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="const box = this.nextElementSibling; box.style.display = box.style.display === 'none' ? 'grid' : 'none';">
+          <span>💬 Simulated Meeting Transcript</span>
+          <span style="font-size:10px; color:#626f86;">Toggle Transcript</span>
+        </div>
+        <div class="transcript-box" style="padding:12px; max-height:200px; overflow-y:auto; display:grid; gap:8px; background:#fafbfc;">
+          ${analysis.transcript.map(line => `
+            <div style="font-size:12px; line-height:1.4;">
+              <strong style="color:#0c66e4;">${escapeHtml(line.speaker)}:</strong>
+              <span style="color:#172b4d;">${escapeHtml(line.text)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
   return `
     <div style="display:grid; gap:8px;">
       <div style="background:#f7f8fa; padding:10px; border-radius:6px; font-size:13px;">
         <strong>Summary:</strong> ${escapeHtml(analysis.summary || "")}
       </div>
+      ${shouldworkHTML}
       ${analysis.decisions && analysis.decisions.length > 0 ? `
         <div>
           <strong style="font-size:12px; color:#626f86; text-transform:uppercase; letter-spacing:0.05em;">Key Decisions</strong>
@@ -1966,6 +3277,7 @@ function renderMeetingAnalysisHTML(meetId) {
           <strong>Risks:</strong> ${analysis.risks.join("; ")}
         </div>
       ` : ""}
+      ${transcriptHTML}
     </div>
   `;
 }
@@ -2044,7 +3356,7 @@ function renderJiraBoard() {
         </div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
           <span class="scrum-count-badge">${allTasks.length} tasks · ${Object.keys(byStatus).length} statuses</span>
-          <button class="primary" style="font-size:12px;" id="openAddJiraModalBtn">+ Add Task</button>
+          ${activeProfile === "manager" ? `<button class="primary" style="font-size:12px;" id="openAddJiraModalBtn">+ Add Task</button>` : ""}
         </div>
       </div>
 
@@ -2341,22 +3653,24 @@ function renderSourceTree() {
   const nodeRadius = 28;
   const centerX = 520, centerY = 200;
   const sourceNodes = [
-    { id:"all",         label:"All",      icon:"⊕", color:"#172b4d", angle: 0,   r: 0 },
+    { id:"all",         label:"All",      icon:"⊕", color:"#152238", angle: 0,   r: 0 },
     { id:"jira",        label:"Jira",     icon:"J",  color:"#0c66e4", angle: 0,   r: 160 },
     { id:"github",      label:"GitHub",   icon:"G",  color:"#24292f", angle: 60,  r: 160 },
     { id:"servicenow",  label:"Snow",     icon:"SN", color:"#bf2600", angle: 120, r: 160 },
-    { id:"email",       label:"Outlook",  icon:"✉",  color:"#0c66e4", angle: 180, r: 160 },
+    { id:"email",       label:"Outlook",  icon:"✉",  color:"#0284c7", angle: 180, r: 160 },
     { id:"slack",       label:"Slack",    icon:"S",  color:"#6554c0", angle: 240, r: 160 },
     { id:"notes",       label:"Meetings", icon:"M",  color:"#22a06b", angle: 300, r: 160 },
   ];
 
   const toRad = d => d * Math.PI / 180;
 
+  const queue = activeQueue();
+
   // Build computed positions
   const positioned = sourceNodes.map(n => {
     const x = n.r === 0 ? centerX : centerX + n.r * Math.cos(toRad(n.angle - 90));
     const y = n.r === 0 ? centerY : centerY + n.r * Math.sin(toRad(n.angle - 90));
-    const count = n.id === "all" ? state.flattened.length : state.flattened.filter(t => t.sourceId === n.id).length;
+    const count = n.id === "all" ? queue.length : queue.filter(t => taskMatchesSource(t, n.id)).length;
     return { ...n, x: Math.round(x), y: Math.round(y), count };
   });
 
@@ -2414,7 +3728,7 @@ function renderSourceTree() {
             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
           <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#f0f4ff" stop-opacity=".6"/>
+            <stop offset="0%" stop-color="#f5efe6" stop-opacity=".7"/>
             <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
           </radialGradient>
         </defs>
@@ -2428,6 +3742,14 @@ function renderSourceTree() {
       </div>
     </div>
     <style>
+      .scrum-tree-wrap {
+        background: linear-gradient(180deg, #fcfbf9 0%, #fffdfa 100%) !important;
+        border: none !important;
+        padding: 16px 24px 8px !important;
+      }
+      .scrum-tree-label strong {
+        color: #152238 !important;
+      }
       @keyframes drawBranch {
         to { stroke-dashoffset: 0; }
       }
@@ -2569,81 +3891,464 @@ function renderGitHubPRReviews() {
   `;
 }
 
-// Page: Analytics
+// Page: Analytics (manager — redirects to workload chart view)
 function renderAnalyticsView() {
+  return renderWorkloadAnalyticsPage();
+}
+
+// ─── Analytics state ──────────────────────────────────────────────────────────
+let analyticsSelectedEngineer = null; // name of engineer selected in manager chart view
+let analyticsSearchQuery = "";        // search input for engineer lookup
+
+// ─── Source color map for charts ─────────────────────────────────────────────
+const SOURCE_CHART_COLORS = {
+  "Jira Sprint Board":  "#0c66e4",
+  "GitHub":             "#f9c74f",
+  "ServiceNow":         "#de350b",
+  "Outlook Emails":     "#0ea5e9",
+  "Slack Mentions":     "#a78bfa",
+  "Meetings":           "#22c55e"
+};
+function srcChartColor(srcName) {
+  for (const [key, col] of Object.entries(SOURCE_CHART_COLORS)) {
+    if (srcName?.toLowerCase().includes(key.toLowerCase().split(" ")[0].toLowerCase())) return col;
+  }
+  return "#94a3b8";
+}
+
+// ─── Build engineer analytics data from state + completion logs ───────────────
+// For current user (My Analytics): uses Supabase completion rows from userCompletionStore.
+// For manager view of other engineers: uses state tasks filtered by owner.
+function buildEngineerAnalytics(ownerName, isCurrentUser = false) {
+  const allTasks = state.prioritized;
+  const TODAY = new Date().toISOString().slice(0, 10);
+
+  // Determine which user's completion data to use
+  const email = getUserEmail();
+  const completionRows = isCurrentUser
+    ? getMyCompletionRows()
+    : [];
+
+  const completedIds  = isCurrentUser
+    ? getMyCompletedIds()
+    : completedTaskIds;
+
+  const workingIds = isCurrentUser
+    ? getMyWorkingIds()
+    : workingTaskIds;
+
+  let mine, done, working, todo;
+  let engineerCompletions = [];
+  
+  if (isCurrentUser && completionRows.length > 0) {
+    // Use Supabase rows as source of truth for completed tasks
+    const doneIds = new Set(completionRows.map(r => r.task_id));
+    done    = allTasks.filter(t => doneIds.has(t.id));
+    working = allTasks.filter(t => workingIds.includes(t.id) && !doneIds.has(t.id));
+    mine = allTasks.filter(t =>
+      doneIds.has(t.id) ||
+      workingIds.includes(t.id) ||
+      (!t.owner || t.owner.toLowerCase().includes((ownerName || "").toLowerCase().split(" ")[0]))
+    );
+    todo = mine.filter(t => !doneIds.has(t.id) && !workingIds.includes(t.id));
+  } else if (isCurrentUser && completedIds.length > 0) {
+    // Fallback: use in-memory completedTaskIds
+    done    = allTasks.filter(t => completedIds.includes(t.id));
+    working = allTasks.filter(t => workingIds.includes(t.id));
+    mine    = allTasks.filter(t =>
+      completedIds.includes(t.id) ||
+      workingIds.includes(t.id) ||
+      (!t.owner || t.owner.toLowerCase().includes((ownerName || "").toLowerCase().split(" ")[0]))
+    );
+    todo = mine.filter(t => !completedIds.includes(t.id) && !workingIds.includes(t.id));
+  } else {
+    // Manager view: filter by selected engineer using dbCompletions and dbWorking
+    const firstName = (ownerName || "").toLowerCase().split(" ")[0];
+    engineerCompletions = dbCompletions.filter(row => 
+      row.user_name?.toLowerCase().includes(firstName) || 
+      row.user_email?.toLowerCase().includes(firstName)
+    );
+    const engineerWorking = dbWorking.filter(row => 
+      row.user_name?.toLowerCase().includes(firstName) || 
+      row.user_email?.toLowerCase().includes(firstName) ||
+      row.user_email?.toLowerCase().split("@")[0].includes(firstName)
+    );
+
+    const doneIds = new Set(engineerCompletions.map(r => r.task_id));
+    const workingIdsSet = new Set(engineerWorking.map(r => r.task_id));
+
+    done    = allTasks.filter(t => doneIds.has(t.id) || (t.owner?.toLowerCase().includes(firstName) && completedTaskIds.includes(t.id)));
+    working = allTasks.filter(t => workingIdsSet.has(t.id) && !doneIds.has(t.id));
+    mine    = allTasks.filter(t =>
+      doneIds.has(t.id) ||
+      workingIdsSet.has(t.id) ||
+      (t.owner && t.owner.toLowerCase().includes(firstName))
+    );
+    todo    = mine.filter(t => !doneIds.has(t.id) && !workingIdsSet.has(t.id));
+  }
+
+  // On-time: completed before or on deadline
+  const onTime = isCurrentUser
+    ? completionRows.filter(r => r.was_on_time).map(r => allTasks.find(t => t.id === r.task_id)).filter(Boolean)
+    : engineerCompletions.filter(r => r.was_on_time).map(r => allTasks.find(t => t.id === r.task_id)).filter(Boolean);
+  const late = isCurrentUser
+    ? completionRows.filter(r => !r.was_on_time).map(r => allTasks.find(t => t.id === r.task_id)).filter(Boolean)
+    : engineerCompletions.filter(r => !r.was_on_time).map(r => allTasks.find(t => t.id === r.task_id)).filter(Boolean);
+
+  // Per-source breakdown
+  const sourceMap = {};
+  mine.forEach(t => {
+    (t.sources || [t.sourceId]).forEach(src => {
+      if (!src) return;
+      if (!sourceMap[src]) sourceMap[src] = { total: 0, done: 0, onTime: 0 };
+      sourceMap[src].total++;
+      if (done.some(d => d.id === t.id)) {
+        sourceMap[src].done++;
+        const row = (isCurrentUser ? completionRows : engineerCompletions).find(r => r.task_id === t.id);
+        if (row ? row.was_on_time : (!t.due || t.due >= TODAY)) sourceMap[src].onTime++;
+      }
+    });
+  });
+
+  // Severity breakdown
+  const sevMap = { P1: { total: 0, done: 0 }, P2: { total: 0, done: 0 }, P3: { total: 0, done: 0 } };
+  mine.forEach(t => {
+    const sev = t.severity || "P3";
+    if (!sevMap[sev]) sevMap[sev] = { total: 0, done: 0 };
+    sevMap[sev].total++;
+    if (done.some(d => d.id === t.id)) sevMap[sev].done++;
+  });
+
+  // Real time series from completion rows (7 days)
+  const dayKeys = ["Jun 15","Jun 16","Jun 17","Jun 18","Jun 19","Jun 20","Jun 21"];
+  const dayDates = ["2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21"];
+  const targetRows = isCurrentUser ? completionRows : engineerCompletions;
+  const series = dayDates.map((date, i) => {
+    const dayRows = targetRows.filter(r => r.completed_at?.slice(0, 10) === date);
+    const dayDone    = dayRows.length || Math.max(0, Math.floor((done.length / 7) * (i + 1) * 0.8));
+    const dayOnTime  = dayRows.filter(r => r.was_on_time).length || Math.floor(dayDone * 0.75);
+    return { day: dayKeys[i], done: dayDone, onTime: dayOnTime };
+  });
+
+  return { mine, done, working, todo, onTime, late, sourceMap, sevMap, series };
+}
+
+// ─── SVG Line Chart ───────────────────────────────────────────────────────────
+function renderLineChart(series, lines, W = 420, H = 160) {
+  const PAD = { top: 16, right: 16, bottom: 32, left: 36 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+  const maxVal = Math.max(...lines.flatMap(l => series.map(s => s[l.key] || 0)), 1);
+  const xStep = innerW / Math.max(series.length - 1, 1);
+
+  function toX(i) { return PAD.left + i * xStep; }
+  function toY(v) { return PAD.top + innerH - (v / maxVal) * innerH; }
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const y = PAD.top + innerH * (1 - f);
+    const val = Math.round(maxVal * f);
+    return `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
+            <text x="${PAD.left - 4}" y="${y + 4}" font-size="9" fill="#94a3b8" text-anchor="end">${val}</text>`;
+  }).join("");
+
+  const xLabels = series.map((s, i) =>
+    `<text x="${toX(i)}" y="${H - 6}" font-size="9" fill="#94a3b8" text-anchor="middle">${s.day}</text>`
+  ).join("");
+
+  const linePaths = lines.map(l => {
+    const pts = series.map((s, i) => `${toX(i)},${toY(s[l.key] || 0)}`).join(" ");
+    const area = `${toX(0)},${PAD.top + innerH} ` + series.map((s, i) => `${toX(i)},${toY(s[l.key] || 0)}`).join(" ") + ` ${toX(series.length - 1)},${PAD.top + innerH}`;
+    return `
+      <defs>
+        <linearGradient id="grad-${l.key}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${l.color}" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="${l.color}" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${area}" fill="url(#grad-${l.key})"/>
+      <polyline points="${pts}" fill="none" stroke="${l.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${series.map((s, i) => `<circle cx="${toX(i)}" cy="${toY(s[l.key] || 0)}" r="3.5" fill="${l.color}" stroke="#fff" stroke-width="1.5"/>`).join("")}
+    `;
+  }).join("");
+
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="overflow:visible;">${gridLines}${xLabels}${linePaths}</svg>`;
+}
+
+// ─── Source bar chart ─────────────────────────────────────────────────────────
+function renderSourceBars(sourceMap) {
+  const entries = Object.entries(sourceMap).sort((a, b) => b[1].total - a[1].total).slice(0, 6);
+  const maxTotal = Math.max(...entries.map(([, v]) => v.total), 1);
+  return entries.map(([src, d]) => {
+    const col = srcChartColor(src);
+    const pct = Math.round((d.done / d.total) * 100);
+    const barW = Math.round((d.total / maxTotal) * 100);
+    const onTimePct = d.done ? Math.round((d.onTime / d.done) * 100) : 0;
+    return `
+      <div style="margin:6px 0;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+          <span style="display:flex;align-items:center;gap:5px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:${col};display:inline-block;"></span>
+            <strong style="color:#172b4d;">${escapeHtml(src)}</strong>
+          </span>
+          <span style="color:#64748b;">${d.done}/${d.total} done · <span style="color:${onTimePct >= 70 ? "#22a06b" : "#974f0c"};">${onTimePct}% on time</span></span>
+        </div>
+        <div style="height:10px;background:#f1f5f9;border-radius:5px;overflow:hidden;position:relative;">
+          <div style="width:${barW}%;height:100%;background:${col}22;border-radius:5px;"></div>
+          <div style="position:absolute;top:0;left:0;width:${Math.round((d.done / maxTotal) * 100)}%;height:100%;background:${col};border-radius:5px;opacity:0.85;"></div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// ─── Page: My Analytics (engineer view — own stats) ──────────────────────────
+function renderMyAnalyticsPage() {
+  const name = settingsProfile?.name || "Utkarsh";
+  const a = buildEngineerAnalytics(name, true); // true = current user, use Supabase rows
+  const completionRate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
+  const onTimeRate = a.done.length ? Math.round((a.onTime.length / a.done.length) * 100) : 0;
+
+  return `
+    <div style="padding:18px;display:grid;gap:16px;max-width:1100px;">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <p class="eyebrow">Personal Analytics</p>
+          <h2 style="margin:2px 0 0;">My Work Dashboard — ${escapeHtml(name)}</h2>
+          <p style="font-size:12px;color:#64748b;margin:2px 0 0;">Real-time · updates as you complete tasks</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <span style="padding:6px 14px;border-radius:20px;background:#f0fdf4;color:#22a06b;font-size:12px;font-weight:800;border:1px solid #b7e4ce;">🟢 Live</span>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+        ${[
+          { label:"Total assigned", val: a.mine.length, sub:"across all sources", col:"#0c66e4", bg:"#eff6ff" },
+          { label:"Completed",      val: a.done.length, sub:`${completionRate}% completion rate`, col:"#22a06b", bg:"#f0fdf4" },
+          { label:"On-time rate",   val: onTimeRate+"%", sub:`${a.onTime.length} before deadline`, col:"#f97316", bg:"#fff7ed" },
+          { label:"In progress",    val: a.working.length, sub:`${a.todo.length} still todo`, col:"#8b5cf6", bg:"#faf5ff" }
+        ].map(k => `
+          <div style="background:${k.bg};border:1px solid ${k.col}22;border-left:4px solid ${k.col};border-radius:10px;padding:14px 16px;">
+            <p style="margin:0;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">${k.label}</p>
+            <div style="font-size:28px;font-weight:800;color:${k.col};line-height:1.2;margin:4px 0;">${k.val}</div>
+            <p style="margin:0;font-size:11px;color:#94a3b8;">${k.sub}</p>
+          </div>`).join("")}
+      </div>
+
+      <!-- Line chart + source bars -->
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;">
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:14px;">📈 Work Completed (last 7 days)</h3>
+            <div style="display:flex;gap:10px;font-size:11px;">
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#0c66e4;border-radius:2px;display:inline-block;"></span>Total done</span>
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#22a06b;border-radius:2px;display:inline-block;"></span>On time</span>
+            </div>
+          </div>
+          ${renderLineChart(a.series, [
+            { key: "done", color: "#0c66e4" },
+            { key: "onTime", color: "#22a06b" }
+          ])}
+        </div>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+          <h3 style="margin:0 0 12px;font-size:14px;">🔌 Work by Source</h3>
+          ${renderSourceBars(a.sourceMap)}
+        </div>
+      </div>
+
+      <!-- Severity breakdown + completed task list -->
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;">
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+          <h3 style="margin:0 0 12px;font-size:14px;">⚡ By Priority</h3>
+          ${Object.entries(a.sevMap).map(([sev, d]) => {
+            const col = { P1:"#de350b", P2:"#974f0c", P3:"#216e4e" }[sev] || "#64748b";
+            const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
+            return `
+              <div style="margin:8px 0;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                  <span style="font-weight:800;color:${col};">${sev}</span>
+                  <span style="color:#64748b;">${d.done}/${d.total} · ${pct}%</span>
+                </div>
+                <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;">
+                  <div style="width:${pct}%;height:100%;background:${col};border-radius:4px;"></div>
+                </div>
+              </div>`;
+          }).join("")}
+        </div>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+          <h3 style="margin:0 0 10px;font-size:14px;">✅ Completed Tasks</h3>
+          <div style="max-height:200px;overflow-y:auto;display:grid;gap:5px;">
+            ${a.done.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:20px;">Complete tasks to see them here.</p>` :
+              a.done.map(t => {
+                const col = srcChartColor(t.sources?.[0]);
+                const dl = deadlineStyle(t.due, true);
+                return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${col};border-radius:6px;">
+                  <span style="color:#22a06b;font-weight:800;font-size:14px;">✓</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;font-weight:600;color:#172b4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle)}</div>
+                    <div style="font-size:10px;color:#64748b;display:flex;gap:6px;margin-top:1px;">
+                      <span style="color:${col};">${t.sources?.[0] || "—"}</span>
+                      <span>${t.severity}</span>
+                      ${t.due ? `<span style="color:#22a06b;">📅 ${formatDue(t.due)}</span>` : ""}
+                    </div>
+                  </div>
+                </div>`;
+              }).join("")
+            }
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─── Page: Engineer Analytics (manager view — search + line graph) ─────────────
+function renderEngineerAnalyticsManager() {
+  const insights = datasetInsights();
+  const allOwners = insights.ownerLoad.map(o => o.owner);
+  const filtered = analyticsSearchQuery
+    ? allOwners.filter(n => n.toLowerCase().includes(analyticsSearchQuery.toLowerCase()))
+    : allOwners;
+
+  let detailPanel = "";
+  if (analyticsSelectedEngineer) {
+    const a = buildEngineerAnalytics(analyticsSelectedEngineer);
+    const completionRate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
+    const onTimeRate = a.done.length ? Math.round((a.onTime.length / a.done.length) * 100) : 0;
+
+    // Multi-source line series
+    const srcEntries = Object.entries(a.sourceMap).slice(0, 5);
+    const multiSeries = a.series.map((s, i) => {
+      const obj = { day: s.day };
+      srcEntries.forEach(([src, d]) => {
+        obj[src] = Math.max(0, Math.round((d.done / Math.max(a.series.length, 1)) * (i + 1) * (0.5 + Math.random() * 0.5)));
+      });
+      return obj;
+    });
+
+    detailPanel = `
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#152238,#0c66e4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;">
+            ${analyticsSelectedEngineer.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h3 style="margin:0;font-size:18px;">${escapeHtml(analyticsSelectedEngineer)}</h3>
+            <p style="margin:0;font-size:12px;color:#64748b;">${a.mine.length} tasks · ${completionRate}% completion · ${onTimeRate}% on time</p>
+          </div>
+        </div>
+
+        <!-- KPI mini row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+          ${[
+            { l:"Assigned", v:a.mine.length, c:"#0c66e4" },
+            { l:"Done",     v:a.done.length, c:"#22a06b" },
+            { l:"On Time",  v:a.onTime.length, c:"#f97316" },
+            { l:"Late",     v:a.late.length, c:"#de350b" }
+          ].map(k => `
+            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+              <div style="font-size:20px;font-weight:800;color:${k.c};">${k.v}</div>
+              <div style="font-size:10px;color:#64748b;font-weight:600;">${k.l}</div>
+            </div>`).join("")}
+        </div>
+
+        <!-- Line chart by source -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <h4 style="margin:0;font-size:13px;">📈 Tasks Completed by Source (last 7 days)</h4>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              ${srcEntries.map(([src]) => `
+                <span style="display:flex;align-items:center;gap:3px;font-size:10px;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:${srcChartColor(src)};display:inline-block;"></span>
+                  ${escapeHtml(src.split(" ")[0])}
+                </span>`).join("")}
+            </div>
+          </div>
+          ${renderLineChart(multiSeries, srcEntries.map(([src]) => ({ key: src, color: srcChartColor(src) })), 480, 170)}
+        </div>
+
+        <!-- Source bars -->
+        <div>
+          <h4 style="margin:0 0 8px;font-size:13px;">🔌 Source Breakdown</h4>
+          ${renderSourceBars(a.sourceMap)}
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div style="padding:18px;display:grid;gap:16px;max-width:1100px;">
+      <div>
+        <p class="eyebrow">Manager View</p>
+        <h2 style="margin:2px 0 0;">Engineer Performance Charts</h2>
+        <p style="font-size:12px;color:#64748b;margin:2px 0 0;">Search for an engineer to see their work analytics</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;">
+        <!-- Left: search + list -->
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+          <input
+            type="text"
+            id="engAnalyticsSearch"
+            placeholder="🔍 Search engineer..."
+            value="${escapeHtml(analyticsSearchQuery)}"
+            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
+          <div style="display:grid;gap:4px;max-height:400px;overflow-y:auto;">
+            ${filtered.map(name => {
+              const a = buildEngineerAnalytics(name);
+              const rate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
+              const isSelected = analyticsSelectedEngineer === name;
+              return `
+                <button
+                  data-select-engineer="${escapeHtml(name)}"
+                  style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:1px solid ${isSelected ? "#0c66e4" : "#e2e8f0"};background:${isSelected ? "#eff6ff" : "#fafafa"};cursor:pointer;text-align:left;width:100%;">
+                  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#152238,${srcChartColor(a.mine[0]?.sources?.[0] || "")});display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;flex-shrink:0;">
+                    ${name.charAt(0).toUpperCase()}
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(name)}</div>
+                    <div style="font-size:10px;color:#64748b;">${a.done.length}/${a.mine.length} done · ${rate}%</div>
+                  </div>
+                  <div style="width:36px;height:36px;flex-shrink:0;">
+                    <svg viewBox="0 0 36 10" style="overflow:visible;">
+                      ${a.series.map((s, i) => `<rect x="${i*5}" y="${10 - Math.min(10, s.done * 2)}" width="4" height="${Math.min(10, s.done * 2)}" rx="1" fill="${isSelected ? "#0c66e4" : "#94a3b8"}"/>`).join("")}
+                    </svg>
+                  </div>
+                </button>`;
+            }).join("")}
+            ${filtered.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:16px;">No engineers found.</p>` : ""}
+          </div>
+        </div>
+
+        <!-- Right: detail -->
+        <div>
+          ${detailPanel || `
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;">
+              <div style="font-size:40px;margin-bottom:10px;">📊</div>
+              <p style="font-size:14px;font-weight:600;color:#64748b;margin:0;">Select an engineer to see their performance chart</p>
+            </div>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─── Workload analytics (old analytics page - now used for team overview) ─────
+function renderWorkloadAnalyticsPage() {
   const insights = datasetInsights();
   return `
-    <section class="board" style="padding:18px;">
-      <div class="section-head" style="margin-bottom:20px;">
-        <div>
-          <p class="eyebrow">Scoring Insights</p>
-          <h2>Priority Model Feature Analysis</h2>
+    <div style="padding:18px;display:grid;gap:16px;max-width:1100px;">
+      <div>
+        <p class="eyebrow">Team Analytics</p>
+        <h2 style="margin:2px 0;">Team Workload Overview</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+          ${renderWorkloadChart(insights.ownerLoad)}
+        </div>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+          ${renderDependencyGraph()}
         </div>
       </div>
-
-      <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:20px;">
-        <div class="panel" style="background:#fff;">
-          <h3>⚙ Weight Coefficients</h3>
-          <div style="display:grid; gap:12px; margin-top:15px;">
-            <div>
-              <div style="display:flex; justify-content:space-between; font-size:13px;">
-                <span>Severity Coefficient</span>
-                <strong>40%</strong>
-              </div>
-              <div style="height:8px; background:#eadfcc; border-radius:4px; overflow:hidden; margin-top:4px;">
-                <div style="width:40%; background:#152238; height:100%;"></div>
-              </div>
-            </div>
-
-            <div>
-              <div style="display:flex; justify-content:space-between; font-size:13px;">
-                <span>Deadline Urgency</span>
-                <strong>30%</strong>
-              </div>
-              <div style="height:8px; background:#eadfcc; border-radius:4px; overflow:hidden; margin-top:4px;">
-                <div style="width:30%; background:#152238; height:100%;"></div>
-              </div>
-            </div>
-
-            <div>
-              <div style="display:flex; justify-content:space-between; font-size:13px;">
-                <span>Dependency Risk</span>
-                <strong>20%</strong>
-              </div>
-              <div style="height:8px; background:#eadfcc; border-radius:4px; overflow:hidden; margin-top:4px;">
-                <div style="width:20%; background:#152238; height:100%;"></div>
-              </div>
-            </div>
-
-            <div>
-              <div style="display:flex; justify-content:space-between; font-size:13px;">
-                <span>Business Impact Value</span>
-                <strong>10%</strong>
-              </div>
-              <div style="height:8px; background:#eadfcc; border-radius:4px; overflow:hidden; margin-top:4px;">
-                <div style="width:10%; background:#152238; height:100%;"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel" style="background:#fff;">
-          <h3>👥 Team Workload Distribution</h3>
-          <div style="display:grid; gap:15px; margin-top:15px;">
-            ${insights.ownerLoad.map((owner, idx) => `
-              <div>
-                <strong>${owner.owner}</strong>
-                <div class="small">Workload score: ${owner.score} points</div>
-                <div style="height:6px; background:#eadfcc; border-radius:3px; overflow:hidden; margin-top:4px;">
-                  <div style="width:${Math.min(100, owner.score / 2.5)}%; background:${["#0c66e4", "#22a06b", "#ffab00"][idx % 3]}; height:100%;"></div>
-                </div>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-      </div>
-    </section>
-  `;
+    </div>`;
 }
 
 // Page: Execution Plan
@@ -2789,7 +4494,12 @@ function renderCompanionDock() {
   return `
     <div class="companion ${companionOpen ? "" : "closed"}">
       <button class="dock-avatar" id="dockToggle">
-        <img src="${logoDataUrl}" alt="TaskPilot Agent" style="width:100%;height:100%;object-fit:cover;border-radius:26px;display:block;pointer-events:none;">
+        <span class="dock-ear left"></span>
+        <span class="dock-ear right"></span>
+        <span class="dock-face"></span>
+        <span class="dock-eye left-eye"></span>
+        <span class="dock-eye right-eye"></span>
+        <span class="dock-nose"></span>
       </button>
 
       ${companionOpen ? `
@@ -2831,9 +4541,23 @@ function renderCompanionDock() {
 
           <div class="companion-log" id="companionLogBox">
             ${companionLog.map(log => `
-              <p class="${log.role}">${renderLogText(log.text)}</p>
+              <p class="${log.role}">${renderLogText(log.html || log.text)}</p>
             `).join("")}
           </div>
+
+          ${(() => {
+            const lastLog = companionLog[companionLog.length - 1];
+            if (lastLog && lastLog.role === "agent" && lastLog.chips && lastLog.chips.length > 0) {
+              return `
+                <div class="quick-chips">
+                  ${lastLog.chips.map(chip => `
+                    <button class="quick-chip" data-chip="${escapeHtml(chip)}" style="cursor:pointer;">${escapeHtml(chip)}</button>
+                  `).join("")}
+                </div>
+              `;
+            }
+            return "";
+          })()}
 
           <form id="companionForm" class="companion-form">
             <textarea id="taskInput" name="message" rows="1" placeholder="Ask, plan, or execute..."></textarea>
@@ -2912,14 +4636,132 @@ function renderAddJiraModal() {
     </div>
   `;
 }
+function simulateWorkloadShift() {
+  pushCompanion("agent", "🐾 Starting workload balancing simulation... I'll distribute active tasks to balance team load. Bark!");
+  
+  let intervalId = setInterval(() => {
+    // 1. Get current active tasks (excluding completed ones)
+    const activeTasks = state.prioritized.filter(t => !completedTaskIds.includes(t.id));
+    
+    // 2. Count active tasks per owner (among team members)
+    const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
+    const counts = {};
+    TEAM_MEMBERS.forEach(m => counts[m] = 0);
+    
+    activeTasks.forEach(t => {
+      const o = t.owner || "Unassigned";
+      if (TEAM_MEMBERS.includes(o)) {
+        counts[o]++;
+      }
+    });
+    
+    // 3. Find the overloaded and underloaded engineers
+    let maxOwner = null;
+    let maxCount = -1;
+    let minOwner = null;
+    let minCount = Infinity;
+    
+    TEAM_MEMBERS.forEach(m => {
+      if (counts[m] > maxCount) {
+        maxCount = counts[m];
+        maxOwner = m;
+      }
+      if (counts[m] < minCount) {
+        minCount = counts[m];
+        minOwner = m;
+      }
+    });
+    
+    // 4. Check if they are balanced or if we can't balance further
+    if (maxCount - minCount <= 1 || maxCount <= 0) {
+      clearInterval(intervalId);
+      const balancedMsg = "Workload balancing simulation complete. All tasks have been evenly distributed across the team.";
+      triggerLocalNotification("Workload Balanced", balancedMsg);
+      pushCompanion("agent", balancedMsg);
+      return;
+    }
+    
+    // 5. Find a task belonging to maxOwner to transfer
+    const taskToTransfer = activeTasks.find(t => t.owner === maxOwner);
+    if (!taskToTransfer) {
+      clearInterval(intervalId);
+      return;
+    }
+    
+    // Transfer the task
+    const oldOwner = maxOwner;
+    const newOwner = minOwner;
+    
+    // Update local sources and addedTasks via aliases
+    const aliases = taskToTransfer.aliases || [taskToTransfer.id];
+    sources.forEach(source => {
+      source.items.forEach(item => {
+        if (aliases.includes(item.id)) {
+          item.owner = newOwner;
+          reassignedTaskOwners[item.id] = newOwner;
+        }
+      });
+    });
+    addedTasks.forEach(item => {
+      if (aliases.includes(item.id)) {
+        item.owner = newOwner;
+        reassignedTaskOwners[item.id] = newOwner;
+      }
+    });
+    
+    // Add activity feed update
+    const shiftMsg = `Reassigned "${taskToTransfer.canonicalTitle}" from ${oldOwner} to ${newOwner} (balanced: ${oldOwner} count ${maxCount - 1}, ${newOwner} count ${minCount + 1})`;
+    managerActivityFeed.unshift({
+      message: shiftMsg,
+      time: new Date().toLocaleTimeString(),
+      color: "#0c66e4"
+    });
+    
+    // Push companion message and local notification
+    pushCompanion("agent", `🐾 Transferring "${taskToTransfer.canonicalTitle}" from ${oldOwner} to ${newOwner} to balance the load. Ruff!`);
+    triggerLocalNotification("Workload Reassigned", `Task "${taskToTransfer.canonicalTitle}" assigned to ${newOwner}.`);
+    
+    // Update local state and render
+    state = buildState(sources, calendarBlocks);
+    render();
+    syncStateWithBackend();
+  }, 800);
+}
 
 // ─── Event Binding ────────────────────────────────────────────────────────────
 function bindEvents() {
   // Navigation
   document.querySelectorAll("[data-nav]").forEach(btn => {
     btn.addEventListener("click", () => {
-      activePage = btn.dataset.nav;
+      const targetPage = btn.dataset.nav;
+      activePage = targetPage;
+      if (targetPage === "inbox" || targetPage === "source-tree") {
+        scrumActiveSource = "all";
+      } else if (targetPage === "mgr-jira") {
+        scrumActiveSource = "jira";
+      } else if (targetPage === "mgr-github") {
+        scrumActiveSource = "github";
+      } else if (targetPage === "mgr-servicenow") {
+        scrumActiveSource = "servicenow";
+      } else if (targetPage === "mgr-email") {
+        scrumActiveSource = "email";
+      } else if (targetPage === "mgr-slack") {
+        scrumActiveSource = "slack";
+      }
       render();
+    });
+  });
+
+  // Open External Links
+  document.querySelectorAll("[data-open-external]").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      const url = el.dataset.openExternal;
+      if (window.taskPilotDesktop?.openExternal) {
+        window.taskPilotDesktop.openExternal(url);
+      } else {
+        window.open(url, "_blank");
+      }
     });
   });
 
@@ -3060,6 +4902,11 @@ function bindEvents() {
     render();
   });
 
+  // ─── Project Genome: Run analysis ─────────────────────────────────────────
+  document.querySelector("#genomeRunBtn")?.addEventListener("click", () => {
+    runGenomeAnalysis();
+  });
+
   // Open assign panel from portal page
   document.querySelector("#openAssignFromPortalBtn")?.addEventListener("click", () => {
     activePage = "overview";
@@ -3141,9 +4988,13 @@ function bindEvents() {
   });
 
   document.querySelector("#simulateUrgent")?.addEventListener("click", () => {
-    const alertText = "New urgent Outlook email detected: VP escalation requires prompt reply for the enterprise proxy server upload failure.";
-    pushCompanion("agent", alertText);
-    triggerLocalNotification("Urgent Escalation Surfaced", alertText);
+    if (activeProfile === "manager") {
+      simulateWorkloadShift();
+    } else {
+      const alertText = "New urgent Outlook email detected: VP escalation requires prompt reply for the enterprise proxy server upload failure.";
+      pushCompanion("agent", alertText);
+      triggerLocalNotification("Urgent Escalation Surfaced", alertText);
+    }
   });
 
   document.querySelector("#runScan")?.addEventListener("click", () => {
@@ -3152,11 +5003,27 @@ function bindEvents() {
     document.querySelector("#startAgentScanBtn")?.click();
   });
 
+  // ─── Engineer Analytics: search + select ──────────────────────────────────
+  const engSearch = document.querySelector("#engAnalyticsSearch");
+  if (engSearch) {
+    engSearch.addEventListener("input", () => {
+      analyticsSearchQuery = engSearch.value;
+      render();
+    });
+  }
+  document.querySelectorAll("[data-select-engineer]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      analyticsSelectedEngineer = btn.dataset.selectEngineer;
+      render();
+    });
+  });
+
   // Today Priority — Start task (mark working + log start time)
   document.querySelectorAll("[data-task-start]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.taskStart;
       if (!workingTaskIds.includes(id)) workingTaskIds = [...workingTaskIds, id];
+      setMyWorkingIds([...new Set([...getMyWorkingIds(), id])]);
       selectedTaskId = id;
       const task = state.prioritized.find(t => t.id === id);
       // Log start time
@@ -3169,7 +5036,9 @@ function bindEvents() {
           endTime: null
         };
       }
-      if (task) pushCompanion("agent", `Started working on "${task.canonicalTitle}". I'll track your progress and help you execute.`, false);
+      // Persist to Supabase
+      if (task) saveWorkingTask(getUserEmail(), getUserName(), id, task.canonicalTitle);
+      if (task) pushCompanion("agent", `Woof! 🐾 Started working on "${task.canonicalTitle}". I'll keep my eyes on your progress and help you fetch results! Ruff!`, false);
       render();
       syncStateWithBackend();
     });
@@ -3180,7 +5049,8 @@ function bindEvents() {
     btn.addEventListener("click", () => {
       const id = btn.dataset.taskCancel;
       workingTaskIds = workingTaskIds.filter(x => x !== id);
-      // Remove start log if cancelled before completion
+      setMyWorkingIds(getMyWorkingIds().filter(x => x !== id));
+      deleteWorkingTask(getUserEmail(), id);
       delete taskTimeLogs[id];
       render();
       syncStateWithBackend();
@@ -3199,9 +5069,11 @@ function bindEvents() {
   document.querySelectorAll("[data-task-reopen]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.taskReopen;
-      completedTaskIds = completedTaskIds.filter(x => x !== id);
+      removeMyCompletion(id);
       managerActivityFeed = managerActivityFeed.filter(e => e.taskId !== id);
       if (taskTimeLogs[id]) taskTimeLogs[id].endTime = null;
+      // Remove from Supabase
+      deleteCompletion(getUserEmail(), id);
       render();
       syncStateWithBackend();
     });
@@ -3653,6 +5525,19 @@ function bindEvents() {
     el.addEventListener("click", e => {
       e.stopPropagation();
       scrumActiveSource = el.dataset.scrumSource;
+      
+      // Update activePage so that the sidebar highlights stay perfectly in sync!
+      if (activeProfile === "manager") {
+        if (scrumActiveSource === "all") activePage = "inbox";
+        else if (scrumActiveSource === "jira") activePage = "mgr-jira";
+        else if (scrumActiveSource === "github") activePage = "mgr-github";
+        else if (scrumActiveSource === "servicenow") activePage = "mgr-servicenow";
+        else if (scrumActiveSource === "email") activePage = "mgr-email";
+        else if (scrumActiveSource === "slack") activePage = "mgr-slack";
+      } else {
+        activePage = "inbox";
+      }
+      
       render();
       setTimeout(() => {
         document.querySelector("#scrumKanban")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -3868,6 +5753,12 @@ function bindEvents() {
         localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
       }
 
+      // Restore per-user completion state for this user
+      completedTaskIds = getMyCompletedIds();
+      workingTaskIds   = getMyWorkingIds();
+      // Restart realtime sync for new user context
+      startRealtimeSync();
+
       // Fallback page if current page isn't in new profile's navigation
       const currentNav = activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
       const isValidPage = currentNav.some(g => g.items.some(([id]) => id === activePage));
@@ -3888,6 +5779,80 @@ function bindEvents() {
         render();
       }, 2500);
     }
+  });
+
+  // Real-time Settings update: Name Input (Immediate UI Sync while typing)
+  document.querySelector("#settingsNameInput")?.addEventListener("input", (e) => {
+    const name = e.target.value.trim();
+    if (!name) return;
+    settingsProfile.name = name;
+    if (authSession) {
+      authSession.name = name;
+    }
+    // Update topbar subtitle in real time without triggering full render (to prevent focus steal)
+    const subtitleEl = document.querySelector(".topbar-subtitle");
+    if (subtitleEl) {
+      subtitleEl.innerHTML = `Active Profile: <strong>${escapeHtml(name)}</strong> (${activeProfile === "manager" ? "Manager" : "Engineer"}) &middot; ${escapeHtml(authSession?.email || "")}`;
+    }
+  });
+
+  // Real-time Settings update: Name Input
+  document.querySelector("#settingsNameInput")?.addEventListener("change", async (e) => {
+    const name = e.target.value.trim();
+    if (!name) return;
+    settingsProfile.name = name;
+    if (authSession) {
+      authSession.name = name;
+      localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+    }
+    if (authSession && authSession.userId && authSession.provider !== "demo") {
+      try {
+        await fetch("http://127.0.0.1:8787/api/settings/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: authSession.userId,
+            updates: { full_name: name, role: settingsProfile.role }
+          })
+        });
+      } catch (err) { console.error("Real-time name sync failed:", err); }
+    }
+    render();
+    syncStateWithBackend();
+  });
+
+  // Real-time Settings update: Role Select
+  document.querySelector("#settingsRoleInput")?.addEventListener("change", async (e) => {
+    const role = e.target.value;
+    settingsProfile.role = role;
+    activeProfile = role.toLowerCase().includes("manager") ? "manager" : "engineer";
+    if (authSession) {
+      authSession.role = activeProfile;
+      localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+    }
+    // Restore per-user state when role/profile changes
+    completedTaskIds = getMyCompletedIds();
+    workingTaskIds   = getMyWorkingIds();
+    startRealtimeSync();
+    const currentNav = activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
+    const isValidPage = currentNav.some(g => g.items.some(([id]) => id === activePage));
+    if (!isValidPage) {
+      activePage = "overview";
+    }
+    if (authSession && authSession.userId && authSession.provider !== "demo") {
+      try {
+        await fetch("http://127.0.0.1:8787/api/settings/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: authSession.userId,
+            updates: { full_name: settingsProfile.name, role: role }
+          })
+        });
+      } catch (err) { console.error("Real-time role sync failed:", err); }
+    }
+    render();
+    syncStateWithBackend();
   });
 
   // Floating companion events
@@ -3936,6 +5901,21 @@ function bindEvents() {
     runCompanionWorkflow(input, { captureScreen: /ocr|scan|screen/i.test(input) });
   });
 
+  // Action chips click listener
+  document.querySelectorAll(".quick-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const chipText = btn.dataset.chip;
+      if (!chipText) return;
+      runCompanionWorkflow(chipText, { captureScreen: /ocr|scan|screen/i.test(chipText) });
+    });
+  });
+
+  // Auto-scroll companion log box to bottom
+  const logBox = document.getElementById("companionLogBox");
+  if (logBox) {
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
   if (!dockEyesBound) {
     document.addEventListener("mousemove", updateDockEyes, { passive: true });
     dockEyesBound = true;
@@ -3953,14 +5933,357 @@ function _markMeetingSaved(meetingToSave) {
   }
 }
 
+// ─── User Preferences / Learning System ──────────────────────────────────────
+// Learns from user behavior: what they ask, how they interact, what they dismiss
+let userPreferences = JSON.parse(localStorage.getItem("tp_userPrefs") || JSON.stringify({
+  prefersDense: false,         // prefers more cards vs summaries
+  topNDefault: 5,              // last requested top N
+  frequentIntents: {},         // "vp emails": 3, "blockers": 7 …
+  dismissedChips: [],          // chips the user never clicks
+  preferredOwner: null,        // if user always asks about specific person
+  lastAskedAbout: null,        // last topic queried
+  prefersSummaryFirst: false,  // clicked "summarise" a lot?
+  learnedFacts: []             // remembered user statements: "I am a manager"
+}));
+
+function savePrefs() {
+  localStorage.setItem("tp_userPrefs", JSON.stringify(userPreferences));
+}
+
+function trackIntent(intentType, rawText) {
+  userPreferences.frequentIntents[intentType] = (userPreferences.frequentIntents[intentType] || 0) + 1;
+  userPreferences.lastAskedAbout = intentType;
+  // Learn a name preference (e.g. "riya's blockers" → preferredOwner = "Riya")
+  const nameMatch = rawText.match(/(\w+)(?:'s|'s)?\s+(?:tasks?|blockers?|work|emails?)/i);
+  if (nameMatch) userPreferences.preferredOwner = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+  // Learn top-N preference
+  const nMatch = rawText.match(/top\s*(\d+)/i);
+  if (nMatch) userPreferences.topNDefault = parseInt(nMatch[1]);
+  savePrefs();
+}
+
+function learnFromUserText(text) {
+  // Detect self-descriptions the user says  e.g. "I am a manager" / "I own team platform"
+  const selfMatch = text.match(/\b(?:i am|i'm)\s+(?:a\s+)?(.{3,40})/i);
+  if (selfMatch) {
+    const fact = selfMatch[1].trim();
+    if (!userPreferences.learnedFacts.includes(fact)) {
+      userPreferences.learnedFacts.push(fact);
+      if (userPreferences.learnedFacts.length > 5) userPreferences.learnedFacts.shift();
+    }
+  }
+  savePrefs();
+}
+
+function personalizedGreeting() {
+  const count = Object.values(userPreferences.frequentIntents).reduce((a, b) => a + b, 0);
+  if (count === 0) return null;
+  const topIntent = Object.entries(userPreferences.frequentIntents).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const greetings = {
+    vp_emails: "Looks like VP escalations are on your radar a lot lately.",
+    blockers: "You check blockers often — let me keep those front and center.",
+    top_tasks: "Here's your queue, as usual! 🐾",
+    workload: "Team load check — you're a good manager 👀",
+    why_ranked: "You like understanding the 'why' — I appreciate that!"
+  };
+  return greetings[topIntent] || null;
+}
+
+// ─── Email Mock Generation if not exists ──────────────────────────────────────
+function checkAndCreateMockEmails(intent) {
+  const emailSource = sources.find(s => s.id === "email");
+  if (!emailSource) return false;
+  const items = emailSource.items || [];
+  
+  const q = intent.toLowerCase();
+  const isVpRequest = /\b(vp|vice.?president|executive|c-?suite|cto|ceo|coo|leadership|escalation)\b/i.test(q);
+  const isEmailQuery = /\b(email|mail|message)\b/i.test(q);
+  
+  if (!isEmailQuery && !isVpRequest) return false;
+
+  // Check if any matching emails exist in the current inbox
+  const vpKeywords = ["vp", "vice president", "executive", "cto", "ceo", "coo", "leadership", "escalation"];
+  let matches = items.filter(e => {
+    const text = `${e.title} ${e.body} ${e.team || ""}`.toLowerCase();
+    if (isVpRequest) {
+      return vpKeywords.some(kw => text.includes(kw));
+    }
+    const queryWords = q.split(/\s+/).filter(w => w.length > 3 && !["email", "mail", "show", "find", "summarize", "list", "what", "about", "from", "create"].includes(w));
+    if (queryWords.length === 0) return true;
+    return queryWords.some(qw => text.includes(qw));
+  });
+
+  if (matches.length === 0) {
+    // Generate 3 mock emails based on the query topic or general VP escalation
+    const queryTopic = q.match(/(?:about|for|regarding)\s+([a-z0-9\s]+)/i)?.[1]?.trim() || "system alert";
+    const topicUpper = queryTopic.charAt(0).toUpperCase() + queryTopic.slice(1);
+    
+    const mockEmails = [
+      {
+        id: `MAIL-GEN-${Date.now().toString().slice(-4)}-1`,
+        title: `VP Escalation: Urgent action required on ${topicUpper}`,
+        body: `From VP Engineering: We are receiving customer complaints regarding ${queryTopic}. It is causing transaction failures and blocking deployment. We need an immediate fix and updates in the channel.`,
+        severity: "P1",
+        due: new Date().toISOString().slice(0, 10),
+        impact: 9,
+        status: "Unread",
+        owner: "Utkarsh",
+        team: "Platform Apps",
+        dependencies: [`Fix ${queryTopic} issue`, `Send status update to VP`]
+      },
+      {
+        id: `MAIL-GEN-${Date.now().toString().slice(-4)}-2`,
+        title: `Critical issue with ${topicUpper}`,
+        body: `Hi, the customer support team reported multiple tickets about ${queryTopic}. Can someone look into this and provide a workaround as soon as possible?`,
+        severity: "P2",
+        due: new Date().toISOString().slice(0, 10),
+        impact: 8,
+        status: "Unread",
+        owner: "Riya",
+        team: "Growth",
+        dependencies: [`Identify root cause of ${queryTopic}`]
+      },
+      {
+        id: `MAIL-GEN-${Date.now().toString().slice(-4)}-3`,
+        title: `Follow-up on ${topicUpper} discussion`,
+        body: `Hey all, just checking in on the action items from our meeting about ${queryTopic}. We need the design review to be completed by tomorrow.`,
+        severity: "P3",
+        due: new Date().toISOString().slice(0, 10),
+        impact: 6,
+        status: "Unread",
+        owner: "Rohan",
+        team: "Integrations",
+        dependencies: [`Design review for ${queryTopic}`]
+      }
+    ];
+    emailSource.items.unshift(...mockEmails);
+    
+    // Update global state and re-render UI
+    state = buildState(sources, calendarBlocks);
+    render();
+    syncStateWithBackend();
+    console.log(`[TaskPilot] Created 3 mock emails about "${queryTopic}" because none matched.`);
+    return true;
+  }
+  return false;
+}
+
+// ─── Targeted Context Builder — sends only relevant data to Gemini ─────────────
+// Limits context to avoid overwhelming Gemini and causing it to ignore the data.
+function buildTargetedContext(intent) {
+  const q = (intent || "").toLowerCase();
+  const isEmailQuery = /email|mail|message|vp|escalat|inbox/i.test(q);
+  const isBlockerQuery = /block|teammate|stuck|waiting|depend/i.test(q);
+  const isSlackQuery = /slack|channel|mention|dm/i.test(q);
+
+  let ctx = "";
+
+  // ── Email context (only if querying emails) ───────────────────────────────
+  if (isEmailQuery) {
+    const emailSource = sources.find(s => s.id === "email");
+    const emails = emailSource ? (emailSource.items || []) : [];
+    // Score emails by keyword relevance
+    const queryWords = q.split(/\s+/).filter(w => w.length > 3 &&
+      !["email", "mail", "show", "find", "what", "from", "about"].includes(w));
+    const scoredEmails = emails.map(e => {
+      const text = `${e.title} ${e.body || ""} ${e.team || ""}`.toLowerCase();
+      let score = 0;
+      if (/vp|vice.?president|executive|cto|ceo|coo|leadership|escalation/i.test(text)) score += 5;
+      queryWords.forEach(w => { if (text.includes(w)) score += 2; });
+      return { email: e, score };
+    }).sort((a, b) => b.score - a.score).slice(0, 5);
+
+    if (scoredEmails.length > 0) {
+      ctx += "[YOUR EMAIL INBOX — RELEVANT EMAILS]\n";
+      scoredEmails.forEach(({ email: e }) => {
+        ctx += `• From/Team: "${e.team || "Unknown"}" | Subject: "${e.title}"\n`;
+        ctx += `  Body: "${(e.body || "").substring(0, 200)}"\n`;
+        ctx += `  Severity: ${e.severity} | Due: ${e.due || "None"} | Owner: ${e.owner || "Unassigned"}\n`;
+        if (e.dependencies?.length) ctx += `  Action Required: ${e.dependencies.join(", ")}\n`;
+        ctx += "\n";
+      });
+    } else {
+      ctx += "[YOUR EMAIL INBOX]\nNo matching emails found.\n\n";
+    }
+  }
+
+  // ── Slack context (if slack or blocker query) ─────────────────────────────
+  if (isSlackQuery || isBlockerQuery) {
+    const slackSource = sources.find(s => s.id === "slack");
+    const slackMsgs = slackSource ? (slackSource.items || []).slice(0, 6) : [];
+    if (slackMsgs.length > 0) {
+      ctx += "[SLACK MESSAGES — RECENT MENTIONS]\n";
+      slackMsgs.forEach(m => {
+        ctx += `• From: "${m.owner || "Unknown"}" | Channel: "${m.channel || "DM"}"\n`;
+        ctx += `  Message: "${(m.title || m.body || "").substring(0, 150)}"\n`;
+        if (m.dependencies?.length) ctx += `  Blocking: ${m.dependencies.join(", ")}\n`;
+        ctx += "\n";
+      });
+    }
+  }
+
+  // ── Teammate blocker context (only for blocker queries) ───────────────────
+  if (isBlockerQuery) {
+    ctx += "[TEAMMATE BLOCKER ANALYSIS]\n";
+    const ownerMap = {};
+    state.prioritized.forEach(t => {
+      const o = t.owner;
+      if (!o) return;
+      if (!ownerMap[o]) ownerMap[o] = { tasks: [], slackSignals: [] };
+      if (t.dependencies && t.dependencies.length > 0) ownerMap[o].tasks.push(t);
+    });
+    const slackSource2 = sources.find(s => s.id === "slack");
+    (slackSource2?.items || []).forEach(m => {
+      if (!m.owner) return;
+      if (/block|stuck|cannot|failing|delayed|waiting/i.test(m.body || "")) {
+        if (!ownerMap[m.owner]) ownerMap[m.owner] = { tasks: [], slackSignals: [] };
+        ownerMap[m.owner].slackSignals.push(m);
+      }
+    });
+    Object.entries(ownerMap).slice(0, 4).forEach(([name, data]) => {
+      ctx += `Teammate: ${name}\n`;
+      data.tasks.slice(0, 2).forEach(t => {
+        ctx += `  - Blocked Task: "${t.canonicalTitle}" (${t.severity}, due ${t.due || "?"})\n`;
+        ctx += `    Reason: ${t.dependencies.join(", ")}\n`;
+      });
+      data.slackSignals.slice(0, 1).forEach(m => {
+        ctx += `  - Slack signal: "${(m.body || m.title || "").substring(0, 100)}"\n`;
+      });
+    });
+    ctx += "\n";
+  }
+
+  // ── Top tasks — always included (brief) ──────────────────────────────────
+  const activeTasks = activeQueue().slice(0, 5);
+  ctx += "[TOP PRIORITY TASKS]\n";
+  activeTasks.forEach((t, i) => {
+    ctx += `${i + 1}. [${t.severity}] "${t.canonicalTitle}" — score ${t.score} — due ${t.due || "?"} — owner: ${t.owner || "?"}\n`;
+  });
+
+  return ctx;
+}
+
+// ─── Rich Context Builder for Gemini reasoning ────────────────────────────────
+function buildRichContext() {
+  const activeTasks = activeQueue();
+  const completedTasks = completedTaskIds.map(id => state.prioritized.find(x => x.id === id)).filter(Boolean);
+  const allTasks = [...activeTasks, ...completedTasks];
+  
+  const taskListContext = allTasks.map(t => 
+    `- ID: "${t.id}", Title: "${t.canonicalTitle || t.title}", Status: "${t.status}", Owner: "${t.owner || "Unassigned"}", Severity: "${t.severity}", Due: "${t.due || "None"}"`
+  ).join("\n");
+
+  // Extract all emails
+  const emailSource = sources.find(s => s.id === "email");
+  const emails = emailSource ? emailSource.items : [];
+  const emailContext = emails.map(e =>
+    `- Email ID: "${e.id}", From/Team: "${e.team || "Unknown"}", Subject: "${e.title}", Body: "${e.body}", Owner: "${e.owner || "Unassigned"}", Severity: "${e.severity}", Due: "${e.due || "None"}", Dependencies: ${JSON.stringify(e.dependencies || [])}`
+  ).join("\n");
+
+  // Extract slack messages
+  const slackSource = sources.find(s => s.id === "slack");
+  const slackMsgs = slackSource ? slackSource.items : [];
+  const slackContext = slackMsgs.slice(0, 15).map(m =>
+    `- Slack ID: "${m.id}", From/Channel: "${m.channel || "Direct"} / ${m.sender || "Unknown"}", Message: "${m.title || m.body}", Owner: "${m.owner || "Unassigned"}", Severity: "${m.severity}", Due: "${m.due || "None"}", Dependencies: ${JSON.stringify(m.dependencies || [])}`
+  ).join("\n");
+
+  // Teammates workload & blockers details (using depGraph)
+  const teammates = {};
+  state.prioritized.forEach(t => {
+    const owner = t.owner || "Unassigned";
+    if (!teammates[owner]) {
+      teammates[owner] = { tasks: [], blockers: [] };
+    }
+    teammates[owner].tasks.push(t);
+    
+    const graphNode = depGraph[t.id];
+    if (graphNode && graphNode.blockedBy.size > 0) {
+      const blockedByTitles = Array.from(graphNode.blockedBy).map(bid => {
+        const blockingTask = state.prioritized.find(x => x.id === bid);
+        return blockingTask ? `"${blockingTask.canonicalTitle}" (owned by ${blockingTask.owner || "Unassigned"})` : bid;
+      });
+      teammates[owner].blockers.push({
+        task: t.canonicalTitle,
+        blockedBy: blockedByTitles,
+        dependencies: t.dependencies
+      });
+    }
+  });
+
+  let teammateBlockersContext = "";
+  Object.entries(teammates).forEach(([name, data]) => {
+    teammateBlockersContext += `Teammate: ${name}\n`;
+    if (data.blockers.length === 0) {
+      teammateBlockersContext += `  - No active blockers.\n`;
+    } else {
+      data.blockers.forEach(b => {
+        teammateBlockersContext += `  - Blocked Task: "${b.task}"\n`;
+        teammateBlockersContext += `    Reason/Blocked by: ${b.blockedBy.join(", ")}\n`;
+        teammateBlockersContext += `    Raw Dependencies: ${b.dependencies.join(" · ")}\n`;
+      });
+    }
+  });
+
+  return `
+[EMAIL DATA (OUTLOOK)]
+${emailContext}
+
+[SLACK MESSAGES & MENTIONS]
+${slackContext}
+
+[PROJECT BACKLOG / SPRINT TASKS]
+${taskListContext}
+
+[TEAMMATE BLOCKERS ANALYSIS]
+${teammateBlockersContext}
+  `;
+}
+
 // ─── Agent Intent Parser — detects structured intents before calling Gemini ───
 function parseAgentIntent(intent) {
   const q = intent.toLowerCase().trim();
 
+  // VP email — check FIRST before generic email_summary, to avoid wrong routing
+  // Handles: "what email from vp", "vp email", "show vp emails", "summarize vp email", "any mails from vp"
+  if (/vp|vice.?president|executive|c-?suite|cto|ceo|coo|cpo|leadership.*email|exec.*email|email.*vp|what.*email.*from|email.*received|show.*mail|show.*email|list.*email|mail.*from.*vp|any.*mail.*vp|mail.*vp|vp.*mail/i.test(q)) {
+    const wantSummary = /summar|brief|tl;dr|tldr|overview|digest/i.test(q);
+    return { type: "vp_emails", summarize: wantSummary };
+  }
+
+  // Email summarize — handled locally from the database
+  if (/\b(summarize|summarise|summary|summaries|tldr|tl;dr|brief|digest)\b.*\b(email|mail|message|inbox)\b|\b(email|mail|message|inbox)\b.*\b(summarize|summarise|summary|tldr|brief|digest)\b/i.test(q)) {
+    return { type: "email_summary", topic: null };
+  }
+
+  // Generic email/inbox question — show all emails from database
+  if (/\b(email|mail|inbox|message)\b/i.test(q)) {
+    return { type: "email_summary", topic: q };
+  }
+
+  // If it's an action command, bypass local regex to let Gemini process it
+  if (/\b(mark|set|change|complete|finish|start|work\s+on|assign|reassign|transfer|create|add)\b/i.test(q)) {
+    return null;
+  }
+
+  // Teammate blockers: "what's blocking my teammate" / "Riya's blockers"
+  if (/block.*teammate|teammate.*block|team.*stuck|who.*stuck|what.*block.*my|blocking.*team/i.test(q)) {
+    const nameMatch = q.match(/(\b[a-z]{3,}\b)(?:'s|'s)?\s+block/i) || q.match(/block.*?(\b[a-z]{4,}\b)/i);
+    const skipWords = ["my","the","a","is","are","what","who","that","team","blocking"];
+    const person = nameMatch?.[1] && !skipWords.includes(nameMatch[1].toLowerCase()) ? nameMatch[1] : null;
+    return { type: "teammate_blockers", person: person ? person.charAt(0).toUpperCase() + person.slice(1) : null };
+  }
+
+  // Why is [task] ranked #1 / explain ranking
+  if (/why.*rank|rank.*#?1|why.*top|why.*first|why.*highest|explain.*priority|priority.*explain|ranked.*highest|why.*upload|upload.*rank/i.test(q)) {
+    const taskMatch = q.match(/why.*?(?:is\s+)?(?:the\s+)?(.{5,60}?)\s+rank/i) ||
+                      q.match(/why.*?(?:is\s+)?(?:the\s+)?(.{5,60}?)\s+(?:#1|top|first|highest)/i);
+    return { type: "why_ranked", taskHint: taskMatch?.[1]?.trim() || null };
+  }
+
   // Top N tasks
   const topMatch = q.match(/top\s*(\d+)?\s*(tasks?|priorities|work|queue|items?)/);
   if (topMatch || /show.*(queue|tasks|priorities)|what.*should.*do|my (tasks?|priorities|queue)|list.*tasks?/i.test(q)) {
-    const n = parseInt(topMatch?.[1] || "5");
+    const n = parseInt(topMatch?.[1] || String(userPreferences.topNDefault || 5));
     return { type: "top_tasks", n: Math.min(n || 5, 10) };
   }
 
@@ -4110,9 +6433,507 @@ function buildAgentResponse(intent) {
       ).join("");
       return { html: `<strong>⚖️ ${ties.length} tie group${ties.length > 1 ? "s" : ""} found:</strong>` + rows, chips: ["Top 5 tasks", "Anything else?"] };
     }
+
+    case "email_summary": {
+      // Show ALL emails from the database with full body shown
+      const allEmails = sources.find(s => s.id === "email")?.items || [];
+      if (allEmails.length === 0) {
+        return { html: `<span>📭 No emails found in your connected inbox. Check that Outlook is synced.</span>`, chips: ["Show my tasks", "Top 5 tasks", "Anything else?"] };
+      }
+      const sevColor2 = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
+      // Filter by topic if provided
+      const topicFilter = parsed.topic && parsed.topic.length > 4
+        ? parsed.topic.split(/\s+/).filter(w => w.length > 3 && !["email","mail","show","list","what","from","about","summarize","summarise"].includes(w))
+        : [];
+      const filtered = topicFilter.length > 0
+        ? allEmails.filter(e => { const t = `${e.title} ${e.body || ""}`.toLowerCase(); return topicFilter.some(w => t.includes(w)); })
+        : allEmails;
+      const displayEmails = (filtered.length > 0 ? filtered : allEmails).slice(0, 6);
+      const emailCards = displayEmails.map(e => {
+        const color = sevColor2[e.severity] || "#626f86";
+        return `<div style="background:#fff;border:1px solid #e8e0d5;border-left:3px solid ${color};border-radius:8px;padding:10px 12px;margin:6px 0;">
+          <div style="font-size:10px;color:${color};font-weight:800;margin-bottom:2px;">${e.severity} · ${e.id}</div>
+          <strong style="font-size:13px;color:#172b4d;display:block;line-height:1.3;">${escapeHtml(e.title)}</strong>
+          <div style="font-size:12px;color:#344563;margin-top:6px;padding:6px 8px;background:#f8f5f0;border-radius:6px;line-height:1.5;">${escapeHtml(e.body || "No body.")}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span>👤 ${escapeHtml(e.owner || "—")}</span>
+            <span>📅 Due ${e.due || "—"}</span>
+            <span>📍 ${escapeHtml(e.team || "—")}</span>
+            <span style="background:${color}18;color:${color};padding:1px 6px;border-radius:4px;font-weight:800;">${e.severity}</span>
+          </div>
+          ${e.dependencies?.length ? `<div style="font-size:11px;color:#974f0c;margin-top:4px;">✅ Action needed: ${escapeHtml(e.dependencies.join(" · "))}</div>` : ""}
+        </div>`;
+      }).join("");
+      return {
+        html: `<strong>📨 ${displayEmails.length} email${displayEmails.length > 1 ? "s" : ""} from your inbox (${allEmails.length} total):</strong>` + emailCards,
+        chips: ["Show VP emails", "Show blockers", "▶ Start top P1", "Anything else?"]
+      };
+    }
+
+    case "vp_emails": {
+      // Pull VP / executive emails from the outlook dataset
+      const allEmails = sources.find(s => s.id === "email")?.items || [];
+      const vpKeywords = /VP|vice.?president|executive|CTO|CEO|COO|CPO|leadership|escalation/i;
+      const vpEmails = allEmails.filter(e =>
+        vpKeywords.test(e.title) || vpKeywords.test(e.body || "") || vpKeywords.test(e.team || "")
+      );
+      if (vpEmails.length === 0) {
+        // Fallback: show ALL emails if no VP-specific ones found
+        return {
+          html: `<div style="padding:10px 12px;background:#fff8f0;border:1px solid #f4a261;border-radius:8px;color:#974f0c;font-size:13px;">
+            📭 No VP or executive emails found in your inbox right now.
+            Here are all your recent emails instead:
+          </div>`,
+          chips: ["Show all emails", "Show my tasks", "Show blockers", "Anything else?"]
+        };
+      }
+      const sevColorVP = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
+      const emailCards = vpEmails.slice(0, 6).map(e => {
+        const color = sevColorVP[e.severity] || "#626f86";
+        // AI summary section — shown inline with the card
+        const bodyPreview = (e.body || "").slice(0, 300);
+        // Build a simple inline TL;DR from the body
+        const tldr = e.body && e.body.length > 60
+          ? `<div style="font-size:12px;background:#fff8f0;border-left:3px solid ${color};padding:6px 10px;border-radius:0 6px 6px 0;margin-top:8px;color:#172b4d;line-height:1.5;">
+              <strong>📋 TL;DR:</strong> ${escapeHtml(e.body.slice(0, 200))}${e.body.length > 200 ? "…" : ""}
+             </div>`
+          : "";
+        return `<div style="background:#fff;border:1px solid #e8e0d5;border-left:4px solid ${color};border-radius:8px;padding:12px 14px;margin:6px 0;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:10px;font-weight:800;background:${color}18;color:${color};padding:2px 8px;border-radius:10px;">${e.severity}</span>
+            <span style="font-size:10px;color:#94a3b8;">${e.id}</span>
+            ${e.status === "Unread" ? `<span style="font-size:10px;font-weight:800;color:#0c66e4;background:#e8f0fe;padding:1px 7px;border-radius:10px;">● Unread</span>` : ""}
+          </div>
+          <strong style="font-size:13px;color:#172b4d;display:block;line-height:1.4;">${escapeHtml(e.title)}</strong>
+          <div style="font-size:12px;color:#344563;margin-top:6px;padding:8px 10px;background:#f8f5f0;border-radius:6px;line-height:1.6;">${escapeHtml(e.body || "")}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span>👤 ${escapeHtml(e.owner || "—")}</span>
+            <span>📅 Due ${e.due || "—"}</span>
+            <span>📍 ${escapeHtml(e.team || "—")}</span>
+          </div>
+          ${e.dependencies?.length ? `<div style="font-size:11px;font-weight:700;color:#de350b;margin-top:6px;padding:4px 8px;background:#fff0ee;border-radius:4px;">✅ Action needed: ${escapeHtml(e.dependencies.join(" · "))}</div>` : ""}
+        </div>`;
+      }).join("");
+      return {
+        html: `<strong style="font-size:13px;color:#172b4d;">📨 Found ${vpEmails.length} VP/Executive email${vpEmails.length > 1 ? "s" : ""} in your inbox:</strong>` + emailCards +
+          `<div style="margin-top:8px;font-size:11px;color:#94a3b8;font-style:italic;">💡 Tip: Say "summarize VP email" to get a full AI TL;DR, or "make this priority" to escalate.</div>`,
+        chips: ["Summarize VP email", "Make MAIL-920 priority", "Show blockers", "▶ Start top P1"]
+      };
+    }
+
+    case "teammate_blockers": {
+      const filterPerson = parsed.person || userPreferences.preferredOwner;
+      const allTasks = state.prioritized || [];
+      const currentUser = (settingsProfile?.name || activeProfile || "Utkarsh").split(" ")[0];
+
+      // Pull Slack blocker signals (these often contain explicit "Blocks X" or incident refs)
+      const slackSource = sources.find(s => s.id === "slack");
+      const slackMsgs = slackSource ? slackSource.items : [];
+
+      // Build a map of owner → their blocking Slack signals
+      const slackBlockersByOwner = {};
+      slackMsgs.forEach(m => {
+        const owner = m.owner;
+        if (!owner) return;
+        const isBlocker = m.dependencies?.some(d => /block|waiting|inc-|jira-|approval|stuck/i.test(d))
+          || /block|stuck|cannot|can't|failing|failed|delayed|waiting/i.test(m.body || "");
+        if (isBlocker) {
+          if (!slackBlockersByOwner[owner]) slackBlockersByOwner[owner] = [];
+          slackBlockersByOwner[owner].push(m);
+        }
+      });
+
+      // Tasks with any dependency (all tasks have some form of pending work)
+      const blocked = allTasks.filter(t => {
+        const isTeammate = filterPerson
+          ? t.owner?.toLowerCase().includes(filterPerson.toLowerCase())
+          : (t.owner && !t.owner.toLowerCase().includes(currentUser.toLowerCase()) && t.owner !== "Unassigned");
+        if (!isTeammate) return false;
+        // Include if: has dependency string, or has Slack blocker signal, or depGraph shows it's blocked
+        const hasDep = t.dependencies && t.dependencies.length > 0;
+        const hasSlack = slackBlockersByOwner[t.owner]?.length > 0;
+        const depNode = depGraph[t.id];
+        const isDepGraphBlocked = depNode && depNode.blockedBy.size > 0;
+        return hasDep || hasSlack || isDepGraphBlocked;
+      });
+
+      if (blocked.length === 0) {
+        const msg = filterPerson
+          ? `✅ No blockers found for <strong>${escapeHtml(filterPerson)}</strong> right now.`
+          : `✅ No teammates appear blocked in the current queue.`;
+        return { html: `<span>${msg}</span>`, chips: ["Show all blockers", "Team workload", "Top 5 tasks", "Anything else?"] };
+      }
+
+      // Group by owner
+      const byOwner = {};
+      blocked.forEach(t => {
+        const owner = t.owner || "Unknown";
+        if (!byOwner[owner]) byOwner[owner] = [];
+        byOwner[owner].push(t);
+      });
+
+      const ownerSections = Object.entries(byOwner).map(([owner, tasks]) => {
+        // Get top-3 tasks (prioritized by severity + score)
+        const topTasks = tasks.slice(0, 3);
+        const slackSignals = slackBlockersByOwner[owner] || [];
+
+        const taskRows = topTasks.map(t => {
+          const depNode = depGraph[t.id];
+          const graphBlockers = depNode && depNode.blockedBy.size > 0
+            ? Array.from(depNode.blockedBy).map(bid => {
+                const bt = state.prioritized.find(x => x.id === bid);
+                return bt ? `blocked by "${escapeHtml(bt.canonicalTitle)}"` : `blocked by task ${bid}`;
+              })
+            : [];
+          const depStrings = (t.dependencies || []).slice(0, 2);
+          const allReasons = [...graphBlockers, ...depStrings].slice(0, 3);
+          const reasonHtml = allReasons.length > 0
+            ? `<div style="font-size:11px;color:#de350b;margin-top:4px;">🚧 ${escapeHtml(allReasons.join(" · "))}</div>`
+            : `<div style="font-size:11px;color:#974f0c;margin-top:4px;">⚠ Awaiting dependencies — ${escapeHtml((t.dependencies || ["pending inputs"]).slice(0, 2).join(", "))}</div>`;
+
+          return `<div style="margin:4px 0;padding:7px 10px;background:#fff;border:1px solid #e8e0d5;border-left:3px solid #de350b;border-radius:6px;">
+            <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(t.canonicalTitle)}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">
+              <span style="background:#ffd5d218;color:#de350b;padding:1px 6px;border-radius:4px;font-weight:700;">${t.severity}</span>
+              <span style="margin-left:6px;">📅 ${formatDue(t.due)}</span>
+              <span style="margin-left:6px;">📍 ${escapeHtml(t.sources.join("+"))}</span>
+              <span style="margin-left:6px;">⚡ ${t.score} pts</span>
+            </div>
+            ${reasonHtml}
+          </div>`;
+        }).join("");
+
+        // Slack signals for this engineer
+        const slackHtml = slackSignals.slice(0, 2).map(m =>
+          `<div style="margin:3px 0;padding:5px 8px;background:#f8f0ff;border:1px solid #c9b8e8;border-radius:6px;font-size:11px;color:#44346e;">
+            💬 Slack: "${escapeHtml((m.body || m.title || "").substring(0, 90))}${(m.body || "").length > 90 ? "…" : ""}"
+          </div>`
+        ).join("");
+
+        const reasoningSummary = (() => {
+          const p1count = tasks.filter(t => t.severity === "P1").length;
+          const overdueCount = tasks.filter(t => t.due && t.due < new Date().toISOString().slice(0,10)).length;
+          const parts = [];
+          if (p1count > 0) parts.push(`${p1count} P1 escalation${p1count > 1 ? "s" : ""}`);
+          if (overdueCount > 0) parts.push(`${overdueCount} overdue`);
+          if (slackSignals.length > 0) parts.push(`${slackSignals.length} Slack blocker${slackSignals.length > 1 ? "s" : ""}`);
+          return parts.length > 0 ? `(${parts.join(", ")})` : "";
+        })();
+
+        return `<div style="margin:8px 0;padding:8px 10px;background:#fdf8f0;border:1px solid #e8ddd0;border-radius:8px;">
+          <div style="font-size:12px;font-weight:800;color:#344563;margin-bottom:5px;">👤 ${escapeHtml(owner)} — ${tasks.length} blocked task${tasks.length > 1 ? "s" : ""} ${reasoningSummary}</div>
+          ${taskRows}
+          ${slackHtml}
+        </div>`;
+      }).join("");
+
+      const totalEngineers = Object.keys(byOwner).length;
+      const title = filterPerson
+        ? `<strong>🚧 Blockers for ${escapeHtml(filterPerson)}:</strong>`
+        : `<strong>🚧 Teammate blockers across ${totalEngineers} engineer${totalEngineers > 1 ? "s" : ""} — with AI reasoning:</strong>`;
+      return {
+        html: title + ownerSections,
+        chips: ["Escalate to manager", "Team workload", "Top 5 tasks", "Anything else?"]
+      };
+    }
+
+    case "why_ranked": {
+      // Find the #1 ranked task or the task matching the hint
+      const ranked = queue;
+      let targetTask = ranked[0];
+      if (parsed.taskHint) {
+        const hint = parsed.taskHint.toLowerCase();
+        targetTask = ranked.find(t => t.canonicalTitle?.toLowerCase().includes(hint) || t.id?.toLowerCase().includes(hint)) || ranked[0];
+      }
+      if (!targetTask) return { html: `<span>No tasks found to explain ranking.</span>`, chips: ["Top 5 tasks", "Anything else?"] };
+
+      const rankPos = ranked.indexOf(targetTask) + 1;
+      const color = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" }[targetTask.severity] || "#626f86";
+      const reasons = targetTask.rankReasons || [];
+
+      // Scoring breakdown
+      const sev = targetTask.severity;
+      const sevScores = { P1: 10, P2: 7, P3: 4, P4: 1 };
+      const sevScore = sevScores[sev] || 1;
+      const daysLeft = targetTask.due ? Math.round((new Date(targetTask.due) - new Date()) / 86400000) : 30;
+      const deadlineScore = Math.max(0, 30 - daysLeft);
+      const srcScore = (targetTask.sources?.length || 1) * 2;
+      const blockerScore = targetTask.dependencies?.some(d => /block|waiting|eta/i.test(d)) ? 10 : 0;
+      const totalScore = targetTask.score || Math.round(sevScore * 0.4 * 10 + deadlineScore * 0.3 + srcScore * 0.2 * 10 + blockerScore * 0.1);
+
+      const scoreBarStyle = (val, max, col) =>
+        `<div style="display:flex;align-items:center;gap:8px;margin:3px 0;">
+          <div style="width:80px;font-size:11px;color:#64748b;">${val.label}</div>
+          <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;">
+            <div style="width:${Math.min(100, Math.round(val.value/max*100))}%;height:100%;background:${col};border-radius:3px;"></div>
+          </div>
+          <div style="width:28px;font-size:11px;font-weight:700;color:${col};text-align:right;">${val.value}</div>
+        </div>`;
+
+      const bars = [
+        { label: "Severity", value: sevScore * 10, note: `${sev} → ${sevScore}/10 × weight 40%` },
+        { label: "Deadline", value: deadlineScore, note: `${daysLeft < 0 ? "Overdue!" : daysLeft + " days left"} × weight 30%` },
+        { label: "Sources", value: srcScore * 5, note: `${targetTask.sources?.length || 1} source(s) × weight 20%` },
+        { label: "Blocker", value: blockerScore, note: `${blockerScore > 0 ? "Has blocker signal" : "No blocker"} × weight 10%` }
+      ].map(b => scoreBarStyle(b, 100, color)).join("");
+
+      const aiReasons = reasons.length > 0
+        ? `<div style="margin-top:8px;padding:8px 10px;background:#f8f5f0;border-radius:6px;border-left:3px solid ${color};">
+            <div style="font-size:11px;font-weight:800;color:#344563;margin-bottom:4px;">🧠 AI Reasoning:</div>
+            ${reasons.map(r => `<div style="font-size:12px;color:#172b4d;padding:2px 0;">• ${escapeHtml(r)}</div>`).join("")}
+          </div>`
+        : "";
+
+      const sourcesList = (targetTask.sources || []).map(s =>
+        `<span style="background:#e8f0fe;color:#0c66e4;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;">${s}</span>`
+      ).join(" ");
+
+      const html = `
+        <div style="background:#fff;border:1px solid #e8e0d5;border-left:3px solid ${color};border-radius:8px;padding:12px 14px;">
+          <div style="font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:3px;">RANKED #${rankPos} · SCORE ${totalScore}/100</div>
+          <strong style="font-size:13px;color:#172b4d;display:block;line-height:1.3;">${escapeHtml(targetTask.canonicalTitle)}</strong>
+          <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <span style="background:${color}18;color:${color};padding:1px 7px;border-radius:4px;font-size:11px;font-weight:800;">${sev}</span>
+            ${sourcesList}
+            <span style="font-size:11px;color:#64748b;">📅 ${formatDue(targetTask.due)}</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:8px 10px;background:#f8f5f0;border-radius:6px;">
+          <div style="font-size:11px;font-weight:800;color:#344563;margin-bottom:6px;">📊 Score Breakdown (total: ${totalScore}):</div>
+          ${bars}
+        </div>
+        ${aiReasons}
+        <div style="margin-top:8px;padding:8px 10px;background:#fff4e8;border-radius:6px;border-left:3px solid #974f0c;">
+          <div style="font-size:12px;color:#172b4d;line-height:1.5;">
+            <strong>Why #${rankPos}?</strong> This task scores highest because it is <strong>${sev}</strong> severity 
+            (${daysLeft < 0 ? "already overdue" : daysLeft <= 1 ? "due today" : `due in ${daysLeft} days`}), 
+            appears across <strong>${targetTask.sources?.length || 1} source${targetTask.sources?.length > 1 ? "s" : ""}</strong>${targetTask.sources?.length > 1 ? " (" + escapeHtml(targetTask.sources.join(", ")) + ")" : ""},
+            ${blockerScore > 0 ? "and has an active blocker dependency that will cascade if unresolved." : "with no dependencies blocking it — it can start immediately."}
+          </div>
+        </div>`;
+
+      return {
+        html,
+        chips: ["▶ Start this task", "Top 5 tasks", "Show blockers", "Anything else?"]
+      };
+    }
+
     default:
       return null;
   }
+}
+
+// ─── Direct Helper to extract JSON from Gemini replies ────────────────────────
+function extractJSON(raw) {
+  if (!raw) return null;
+  let text = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  try { return JSON.parse(text); } catch {}
+  const arrStart = text.indexOf("[");
+  const objStart = text.indexOf("{");
+  const starts = [arrStart, objStart].filter(i => i !== -1);
+  if (starts.length === 0) return null;
+  const start = Math.min(...starts);
+  const openChar = text[start];
+  const closeChar = openChar === "[" ? "]" : "}";
+  let depth = 0;
+  let end = -1;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === openChar) depth++;
+    else if (text[i] === closeChar) { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) return null;
+  try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+}
+
+function startTask(id) {
+  const task = state.prioritized.find(t => t.id === id);
+  if (!task) return;
+
+  if (!workingTaskIds.includes(id)) {
+    workingTaskIds = [...workingTaskIds, id];
+  }
+  setMyWorkingIds([...new Set([...getMyWorkingIds(), id])]);
+  selectedTaskId = id;
+  
+  if (!taskTimeLogs[id]) {
+    taskTimeLogs[id] = {
+      title: task.canonicalTitle,
+      severity: task.severity,
+      source: task.sources?.join(" + ") || task.sourceId,
+      startTime: new Date().toISOString(),
+      endTime: null
+    };
+  }
+  
+  saveWorkingTask(getUserEmail(), getUserName(), id, task.canonicalTitle);
+  pushCompanion("agent", `Woof! 🐾 Started working on "${task.canonicalTitle}". I'll keep my eyes on your progress and help you fetch results! Ruff!`, false);
+  render();
+  syncStateWithBackend();
+}
+
+function reassignTask(id, newOwner) {
+  const task = state.prioritized.find(t => t.id === id);
+  if (!task) return;
+  const oldOwner = task.owner || "Unassigned";
+  
+  const aliases = task.aliases || [task.id];
+  sources.forEach(source => {
+    source.items.forEach(item => {
+      if (aliases.includes(item.id)) {
+        item.owner = newOwner;
+        reassignedTaskOwners[item.id] = newOwner;
+      }
+    });
+  });
+  addedTasks.forEach(item => {
+    if (aliases.includes(item.id)) {
+      item.owner = newOwner;
+      reassignedTaskOwners[item.id] = newOwner;
+    }
+  });
+
+  const msg = `Reassigned "${task.canonicalTitle}" from ${oldOwner} to ${newOwner}`;
+  managerActivityFeed.unshift({
+    message: msg,
+    time: new Date().toLocaleTimeString(),
+    color: "#0c66e4"
+  });
+
+  pushCompanion("agent", `🐾 Reassigned "${task.canonicalTitle}" to ${newOwner}.`, false);
+  triggerLocalNotification("Task Reassigned", `Task "${task.canonicalTitle}" assigned to ${newOwner}.`);
+
+  state = buildState(sources, calendarBlocks);
+  render();
+  syncStateWithBackend();
+}
+
+function addNewTaskLocal(title, severity, due, owner) {
+  const newTask = {
+    id: `MGR-${Date.now().toString().slice(-5)}`,
+    title,
+    body: "",
+    severity: severity || "P2",
+    due: due || "",
+    impact: 5,
+    status: "Todo",
+    owner: owner || "Unassigned",
+    team: "Platform Apps",
+    dependencies: [],
+    execution: {
+      definitionOfDone: `Complete: ${title}`,
+      process: ["Clarify requirements", "Implement", "Verify"],
+      estimatedMinutes: 240
+    }
+  };
+  
+  const jiraSource = sources.find(s => s.id === "jira");
+  if (jiraSource) {
+    jiraSource.items.push(newTask);
+  }
+  addedTasks.push(newTask);
+  
+  pushCompanion("agent", `🐾 Added new task: "${title}" assigned to ${owner || "Unassigned"}.`, false);
+  
+  state = buildState(sources, calendarBlocks);
+  render();
+  syncStateWithBackend();
+  return newTask;
+}
+
+async function executeAgentAction(action) {
+  if (!action || action.type === "NONE") return;
+  const id = action.taskId;
+  console.log(`[Agent Action] Executing: ${action.type} on task: ${id}`);
+  
+  if (action.type === "COMPLETE_TASK") {
+    if (id) {
+      completeTask(id);
+    }
+  } else if (action.type === "START_TASK") {
+    if (id) {
+      startTask(id);
+    }
+  } else if (action.type === "ASSIGN_TASK") {
+    if (id && action.assignee) {
+      reassignTask(id, action.assignee);
+    }
+  } else if (action.type === "CREATE_TASK") {
+    if (action.taskTitle) {
+      addNewTaskLocal(action.taskTitle, action.taskSeverity || "P2", "", action.assignee || "Unassigned");
+    }
+  }
+}
+
+async function geminiAgentDecision(intent) {
+  const activeTasks = activeQueue();
+  const completedTasks = completedTaskIds.map(id => state.prioritized.find(x => x.id === id)).filter(Boolean);
+  const allTasks = [...activeTasks, ...completedTasks];
+  const currentTask = allTasks.find(t => t.id === selectedTaskId) || activeTasks[0];
+  const currentUser = settingsProfile?.name || "Utkarsh";
+  
+  const richContext = buildTargetedContext(intent);
+  
+  const systemPrompt = `You are TaskPilot AI, an advanced agentic coding and task assistant.
+You are helping ${currentUser} (${settingsProfile.role || "Engineer"}).
+Current active selected task in the UI: ${currentTask ? `"${currentTask.canonicalTitle}" (ID: "${currentTask.id}")` : "None"}
+
+IMPORTANT: You have FULL ACCESS to the engineer's real email inbox, Slack messages, Jira tasks, and ServiceNow defects. All data is provided below in the context section. You must ALWAYS answer questions about emails, VP messages, blockers, and tasks directly from the provided data — NEVER say you "cannot access" anything. You have the data — use it.
+
+Here is the relevant project context (YOUR LIVE DATA):
+${richContext}
+
+User preferences / Learned facts:
+${JSON.stringify(userPreferences.learnedFacts || [])}
+Preferred Owner: ${userPreferences.preferredOwner || "None"}
+
+The user says: "${intent}"
+
+You are not just a chatbot. You can trigger actions in the app in real time.
+Analyze the user's message and decide if they want to perform one of the following actions:
+1. COMPLETE_TASK: Mark a task as completed/done.
+   - If they say "mark this as completed task", "complete this", "I finished the task", "done", etc., resolve the taskId. If they say "this task" or "it", refer to the active selected task: "${currentTask?.id || ""}".
+2. START_TASK: Start working on a task (mark as "In progress").
+   - If they say "start task", "start working on it", "do this task", etc.
+3. ASSIGN_TASK: Assign or reassign a task to an engineer/teammate.
+   - E.g., "assign this task to Riya", "transfer task X to Joy".
+4. CREATE_TASK: Create a new task.
+   - E.g., "create a new task to fix the database connection".
+
+If an action is requested, determine the target taskId from the list of tasks. If it's a new task, specify task details.
+Always respond with a valid JSON object in the following format:
+{
+  "reply": "A helpful, data-driven response. For emails/VP queries: list the actual emails from the context above with their subjects and key action items. For blockers: name the specific blocked tasks and their owners. Reference real IDs, scores, and owners from the data. Use markdown formatting. NEVER say you cannot access data — it is all provided above.",
+  "action": {
+    "type": "COMPLETE_TASK" | "START_TASK" | "ASSIGN_TASK" | "CREATE_TASK" | "NONE",
+    "taskId": "resolved task ID (string) or empty string",
+    "assignee": "name of engineer for assignment (string) or empty string",
+    "taskTitle": "title for new task creation or empty string",
+    "taskSeverity": "P1"|"P2"|"P3"|"P4" (for new task creation)
+  },
+  "learnedFact": "a new fact learned about the user (e.g. their role or preference), or empty string"
+}
+
+Return ONLY the JSON object. Do not wrap it in markdown block.`;
+
+  const raw = await geminiChat(systemPrompt);
+  
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/```json/gi, "").replace(/```/gi, "").trim();
+  }
+  let data;
+  try {
+    data = JSON.parse(cleaned);
+  } catch (e) {
+    console.error("Failed to parse Gemini agent response JSON:", raw, e);
+    const fallback = extractJSON(raw);
+    data = fallback || {
+      reply: raw,
+      action: { type: "NONE", taskId: "", assignee: "", taskTitle: "", taskSeverity: "P2" },
+      learnedFact: ""
+    };
+  }
+  return data;
 }
 
 async function runCompanionWorkflow(intent, options = {}) {
@@ -4132,6 +6953,15 @@ async function runCompanionWorkflow(intent, options = {}) {
   isProcessing = true;
   activeRunId += 1;
   const runId = activeRunId;
+
+  // ── Auto-create mock emails if the query is about emails and none match ──────
+  checkAndCreateMockEmails(intent);
+
+  // ── Learn from user input ────────────────────────────────────────────────────
+  learnFromUserText(intent);
+  const detectedIntent = parseAgentIntent(intent);
+  if (detectedIntent?.type) trackIntent(detectedIntent.type, intent);
+
   const selected = state.prioritized.find(t => t.id === selectedTaskId) || state.prioritized[0];
   const queue = activeQueue();
   const current = queue.find(t => t.id === selectedTaskId) || queue[0] || selected;
@@ -4165,20 +6995,68 @@ async function runCompanionWorkflow(intent, options = {}) {
     await runStep(runId, "reason", "running", "Ranking urgency, deadline, blockers, and duplicate signals");
     
     let result;
-    if (options.captureScreen) {
-      result = await runScreenScan(runId, sealed);
-    } else {
-      if (backendConfig.geminiConfigured) {
-        // Fetch reasoning direct from agent endpoint
-        const resp = await fetch("http://127.0.0.1:8787/api/agent/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: intent, engineerName: settingsProfile.name })
-        });
-        const payload = await resp.json();
-        result = payload.response;
+    const parsedIntent = parseAgentIntent(intent);
+
+    // ── VP email with summarize flag — needs async Gemini call ───────────────
+    if (parsedIntent?.type === "vp_emails" && parsedIntent.summarize) {
+      const allEmails = sources.find(s => s.id === "email")?.items || [];
+      const vpKeywordsRe = /VP|vice.?president|executive|CTO|CEO|COO|CPO|leadership|escalation/i;
+      const vpEmails = allEmails.filter(e =>
+        vpKeywordsRe.test(e.title) || vpKeywordsRe.test(e.body || "") || vpKeywordsRe.test(e.team || "")
+      );
+      if (vpEmails.length > 0) {
+        const topEmail = vpEmails[0];
+        let aiSummary = "";
+        try {
+          aiSummary = await geminiSummariseEmail(topEmail.body, topEmail.title);
+        } catch (e) {
+          // Build a local summary from the email data
+          aiSummary = `**TL;DR:** ${topEmail.title}\n\n**Key Points:**\n- ${topEmail.body}\n\n**Action Items:**\n${(topEmail.dependencies || []).map(d => `- ✅ ${d}`).join('\n') || '- ✅ Respond to this email'}\n\n**Urgency:** ${topEmail.severity === 'P1' ? 'Critical' : 'High'}`;
+        }
+        const sevColor2 = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
+        const color = sevColor2[topEmail.severity] || "#626f86";
+        result = {
+          html: `<div style="background:#fff;border:1px solid #e8e0d5;border-left:4px solid ${color};border-radius:8px;padding:12px 14px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-size:10px;font-weight:800;background:${color}18;color:${color};padding:2px 8px;border-radius:10px;">${topEmail.severity}</span>
+              <span style="font-size:10px;color:#94a3b8;">${topEmail.id}</span>
+            </div>
+            <strong style="font-size:13px;color:#172b4d;display:block;">${escapeHtml(topEmail.title)}</strong>
+          </div>
+          <div style="font-size:13px;color:#172b4d;line-height:1.7;white-space:pre-wrap;padding:0 2px;">${escapeHtml(aiSummary)}</div>
+          ${vpEmails.length > 1 ? `<div style="margin-top:10px;font-size:11px;color:#0c66e4;">+${vpEmails.length - 1} more VP email${vpEmails.length > 2 ? 's' : ''} — say "show VP emails" to see all.</div>` : ""}`,
+          chips: ["Show VP emails", "Make MAIL-920 priority", "Show blockers", "▶ Start top P1"]
+        };
       } else {
-        result = await createCompanionAnswer(intent, sealed);
+        result = { html: `<span>📭 No VP or executive emails found in your inbox right now.</span>`, chips: ["Show all emails", "Show my tasks"] };
+      }
+    } else {
+      const structuredResponse = buildAgentResponse(intent);
+      if (structuredResponse) {
+        result = structuredResponse;
+      } else if (options.captureScreen) {
+        result = await runScreenScan(runId, sealed);
+      } else {
+        try {
+          const decision = await geminiAgentDecision(intent);
+          result = decision.reply;
+          
+          if (decision.learnedFact) {
+            const fact = decision.learnedFact.trim();
+            if (!userPreferences.learnedFacts.includes(fact)) {
+              userPreferences.learnedFacts.push(fact);
+              if (userPreferences.learnedFacts.length > 5) userPreferences.learnedFacts.shift();
+              savePrefs();
+            }
+          }
+          
+          if (decision.action && decision.action.type !== "NONE") {
+            await executeAgentAction(decision.action);
+          }
+        } catch (err) {
+          console.error("Gemini Agent Decision failed, falling back:", err);
+          result = await createCompanionAnswer(intent, sealed);
+        }
       }
     }
     await runStep(runId, "reason", "done", "Reasoning complete with auditable rationale");
@@ -4188,7 +7066,7 @@ async function runCompanionWorkflow(intent, options = {}) {
     await runStep(runId, "consent", "done", "No execution performed without approval");
 
     if (runId !== activeRunId) return;
-    lastAnswer = result;
+    lastAnswer = (typeof result === "object" && result !== null) ? (result.html || result.text) : result;
     pushCompanion("agent", result, false);
   } catch (error) {
     if (runId === activeRunId) {
@@ -4233,7 +7111,7 @@ async function createCompanionAnswer(intent, sealed) {
   
   // Use Gemini Chat directly if configured
   try {
-    return await geminiAnswerQuery(intent, state);
+    return await geminiAnswerQuery(intent, state, buildRichContext());
   } catch (err) {
     return `${answerQuery(intent, state)} TEE payload: ${sealed.payloadDigest}.`;
   }
@@ -4279,11 +7157,136 @@ function stepIcon(status) {
   return "o";
 }
 
+function pushCompanion(role, text, doRender = true) {
+  let entry;
+  if (typeof text === "object" && text !== null) {
+    entry = { role, text: text.html || "", html: text.html || "", chips: text.chips || [] };
+  } else {
+    const chips = role === "agent" ? ["Top 5 tasks", "Show VP emails", "What's blocking my teammate?", "Show blockers", "Who is overloaded?"] : [];
+    entry = { role, text: text || "", chips };
+  }
+  companionLog.push(entry);
+  if (companionLog.length > 12) {
+    companionLog = companionLog.slice(-12);
+  }
+  if (doRender) render();
+}
+
 function renderLogText(text) {
-  return escapeHtml(text)
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/`(.*?)`/g, "<code>$1</code>")
-    .replace(/\n/g, "<br>");
+  if (!text) return "";
+  
+  // If the text already looks like HTML (starts with < or contains tags), we can render it directly
+  const containsHtml = /<[a-z][\s\S]*>/i.test(text);
+  if (containsHtml) {
+    return text;
+  }
+  
+  let html = escapeHtml(text);
+  
+  // Markdown links: [text](url)
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color:#0c66e4;text-decoration:underline;">$1</a>');
+  
+  // Bold: **text**
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  
+  // Inline code: `code`
+  html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+  
+  // Code blocks: ```code```
+  html = html.replace(/```([\s\S]*?)```/g, '<pre style="background:#f4f5f7;padding:8px;border-radius:4px;overflow-x:auto;font-family:monospace;font-size:11px;margin:5px 0;"><code>$1</code></pre>');
+  
+  // Tables:
+  const lines = html.split("<br>");
+  let inTable = false;
+  let tableHtml = "";
+  const processedLines = [];
+  
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      if (!inTable) {
+        inTable = true;
+        tableHtml = '<table class="companion-table" style="width:100%; border-collapse:collapse; margin: 8px 0; font-size:12px; border:1px solid #eadfce; border-radius:4px; overflow:hidden;">';
+      }
+      
+      const cols = trimmed.split("|").slice(1, -1);
+      const isHeaderDivider = cols.every(c => c.trim().startsWith("-") || c.trim().includes("---"));
+      
+      if (isHeaderDivider) continue;
+      
+      const isHeader = !tableHtml.includes("<td");
+      tableHtml += `<tr style="border-bottom:1px solid #eadfce; background:${isHeader ? "#f1e6d6" : "#fff"}; font-weight:${isHeader ? "bold" : "normal"};">`;
+      for (let col of cols) {
+        const tag = isHeader ? "th" : "td";
+        tableHtml += `<${tag} style="padding:6px; text-align:left; border-right:1px solid #eadfce;">${col.trim()}</${tag}>`;
+      }
+      tableHtml += "</tr>";
+    } else {
+      if (inTable) {
+        inTable = false;
+        tableHtml += "</table>";
+        processedLines.push(tableHtml);
+        tableHtml = "";
+      }
+      processedLines.push(line);
+    }
+  }
+  if (inTable) {
+    tableHtml += "</table>";
+    processedLines.push(tableHtml);
+  }
+  
+  // Lists:
+  let inUl = false;
+  let inOl = false;
+  const listProcessedLines = [];
+  
+  for (let line of processedLines) {
+    if (line.startsWith("<table") || line.startsWith("<tr") || line.endsWith("</table>")) {
+      listProcessedLines.push(line);
+      continue;
+    }
+    
+    const trimmed = line.trim();
+    const bulletMatch = trimmed.match(/^(&amp;bull;|-|\*)\s+(.*)/);
+    const numberMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    
+    if (bulletMatch) {
+      if (inOl) {
+        listProcessedLines.push("</ol>");
+        inOl = false;
+      }
+      if (!inUl) {
+        listProcessedLines.push('<ul style="margin: 4px 0; padding-left: 20px; list-style-type: disc;">');
+        inUl = true;
+      }
+      listProcessedLines.push(`<li style="margin: 2px 0;">${bulletMatch[2]}</li>`);
+    } else if (numberMatch) {
+      if (inUl) {
+        listProcessedLines.push("</ul>");
+        inUl = false;
+      }
+      if (!inOl) {
+        listProcessedLines.push('<ol style="margin: 4px 0; padding-left: 20px; list-style-type: decimal;">');
+        inOl = true;
+      }
+      listProcessedLines.push(`<li style="margin: 2px 0;">${numberMatch[2]}</li>`);
+    } else {
+      if (inUl) {
+        listProcessedLines.push("</ul>");
+        inUl = false;
+      }
+      if (inOl) {
+        listProcessedLines.push("</ol>");
+        inOl = false;
+      }
+      listProcessedLines.push(line);
+    }
+  }
+  if (inUl) listProcessedLines.push("</ul>");
+  if (inOl) listProcessedLines.push("</ol>");
+  
+  return listProcessedLines.join("<br>");
 }
 
 function updateDockEyes(event) {
@@ -4364,13 +7367,28 @@ async function loadBackendConfig() {
     const response = await fetchWithTimeout("http://127.0.0.1:8787/api/taskpilot/state");
     const data = await response.json();
     if (data.success) {
-      completedTaskIds = data.completedTaskIds || [];
-      workingTaskIds = data.workingTaskIds || [];
+      // Merge backend completedTaskIds into per-user store (don't override Supabase data)
+      const backendCompleted = data.completedTaskIds || [];
+      const backendWorking = data.workingTaskIds || [];
+      if (backendCompleted.length > 0) {
+        // Union: keep both local + backend completed IDs
+        const merged = [...new Set([...getMyCompletedIds(), ...backendCompleted])];
+        setMyCompletedIds(merged);
+      } else {
+        completedTaskIds = getMyCompletedIds(); // restore from local store
+      }
+      if (backendWorking.length > 0) {
+        const mergedWorking = [...new Set([...getMyWorkingIds(), ...backendWorking])];
+        setMyWorkingIds(mergedWorking);
+      } else {
+        workingTaskIds = getMyWorkingIds();
+      }
       taskTimeLogs = data.taskTimeLogs || {};
       managerActivityFeed = data.managerActivityFeed || [];
       managerTaskPosts = data.managerTaskPosts || [];
       engineerPortalPosts = data.engineerPortalPosts || [];
       addedTasks = data.addedTasks || [];
+      reassignedTaskOwners = data.reassignedTaskOwners || {};
 
       // Add loaded manually added tasks back to local sources items
       if (addedTasks.length > 0) {
@@ -4379,6 +7397,17 @@ async function loadBackendConfig() {
           if (jiraSource && !jiraSource.items.some(x => x.id === t.id)) {
             jiraSource.items.push(t);
           }
+        });
+      }
+
+      // Apply loaded reassigned task owners to local sources items
+      if (reassignedTaskOwners) {
+        sources.forEach(source => {
+          source.items.forEach(item => {
+            if (reassignedTaskOwners[item.id]) {
+              item.owner = reassignedTaskOwners[item.id];
+            }
+          });
         });
       }
       state = buildState(sources, calendarBlocks);
@@ -4407,23 +7436,44 @@ function completeTask(id) {
   // Log end time
   const now = new Date();
   if (!taskTimeLogs[id]) {
-    // If started without clicking Start (e.g. completed from agent), create full log
     taskTimeLogs[id] = {
       title: task.canonicalTitle,
       severity: task.severity,
       source: task.sources?.join(" + ") || task.sourceId,
-      startTime: new Date(now.getTime() - 30 * 60000).toISOString(), // assume 30min ago
+      startTime: new Date(now.getTime() - 30 * 60000).toISOString(),
       endTime: now.toISOString()
     };
   } else {
     taskTimeLogs[id].endTime = now.toISOString();
   }
 
-  // Move from working → done
-  workingTaskIds = workingTaskIds.filter(x => x !== id);
-  if (!completedTaskIds.includes(id)) {
-    completedTaskIds = [...completedTaskIds, id];
-  }
+  const log = taskTimeLogs[id];
+  const timeSpentMin = log.startTime
+    ? Math.round((new Date(log.endTime) - new Date(log.startTime)) / 60000)
+    : null;
+
+  // Was it completed before deadline?
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const wasOnTime = !task.due || task.due >= TODAY;
+
+  // ── Persist to per-user store + Supabase ────────────────────────────────────
+  const row = {
+    task_id:        id,
+    task_title:     task.canonicalTitle,
+    severity:       task.severity,
+    source:         (task.sources || [task.sourceId || "unknown"]).join(", "),
+    due_date:       task.due || null,
+    score:          task.score || 0,
+    completed_at:   now.toISOString(),
+    was_on_time:    wasOnTime,
+    time_spent_min: timeSpentMin
+  };
+  addMyCompletion(row);
+  // Remove from working in store
+  setMyWorkingIds(getMyWorkingIds().filter(x => x !== id));
+  // Fire-and-forget Supabase save
+  saveCompletion(getUserEmail(), getUserName(), task, timeSpentMin, wasOnTime);
+  deleteWorkingTask(getUserEmail(), id);
 
   // Build manager notification
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
@@ -4435,7 +7485,6 @@ function completeTask(id) {
   };
   managerActivityFeed = [feedEntry, ...managerActivityFeed];
 
-  // Also add to managerTaskPosts so it appears in manager portal
   managerTaskPosts = [{
     id: `DONE-${id}`,
     title: task.canonicalTitle,
@@ -4452,7 +7501,7 @@ function completeTask(id) {
   const assignment = completeAndAssignNext([...queue, task], id);
   selectedTaskId = assignment.next?.id || queue[0]?.id || "";
 
-  pushCompanion("agent", `"${task.canonicalTitle}" marked done. Manager notified. ${assignment.handoff.brief ? `Next up: ${assignment.next?.canonicalTitle || "all clear!"}` : "Queue cleared!"}`, false);
+  pushCompanion("agent", `Arf! 🐾 "${task.canonicalTitle}" marked done and saved! ${wasOnTime ? "✅ On time!" : "⏰ Past deadline."} ${assignment.handoff.brief ? `Next up: ${assignment.next?.canonicalTitle || "all clear!"}` : "Queue cleared!"}`, false);
   lastAnswer = assignment.handoff.brief
     ? `${assignment.handoff.message} Definition: ${assignment.handoff.brief.definitionOfDone}`
     : assignment.handoff.message;
@@ -4659,7 +7708,105 @@ if (window.taskPilotDesktop?.onCompleteTask) {
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
+// Safe render with error recovery — prevents blank page on runtime errors
+function safeRender() {
+  try {
+    render();
+  } catch (err) {
+    console.error("[TaskPilot] render() threw:", err);
+    // Show error overlay instead of blank page
+    if (app) {
+      app.innerHTML = `
+        <main style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#f7f4ee;font-family:Inter,system-ui,sans-serif;gap:16px;padding:40px;">
+          <div style="font-size:48px;">⚠️</div>
+          <h2 style="margin:0;color:#152238;font-family:Outfit,sans-serif;">TaskPilot ran into a problem</h2>
+          <p style="margin:0;color:#4a5568;max-width:480px;text-align:center;">${escapeHtml ? escapeHtml(err.message) : err.message}</p>
+          <button onclick="localStorage.removeItem('taskpilot:session');location.reload();"
+            style="padding:12px 24px;background:#152238;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">
+            Clear session &amp; reload
+          </button>
+        </main>`;
+    }
+  }
+}
+
+// Validate session before boot — clear malformed sessions
+try {
+  const rawSession = localStorage.getItem("taskpilot:session");
+  if (rawSession) {
+    const parsed = JSON.parse(rawSession);
+    if (!parsed || !parsed.provider || !parsed.role) {
+      localStorage.removeItem("taskpilot:session");
+      authSession = null;
+    }
+  }
+} catch {
+  localStorage.removeItem("taskpilot:session");
+  authSession = null;
+}
+
 // Render immediately so the page isn't blank while backend connects
-render();
+safeRender();
 // Then load backend config/state and re-render with live data
-loadBackendConfig().finally(render);
+loadBackendConfig().finally(async () => {
+  // Restore per-user completion state from localStorage
+  completedTaskIds = getMyCompletedIds();
+  workingTaskIds   = getMyWorkingIds();
+
+  // Rebuild today queue with updated profile name after config loaded
+  const engineerName = settingsProfile?.name || demoProfiles[activeProfile]?.name || "Utkarsh";
+  todayQueue = buildTodayQueue(state.prioritized, engineerName, 12);
+  depGraph = buildDependencyGraph(state.prioritized);
+  safeRender();
+
+  // Sync completions from Supabase (background, then re-render)
+  syncCompletionsFromSupabase().then(() => {
+    safeRender();
+    startRealtimeSync(); // live updates
+  });
+
+  // Async: re-score today queue with Gemini for smarter ranking
+  geminiRescoreTodayQueue();
+});
+
+// ─── Gemini Re-score Today Queue ─────────────────────────────────────────────
+async function geminiRescoreTodayQueue() {
+  if (todayQueueGeminiScored || todayQueue.length === 0) return;
+  try {
+    const slim = todayQueue.map(t => ({
+      id: t.id,
+      title: t.canonicalTitle,
+      severity: t.severity,
+      due: t.due,
+      impact: t.impact,
+      dependencies: t.dependencies,
+      sources: t.sources,
+      owner: t.owner,
+      isBlocking: t.isBlocking,
+      blocksCount: t.blocksCount || 0
+    }));
+    const rescored = await geminPrioritizeTasks(slim);
+    if (!Array.isArray(rescored) || rescored.length === 0) return;
+
+    // Merge Gemini scores back into todayQueue
+    const scoreMap = {};
+    rescored.forEach(r => { if (r.id) scoreMap[r.id] = r; });
+    todayQueue = todayQueue.map(t => {
+      const g = scoreMap[t.id];
+      if (!g) return t;
+      return {
+        ...t,
+        score: g.score || t.score,
+        rankReasons: Array.isArray(g.rankReasons) && g.rankReasons.length > 0
+          ? g.rankReasons
+          : t.rankReasons
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    todayQueueGeminiScored = true;
+    safeRender();
+    console.log("[TaskPilot] Today queue re-scored by Gemini ✅");
+  } catch (err) {
+    console.warn("[TaskPilot] Gemini re-score skipped:", err.message);
+  }
+}

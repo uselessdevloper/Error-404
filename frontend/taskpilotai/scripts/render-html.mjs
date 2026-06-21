@@ -1,20 +1,32 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+// Strip only top-level ES import statements (lines starting with "import ")
+// The greedy regex /import .*?;\n/g incorrectly matches @import url() inside CSS strings
+function stripImports(src) {
+  return src
+    .split("\n")
+    .filter(line => !line.match(/^import\s+/))
+    .join("\n");
+}
+
 export function renderHtml(root = resolve(".")) {
   const css = readFileSync(join(root, "src/styles.css"), "utf8");
   const generated = readFileSync(join(root, "src/generated/backendData.js"), "utf8")
     .replace("export const backendData", "const backendData");
-  const data = readFileSync(join(root, "src/data.js"), "utf8").replace(/import .*?;\n/g, "").replaceAll("export const", "const");
-  const engine = readFileSync(join(root, "src/taskEngine.js"), "utf8").replaceAll("export function", "function");
-  const tee = readFileSync(join(root, "src/teeTrust.js"), "utf8").replaceAll("export function", "function");
-  const client = readFileSync(join(root, "src/geminiClient.js"), "utf8")
-    .replace(/import .*?;\n/g, "")
+  const data = stripImports(readFileSync(join(root, "src/data.js"), "utf8"))
+    .replaceAll("export const", "const");
+  const engine = readFileSync(join(root, "src/taskEngine.js"), "utf8")
+    .replaceAll("export function", "function");
+  const tee = readFileSync(join(root, "src/teeTrust.js"), "utf8")
+    .replaceAll("export function", "function");
+  const client = stripImports(readFileSync(join(root, "src/geminiClient.js"), "utf8"))
     .replaceAll("export async function", "async function")
     .replaceAll("export function", "function");
-  const main = readFileSync(join(root, "src/main.js"), "utf8")
-    .replace(/import .*?;\n/g, "")
-    .replaceAll("const app = document.querySelector(\"#app\");", "const app = document.querySelector(\"#app\");");
+  const supabase = stripImports(readFileSync(join(root, "src/supabaseClient.js"), "utf8"))
+    .replaceAll("export async function", "async function")
+    .replaceAll("export function", "function");
+  const main = stripImports(readFileSync(join(root, "src/main.js"), "utf8"));
 
   return `<!doctype html>
 <html lang="en">
@@ -28,12 +40,10 @@ export function renderHtml(root = resolve(".")) {
   <body>
     <div id="app"></div>
     <script>
-${generated}
-${data}
-${engine}
-${tee}
-${client}
-${main}
+${[generated, data, engine, tee, supabase, client, main]
+  .join("\n")
+  // Prevent the HTML parser from seeing </script> inside string/template literals
+  .replace(/<\/script>/gi, "<\\/script>")}
     </script>
   </body>
 </html>`;
