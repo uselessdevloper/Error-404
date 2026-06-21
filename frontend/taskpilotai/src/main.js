@@ -49,6 +49,34 @@ if (authSession?.role) activeProfile = authSession.role;
 
 let backendConfig = { geminiConfigured: false, teeMode: "local-attested", supabaseConfigured: false, llmModel: "gemini-2.5-flash" };
 
+// ─── Source Brand Logos (inline SVG — no network, works in Electron file://) ──
+const SOURCE_LOGO_MAP = {
+  jira: {
+    bg: "#e8f0ff",
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><defs><linearGradient id="jL1" x1="100%" y1="3%" x2="45%" y2="55%" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#0052CC"/><stop offset="100%" stop-color="#2684FF"/></linearGradient><linearGradient id="jL2" x1="0%" y1="97%" x2="55%" y2="45%" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#0052CC"/><stop offset="100%" stop-color="#2684FF"/></linearGradient></defs><path d="M15.48 0l-7.74 7.74a2.67 2.67 0 000 3.77l3.97 3.97 7.74-7.74L15.48 0z" fill="url(#jL1)"/><path d="M8 7.78L.26 15.52a2.67 2.67 0 000 3.77L8 27.03l7.74-7.74L8 11.55V7.78z" fill="#2684FF"/><path d="M15.48 15.52L8 23.26 15.48 30.75l7.74-7.74a2.67 2.67 0 000-3.77l-7.74-3.72z" fill="url(#jL2)"/><path d="M23.22 7.78v3.77l-7.74 7.74 7.74 7.74 7.74-7.74a2.67 2.67 0 000-3.77L23.22 7.78z" fill="#2684FF"/></svg>`
+  },
+  github: {
+    bg: "#f0f0f0",
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path fill="#24292f" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>`
+  },
+  servicenow: {
+    bg: "#fde8e8",
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="32" height="32" rx="6" fill="#c0392b"/><path d="M8 22c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V12c0-1.1-.9-2-2-2H10c-1.1 0-2 .9-2 2v10zm3-9h10v8H11v-8zm3 5h4v-2h-4v2z" fill="#fff"/><circle cx="16" cy="8" r="2" fill="#fff"/></svg>`
+  },
+  email: {
+    bg: "#dbeafe",
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect x="0" y="3" width="24" height="18" rx="2.5" fill="#0078D4"/><path d="M2 6l10 7 10-7" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>`
+  },
+  slack: {
+    bg: "#f5eeff",
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zm2.521-10.123a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/></svg>`
+  },
+  notes: {
+    bg: "#d1fae5",
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect x="3" y="2" width="18" height="20" rx="2" fill="#0f766e"/><path d="M7 7h10M7 11h10M7 15h6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>`
+  }
+};
+
 // ─── Project Genome State ─────────────────────────────────────────────────────
 let genomeState = {
   loading: false,
@@ -684,13 +712,27 @@ function render() {
 
 function renderNavigation() {
   const currentNav = activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
+  // Map nav page IDs to SOURCE_LOGO_MAP keys
+  const NAV_LOGO = {
+    "inbox":"", "mgr-jira":"jira","mgr-github":"github",
+    "mgr-servicenow":"servicenow","mgr-email":"email",
+    "mgr-slack":"slack","meetings":"notes","source-tree":""
+  };
+
   return currentNav.map(g => `
     <div class="nav-group">
       <p>${g.label}</p>
-      ${g.items.map(([id, label, icon]) => `
+      ${g.items.map(([id, label, icon]) => {
+        const logoKey = NAV_LOGO[id];
+        const navLogo = logoKey ? SOURCE_LOGO_MAP[logoKey] : null;
+        const iconHtml = navLogo
+          ? `<span style="display:flex;width:22px;height:22px;align-items:center;justify-content:center;border-radius:5px;background:${navLogo.bg};">${navLogo.svg}</span>`
+          : `<span>${icon}</span>`;
+        return `
         <button class="${activePage === id ? "active" : ""}" data-nav="${id}">
-          <span>${icon}</span>${label}
-        </button>`).join("")}
+          ${iconHtml}${label}
+        </button>`;
+      }).join("")}
     </div>`).join("");
 }
 
@@ -1791,6 +1833,8 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
               { id: "mgr-slack",      name: "Slack Mentions",       srcId: "Slack Mentions", color: "#4A154B", icon: "💬" },
               { id: "meetings",       name: "Meetings",             srcId: "meetings",       color: "#1a7a4a", icon: "◷" }
             ].map(src => {
+              const srcKey = { "mgr-jira":"jira","mgr-github":"github","mgr-servicenow":"servicenow","mgr-email":"email","mgr-slack":"slack","meetings":"notes" }[src.id] || "notes";
+              const srcLogo = SOURCE_LOGO_MAP[srcKey];
               const isMeetings = src.id === "meetings";
               const count = isMeetings
                 ? meetingsList.length
@@ -1801,7 +1845,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
               return `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border:1px solid #dfe3ea; border-radius:6px; background:#fff; cursor:pointer;" data-nav="${src.id}">
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="display:grid; width:22px; height:22px; place-items:center; border-radius:4px; background:${src.color}22; color:${src.color}; font-weight:bold; font-size:11px;">${src.icon}</span>
+                    <span style="display:flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:5px;background:${srcLogo ? srcLogo.bg : src.color+'22'};">${srcLogo ? srcLogo.svg : src.icon}</span>
                     <strong style="color:#172b4d; font-size:12px;">${src.name}</strong>
                   </div>
                   <div style="display:flex; align-items:center; gap:6px;">
@@ -2808,6 +2852,62 @@ function renderUnifiedInbox() {
     cream: { bg:"#fdf8f0", border:"#d9c8ae", accent:"#7a5c3a", label:"#5d4226", divider:"rgba(180,150,100,0.2)" }
   };
 
+  // Per-source SVG logos — real brand marks, inline SVG, no external deps
+  const SOURCE_LOGOS = {
+    jira: {
+      bg: "#dbeafe",
+      svg: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+        <path d="M15.975 0C12.058 0 8.866 3.163 8.866 7.044v1.04H3.063A3.063 3.063 0 000 11.145c0 5.404 4.387 9.791 9.791 9.791h1.04v5.023C10.831 29.84 13.993 33 17.874 33h.002C21.795 33 25 29.837 25 25.956V7.044C25 3.163 21.838 0 17.958 0h-1.983z" fill="url(#jira-a)"/>
+        <path d="M16.043 0h-.068C12.058 0 8.866 3.163 8.866 7.044v14.892h7.177V7.044C16.043 3.163 19.206 0 23.124 0h-7.081z" fill="url(#jira-b)"/>
+        <defs>
+          <linearGradient id="jira-a" x1="24.997" y1="2.198" x2="11.867" y2="15.328" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#0052CC"/>
+            <stop offset="1" stop-color="#2684FF"/>
+          </linearGradient>
+          <linearGradient id="jira-b" x1="8.87" y1="10.566" x2="16.79" y2="10.566" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#0052CC"/>
+            <stop offset="1" stop-color="#2684FF"/>
+          </linearGradient>
+        </defs>
+      </svg>`
+    },
+    github: {
+      bg: "#f1f5f9",
+      svg: `<svg viewBox="0 0 24 24" fill="#1a1a2e" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+        <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+      </svg>`
+    },
+    servicenow: {
+      bg: "#fee2e2",
+      svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+        <circle cx="16" cy="16" r="16" fill="#c0392b"/>
+        <path d="M9 20.5c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-9c0-1.1-.9-2-2-2H11c-1.1 0-2 .9-2 2v9zm2-9h10v9H11v-9zm3 6.5h4v-4h-4v4z" fill="#fff"/>
+      </svg>`
+    },
+    email: {
+      bg: "#dbeafe",
+      svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+        <path d="M0 4C0 2.9.9 2 2 2h20c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H2c-1.1 0-2-.9-2-2V4z" fill="#0078D4"/>
+        <path d="M2 4l10 7L22 4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>`
+    },
+    slack: {
+      bg: "#ede9fe",
+      svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+        <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/>
+      </svg>`
+    },
+    notes: {
+      bg: "#d1fae5",
+      svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+        <rect x="3" y="2" width="18" height="20" rx="2" fill="#0f766e"/>
+        <path d="M7 7h10M7 11h10M7 15h6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="18" cy="18" r="4" fill="#34d399"/>
+        <path d="M16.5 18l1 1 2-2" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>`
+    }
+  };
+
   // Per-source icon identity — unique per integration
   const SOURCE_STYLE = {
     jira:       { icon:"📋", bg:"#dbeafe", color:"#1d4ed8" },
@@ -2825,6 +2925,7 @@ function renderUnifiedInbox() {
     const isApproaching = daysLeft !== null && daysLeft > 0 && daysLeft <= 3;
     const pal = isOverdue ? PALETTE.red : isApproaching ? PALETTE.amber : PALETTE.cream;
     const ss  = SOURCE_STYLE[src.id] || { icon:"◎", bg:"#f8fafc", color:"#64748b" };
+    const logo = SOURCE_LOGOS[src.id];
 
     const urgencyBadge = isOverdue
       ? `<span style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;background:#fdecea;color:#c0392b;border:1px solid #e8a09a;white-space:nowrap;">● Due Today</span>`
@@ -2849,10 +2950,10 @@ function renderUnifiedInbox() {
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <div style="display:flex;align-items:center;gap:10px;min-width:0;">
               <div style="width:36px;height:36px;border-radius:9px;flex-shrink:0;
-                          background:${ss.bg};color:${ss.color};
+                          background:${logo ? logo.bg : ss.bg};
                           display:flex;align-items:center;justify-content:center;
-                          font-size:18px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                ${ss.icon}
+                          box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                ${logo ? logo.svg : `<span style="font-size:18px;">${ss.icon}</span>`}
               </div>
               <div style="min-width:0;">
                 <div style="font-size:13px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
