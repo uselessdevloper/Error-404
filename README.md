@@ -1,96 +1,229 @@
-# TaskPilot AI 🚀
+# TaskPilot AI
 
-TaskPilot AI is an autonomous, secure, and privacy-preserving desktop AI companion built to maximize engineering productivity and simplify manager-developer alignment. By integrating task flows, meeting intelligence, and secure execution sandboxes, TaskPilot AI reduces developer noise and accelerates team delivery.
+A desktop productivity tool that helps engineering teams manage tasks across multiple platforms. TaskPilot consolidates work from Jira, GitHub, ServiceNow, Outlook, and Slack into a single prioritized queue.
 
----
+## What It Does
 
-## 🌟 Key Features
+TaskPilot watches your work sources and builds a unified task list. It removes duplicates, ranks by urgency, and gives you a clear view of what needs attention today. Managers get team visibility and workload distribution tools. Engineers get a focused daily queue without the noise.
 
-### 1. Real-Time Task Prioritization & Deduplication
-- **Multi-Source Aggregation**: Consolidates tasks and signals from Jira, ServiceNow, GitHub, Outlook, and Slack.
-- **Explainable Ranking**: TaskPilot AI prioritizes the task backlog dynamically using key parameters (severity, deadline, duplicate similarity, owner pressure).
-- **Smart Deduplication**: Automatically groups identical or related tickets across systems.
+## Features
 
-### 2. Autonomous Meeting Intelligence
-- **Meeting Agent**: Scans connected streams to identify calendar blocks and pending meetings.
-- **Deep AI Analysis**: Extracts action items, key decisions, follow-up meetings, and risk logs.
-- **Calendar Integration**: Saves confirmed meetings to the developer's calendar automatically.
+**Task Management**
+- Aggregates tasks from Jira, ServiceNow, GitHub PRs, emails, and Slack
+- Automatic deduplication across platforms
+- Dynamic priority ranking based on deadlines and severity
+- Real-time status updates
 
-### 3. Manager Assignment & Analytics
-- **Balanced Allocation**: Managers get full visibility into team workloads and capacity blocks.
-- **AI Task Assigner**: Recommends the best owner for new tasks using current queue loads and individual skills.
-- **Team Portal**: Post real-time announcements, announcements, and direct priorities to team members.
+**Meeting Intelligence**
+- Scans calendar for upcoming meetings
+- Extracts action items and decisions
+- Tracks follow-ups and meeting notes
+- Calendar integration
 
-### 4. End-of-Day PDF Report
-- Generates clean, client-facing PDF reports detailing completed tasks, duration logs, and priorities for the next day with custom corporate branding.
+**Team Coordination**
+- Manager dashboard with workload view
+- Task assignment with capacity checks
+- Team portal for announcements
+- End-of-day reports
 
-### 5. Trusted Execution Environment (TEE)
-- Runs code scans, PR checks, and local scripts inside an attested secure sandbox to verify integrity and redact credentials.
+**Security**
+- Row-level security via Supabase
+- Engineers see only their data
+- Managers get read access for oversight
+- All credentials stored in .env
 
----
+## Setup
 
-## 🛡️ Database & Security (RLS)
+### Requirements
 
-TaskPilot AI uses **Supabase (PostgreSQL)** for secure user management. Row-Level Security (RLS) is fully enabled across all primary tables to protect sensitive developer logs:
+- Node.js 18+
+- Python 3.10+ (optional, for alternative server)
+- LLM API key (Gemini, NVIDIA, or Grok)
 
-- **Engineer Profiles**:
-  - Engineers can read and update their *own* profiles.
-  - Managers can read *all* profiles to monitor workloads.
-- **Source Connections**: Private to each engineer; only the owner can read/write.
-- **Execution History**:
-  - Engineers can read their own execution logs.
-  - Managers can read *all* execution histories to audit task performance.
+### Installation
 
-*SQL migration scripts can be found at `backend/taskpilotai/supabase/001_taskpilot_profiles.sql`.*
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend**: Vanilla Javascript (ES Modules), Custom Styling (CSS), Electron Desktop Shell.
-- **Backend**: Python (FastAPI), Vertex AI (REST client), NodeJS (helper scripts).
-- **Database**: Supabase.
-
----
-
-## 🚀 Setup & Execution
-
-### 1. Prerequisites
-- Node.js (v18+)
-- Python (3.10+)
-- Supabase account (optional for desktop integration)
-
-### 2. Environment Configuration
-Create a `.env` file in `backend/taskpilotai/` with the following variables:
-```env
-GEMINI_API_KEY=your_gemini_api_key
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/Error-404.git
+cd Error-404
 ```
 
-### 3. Run Backend Server
+2. Configure environment variables
+
+Create `backend/taskpilotai/.env`:
+```env
+# Choose your LLM provider: gemini, nvidia, or grok
+LLM_PROVIDER=gemini
+
+# API Keys (provide at least one based on your provider)
+GEMINI_API_KEY=your_key_here
+NVIDIA_API_KEY=your_key_here
+GROK_API_KEY=your_key_here
+
+# LLM Configuration
+LLM_MODEL=gemini-2.5-flash
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=2048
+
+# Database (optional - works without Supabase in demo mode)
+SUPABASE_URL=your_project_url
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_key
+
+# Server Configuration
+TASKPILOT_PORT=8787
+TASKPILOT_DATASET_DIR=./datasets
+```
+
+3. Start the backend
 ```bash
 cd backend/taskpilotai
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python3 server.py
+npm install
+node server.mjs
 ```
-*The backend server runs on `http://127.0.0.1:8787`.*
 
-### 4. Run Frontend Server
+4. Start the frontend
 ```bash
 cd frontend/taskpilotai
 npm install
 npm run dev
 ```
-*The frontend server runs on `http://127.0.0.1:5173`.*
 
-### 5. Run Desktop Application (Electron)
-To build and launch the Electron application:
+Access the app at `http://localhost:5173`
+
+### Desktop App (Electron)
+
+Build and run as a desktop application:
 ```bash
 cd frontend/taskpilotai
 npm run build
 npm run electron
 ```
+
+## LLM Provider Setup
+
+TaskPilot supports three LLM providers. Configure your choice in `.env`:
+
+### Option 1: Google Gemini (Default)
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_key
+LLM_MODEL=gemini-2.5-flash
+```
+Get your API key: [Google AI Studio](https://aistudio.google.com/app/apikey)
+
+### Option 2: NVIDIA
+```env
+LLM_PROVIDER=nvidia
+NVIDIA_API_KEY=your_nvidia_key
+LLM_MODEL=nvidia/llama-3.1-nemotron-70b-instruct
+```
+Get your API key: [NVIDIA API Catalog](https://build.nvidia.com/)
+
+### Option 3: Grok (xAI)
+```env
+LLM_PROVIDER=grok
+GROK_API_KEY=your_grok_key
+LLM_MODEL=grok-beta
+```
+Get your API key: [xAI Console](https://console.x.ai/)
+
+## Usage
+
+### Engineer View
+- Login with your email (or use demo mode)
+- See your prioritized task queue
+- Mark tasks as working/done
+- Chat with AI agent for task assistance
+- Generate end-of-day reports
+
+### Manager View
+- View team workload distribution
+- Assign tasks to engineers
+- Post team announcements
+- Track completion metrics
+- Generate team analytics
+
+### AI Agent Chat
+The agent understands natural language:
+- "show my tasks for today"
+- "start working on task-1"
+- "mark done"
+- "what's blocking the team?"
+
+## Architecture
+
+**Frontend**: Vanilla JavaScript, CSS, Electron
+**Backend**: Node.js with Express-like routing
+**Database**: Supabase (PostgreSQL with RLS)
+**LLM**: Multi-provider support (Gemini/NVIDIA/Grok)
+
+## Data Security
+
+- Row-level security enforced in Supabase
+- Engineers can only access their own profiles and logs
+- Managers have read-only access to team data
+- API keys stored in .env (never committed to git)
+- All sensitive data redacted in logs
+
+## Project Structure
+
+```
+Error-404/
+├── backend/
+│   └── taskpilotai/
+│       ├── agent/                 # AI agent logic
+│       ├── api/                   # API endpoints
+│       ├── datasets/              # Sample data
+│       ├── supabase/              # Database migrations
+│       └── server.mjs             # Backend server
+├── frontend/
+│   └── taskpilotai/
+│       ├── electron/              # Desktop app
+│       ├── src/                   # Frontend code
+│       └── index.html             # Entry point
+└── README.md
+```
+
+## Development
+
+Run tests:
+```bash
+cd frontend/taskpilotai
+npm test
+```
+
+Build for production:
+```bash
+cd frontend/taskpilotai
+npm run build
+```
+
+## Troubleshooting
+
+**Port already in use:**
+```bash
+lsof -ti:8787 | xargs kill -9
+```
+
+**LLM API errors:**
+- Check your API key in `.env`
+- Verify LLM_PROVIDER matches your key
+- Check API rate limits
+
+**No tasks showing:**
+- Backend must be running on port 8787
+- Check browser console for errors
+- Verify dataset files exist in `backend/taskpilotai/datasets/`
+
+## Contributing
+
+Pull requests welcome. For major changes, open an issue first.
+
+## License
+
+MIT
+
+## Support
+
+For issues or questions, check the troubleshooting section or open a GitHub issue.

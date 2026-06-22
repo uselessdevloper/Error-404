@@ -5,6 +5,144 @@
   "color": "#0c66e4",
   "items": [
     {
+      "id": "MAIL-VP-001",
+      "title": "From VP Engineering: Immediate action required on CSV upload SLA breach",
+      "body": "From: Sarah Mitchell, VP Engineering\nTo: Utkarsh Sinha\n\nUtkarsh,\n\nI have been informed by Customer Success that the CSV upload failure for Acme Corp and Northstar has now breached our committed SLA window. This is unacceptable and I need your personal attention on this immediately.\n\nPlease provide me with:\n1. Current root cause assessment\n2. ETA for full resolution\n3. Customer communication plan\n\nI need this in my inbox by 4 PM today. I will be presenting the status in the executive operations review at 5 PM.\n\n- Sarah Mitchell\nVP Engineering",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Customer Success",
+      "dependencies": [
+        "Reply to VP with RCA and ETA by 4 PM",
+        "Update INC-7741 and JIRA-421 with status",
+        "Prepare customer communication plan"
+      ],
+      "execution": {
+        "definitionOfDone": "VP receives written RCA, confirmed ETA, and customer comms draft before 4 PM.",
+        "process": [
+          "Review current status of INC-7741 and JIRA-421",
+          "Confirm root cause with platform team",
+          "Draft ETA and mitigation steps",
+          "Write customer communication",
+          "Send reply to VP Sarah Mitchell"
+        ],
+        "estimatedMinutes": 30
+      }
+    },
+    {
+      "id": "MAIL-VP-002",
+      "title": "From VP Product: Sprint risk review — leadership concerned about Q2 delivery",
+      "body": "From: Aryan Kapoor, VP Product Management\nTo: Utkarsh Sinha\n\nHi Utkarsh,\n\nI want to flag that leadership is tracking Q2 delivery commitments very closely this sprint. We have three items I am specifically worried about:\n\n1. The audit log story (JIRA-388) — required for the compliance demo next Wednesday. Is this still on track?\n2. The partner API schema fix — partner has escalated twice this week.\n3. OAuth token refresh failures — security team is asking why this slipped.\n\nCan you send me a written sprint risk summary by end of day? I will include it in the VP sync tomorrow morning.\n\nThanks,\nAryan Kapoor\nVP Product Management",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Platform Apps",
+      "dependencies": [
+        "Confirm JIRA-388 compliance demo readiness",
+        "Update on partner API schema fix",
+        "OAuth token refresh status",
+        "Send written sprint risk summary to VP by EOD"
+      ],
+      "execution": {
+        "definitionOfDone": "VP Aryan receives a written sprint risk summary covering all three flagged items.",
+        "process": [
+          "Assess JIRA-388 completion probability",
+          "Review partner API schema fix status",
+          "Check OAuth token refresh incident",
+          "Draft sprint risk summary",
+          "Send to VP Aryan Kapoor"
+        ],
+        "estimatedMinutes": 45
+      }
+    },
+    {
+      "id": "MAIL-VP-003",
+      "title": "From VP Customer Success: Enterprise client Northstar is threatening to churn",
+      "body": "From: Priya Desai, VP Customer Success\nTo: Utkarsh Sinha\n\nUtkarsh,\n\nI need to escalate something critical. Northstar's CTO contacted me directly this morning. They are experiencing repeated CSV import failures and their team cannot process their end-of-month data. They have explicitly mentioned contract cancellation if this is not resolved before Monday.\n\nThis is now a revenue-at-risk situation. I understand this is linked to JIRA-421 and INC-7741. I need:\n- An immediate workaround or manual data import option for Northstar\n- A confirmed resolution date\n- A call with their CTO on Monday to reassure them\n\nPlease treat this as your #1 priority today.\n\nPriya Desai\nVP Customer Success",
+      "severity": "P1",
+      "due": "2026-06-20",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Customer Success",
+      "dependencies": [
+        "Provide workaround or manual import option for Northstar",
+        "Confirm resolution date",
+        "Schedule Monday call with Northstar CTO",
+        "Reply to VP Priya Desai with action plan"
+      ],
+      "execution": {
+        "definitionOfDone": "Northstar receives a workaround option, a confirmed fix date, and a Monday call is scheduled.",
+        "process": [
+          "Investigate manual import workaround for Northstar",
+          "Confirm fix ETA from INC-7741 resolution path",
+          "Schedule Monday call with Northstar CTO via Customer Success",
+          "Reply to VP Priya Desai with complete action plan"
+        ],
+        "estimatedMinutes": 50
+      }
+    },
+    {
+      "id": "MAIL-VP-004",
+      "title": "From VP Engineering: Security vulnerability in OAuth flow — immediate fix required",
+      "body": "From: Sarah Mitchell, VP Engineering\nTo: Utkarsh Sinha\n\nUtkarsh,\n\nOur security team flagged a potential token replay vulnerability in the OAuth refresh flow during the quarterly review. This is tied to the existing PR-118 that has been waiting for review.\n\nGiven the compliance audit next week, I need this resolved immediately — not just reviewed but merged and deployed to production. The security team has given us a 48-hour window.\n\nPlease confirm:\n1. When will PR-118 review be completed?\n2. What is the deployment timeline to production?\n3. Is there any regression risk that needs sign-off?\n\nThis is non-negotiable from a compliance standpoint.\n\nSarah Mitchell\nVP Engineering",
+      "severity": "P1",
+      "due": "2026-06-21",
+      "impact": 10,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "Identity",
+      "dependencies": [
+        "Complete PR-118 review immediately",
+        "Confirm production deployment timeline",
+        "Assess regression risk and get sign-off",
+        "Reply to VP Sarah Mitchell with timeline"
+      ],
+      "execution": {
+        "definitionOfDone": "PR-118 is reviewed and merged, production deployment is confirmed, VP is notified.",
+        "process": [
+          "Open and review PR-118 security changes",
+          "Run security checklist",
+          "Coordinate deployment window with SRE",
+          "Assess regression risk",
+          "Reply to VP Sarah Mitchell"
+        ],
+        "estimatedMinutes": 60
+      }
+    },
+    {
+      "id": "MAIL-VP-005",
+      "title": "From VP Operations: Q2 infrastructure capacity — critical decisions needed this week",
+      "body": "From: Rajesh Mehta, VP Operations\nTo: Utkarsh Sinha\n\nHi Utkarsh,\n\nAs we approach end of Q2, I need your input on two infrastructure decisions that cannot wait:\n\n1. Database connection pool sizing — based on current growth, we are projected to hit limits within 3 weeks. The SRE team needs approval to scale before the next billing cycle.\n\n2. CDN edge node expansion — we have had 3 latency incidents in the APAC region this month. I need a decision on whether to add Singapore and Sydney nodes by Thursday so procurement can move.\n\nPlease review the attached capacity report from Karan and give me your recommendation by Wednesday EOD. If I don't hear back I will escalate to the CTO.\n\nRajesh Mehta\nVP Operations",
+      "severity": "P1",
+      "due": "2026-06-24",
+      "impact": 9,
+      "status": "Unread",
+      "owner": "Utkarsh",
+      "team": "SRE",
+      "dependencies": [
+        "Review Karan's capacity report",
+        "Provide recommendation on DB connection pool scaling",
+        "Provide recommendation on CDN edge node expansion",
+        "Reply to VP Rajesh Mehta by Wednesday EOD"
+      ],
+      "execution": {
+        "definitionOfDone": "VP Rajesh receives written recommendations on both DB scaling and CDN expansion by Wednesday.",
+        "process": [
+          "Review SRE capacity report from Karan",
+          "Analyze DB connection pool utilization trends",
+          "Assess APAC latency incident data",
+          "Prepare infrastructure scaling recommendations",
+          "Send to VP Rajesh Mehta"
+        ],
+        "estimatedMinutes": 55
+      }
+    },
+    {
       "id": "MAIL-920",
       "title": "VP escalation: upload timeout needs ETA",
       "body": "From VP Customer Success: Please provide an ETA today for the CSV upload timeout affecting Acme imports. This appears related to JIRA-421 and INC-7741.",

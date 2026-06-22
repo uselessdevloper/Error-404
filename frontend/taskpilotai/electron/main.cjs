@@ -11,24 +11,24 @@ const backendEnv = loadBackendEnv();
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 const authCallbackUrl = "http://127.0.0.1:47835/auth/callback";
 
-// Build Vertex AI endpoint URL — uses aiplatform.googleapis.com (GCP credits)
-function buildVertexUrl(model) {
-  const project  = backendEnv.VERTEX_AI_PROJECT  || "";
-  const location = backendEnv.VERTEX_AI_LOCATION || "us-central1";
-  // Strip any "publishers/google/models/" prefix the user may have included
-  const modelId  = model.replace(/^.*\//, "");
-  return `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
+// Build Gemini API endpoint URL
+// AQ. keys = service-account-bound → generativelanguage.googleapis.com (Gemini API)
+// AIzaSy keys = standard API key → generativelanguage.googleapis.com (Gemini API)
+// Vertex AI (aiplatform.googleapis.com) requires OAuth2, not API keys
+function buildGeminiUrl(model, apiKey) {
+  const modelId = model.replace(/^.*\//, "").replace(/^publishers\/google\/models\//, "");
+  // Both AQ. and AIzaSy keys work with the Generative Language API endpoint
+  return `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 }
 
 function getKeyError(apiKey) {
   if (!apiKey || apiKey === "YOUR_GOOGLE_AI_STUDIO_KEY_HERE") {
     return "GEMINI_API_KEY not set in backend/taskpilotai/.env";
   }
-  // Accept both Vertex AI Cloud keys (AQ.) and Google AI Studio keys (AIza)
   if (apiKey.length < 20) {
     return "API key looks too short. Check backend/taskpilotai/.env";
   }
-  return null;
+  return null; // Accept any non-empty key (AIzaSy... or AQ.... Vertex keys)
 }
 
 if (!gotSingleInstanceLock) {
@@ -70,6 +70,18 @@ function createMainWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"), { query: { desktop: "1" } });
   }
+
+  // Log renderer errors to terminal for debugging
+  mainWindow.webContents.on("did-fail-load", (_e, code, desc) => {
+    console.error("[TaskPilot] Page load failed:", code, desc);
+  });
+  mainWindow.webContents.on("console-message", (_e, level, msg, line, src) => {
+    if (level >= 2) console.error(`[Renderer] ${msg} (${src}:${line})`);
+    else if (level === 1) console.warn(`[Renderer] ${msg}`);
+  });
+  mainWindow.webContents.on("render-process-gone", (_e, details) => {
+    console.error("[TaskPilot] Renderer crashed:", details);
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -352,8 +364,8 @@ app.whenReady().then(() => {
       };
     }
     try {
-      const model = backendEnv.LLM_MODEL || "gemini-2.5-flash";
-      const url = buildVertexUrl(model) + `?key=${apiKey}`;
+      const model = backendEnv.LLM_MODEL || "gemini-2.0-flash-exp";
+      const url = buildGeminiUrl(model, apiKey);
       const contents = [];
       const parts = [
         {
@@ -425,8 +437,8 @@ Please provide a concise (2-3 sentences max) summary of what tasks or errors are
     const keyErr = getKeyError(apiKey);
     if (keyErr) return { success: false, error: keyErr };
     try {
-      const useModel = model || backendEnv.LLM_MODEL || "gemini-2.5-flash";
-      const url = buildVertexUrl(useModel) + `?key=${apiKey}`;
+      const useModel = model || backendEnv.LLM_MODEL || "gemini-2.0-flash-exp";
+      const url = buildGeminiUrl(useModel, apiKey);
       const contents = [];
       const parts = [{ text: prompt }];
 
@@ -449,11 +461,15 @@ Please provide a concise (2-3 sentences max) summary of what tasks or errors are
           generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
         })
       });
-      if (!response.ok) throw new Error(`TaskPilot AI API ${response.status}: ${await response.text()}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API ${response.status}: ${errorText}`);
+      }
       const data = await response.json();
       const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").replace(/Gemini/g, "TaskPilot AI");
       return { success: true, text };
     } catch (err) {
+      console.error("[TaskPilot] Gemini API error:", err);
       return { success: false, error: err.message };
     }
   });
@@ -506,8 +522,8 @@ Please provide a concise (2-3 sentences max) summary of what tasks or errors are
     const keyErr = getKeyError(apiKey);
     if (keyErr) return { success: false, error: keyErr };
     try {
-      const useModel = model || backendEnv.LLM_MODEL || "gemini-2.5-flash";
-      const url = buildVertexUrl(useModel) + `?key=${apiKey}`;
+      const useModel = model || backendEnv.LLM_MODEL || "gemini-2.0-flash-exp";
+      const url = buildGeminiUrl(useModel, apiKey);
       const contents = [];
       const parts = [{ text: prompt }];
 
@@ -530,9 +546,12 @@ Please provide a concise (2-3 sentences max) summary of what tasks or errors are
           generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
         })
       });
-      if (!response.ok) throw new Error(`TaskPilot AI API error ${response.status}: ${await response.text()}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API ${response.status}: ${errorText}`);
+      }
       const data = await response.json();
-      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").replace(/Gemini/g, "TaskPilot AI");
+      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "");
       return { success: true, text };
     } catch (err) {
       return { success: false, error: err.message };

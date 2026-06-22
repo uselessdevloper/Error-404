@@ -75,7 +75,8 @@ export class SettingsAPI {
         'capacity_hours_per_week',
         'focus_hours',
         'notification_channels',
-        'work_preferences'
+        'work_preferences',
+        'role'
       ];
 
       // Filter updates to only allowed fields

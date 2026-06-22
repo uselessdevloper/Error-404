@@ -36,10 +36,13 @@ export function renderHtml(root = resolve(".")) {
     <meta name="theme-color" content="#f7f4ee" />
     <title>TaskPilot AI</title>
     <style>${css}</style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   </head>
   <body>
     <div id="app"></div>
     <script>
+      window.jsPDF = window.jspdf?.jsPDF || window.jsPDF;
 ${[generated, data, engine, tee, supabase, client, main]
   .join("\n")
   // Prevent the HTML parser from seeing </script> inside string/template literals

@@ -79,13 +79,10 @@ def write_json_file(file_path: str, data: Any):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
-# Build Vertex AI endpoint URL — uses GCP credits via aiplatform.googleapis.com
+# Build Gemini Developer API endpoint URL for standard/AQ API keys
 def build_vertex_url(model: str) -> str:
-    project  = os.getenv("VERTEX_AI_PROJECT", "")
-    location = os.getenv("VERTEX_AI_LOCATION", "us-central1")
     model_id = model.split("/")[-1]  # strip any path prefix
-    return (f"https://{location}-aiplatform.googleapis.com/v1/projects/{project}"
-            f"/locations/{location}/publishers/google/models/{model_id}:generateContent")
+    return f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
 
 # Supabase REST helper
 def make_supabase_request(table: str, method: str = "GET", payload: Any = None, params: Dict = None) -> Any:

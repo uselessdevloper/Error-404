@@ -19,11 +19,8 @@ class AgentOrchestrator:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not configured")
         
-        project = os.getenv("VERTEX_AI_PROJECT", "")
-        location = os.getenv("VERTEX_AI_LOCATION", "us-central1")
         model_id = self.model_name.split("/")[-1]
-        
-        url = f"https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model_id}:generateContent?key={self.api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={self.api_key}"
         
         headers = {"Content-Type": "application/json"}
         body = {
@@ -33,7 +30,7 @@ class AgentOrchestrator:
         
         resp = requests.post(url, headers=headers, json=body, timeout=25)
         if not resp.ok:
-            raise Exception(f"Vertex AI request failed: {resp.text}")
+            raise Exception(f"Gemini API request failed: {resp.text}")
         data = resp.json()
         text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
         return text.strip()

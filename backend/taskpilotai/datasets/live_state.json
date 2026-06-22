@@ -1,59 +1,386 @@
 {
   "completedTaskIds": [
-    "task-test-1",
-    "task-1"
+    "task-2",
+    "task-38",
+    "task-235"
   ],
-  "workingTaskIds": [],
+  "workingTaskIds": [
+    "task-9",
+    "task-141"
+  ],
   "taskTimeLogs": {
-    "task-test-1": {
-      "title": "Test task",
-      "severity": "P2",
-      "source": "Jira",
-      "startTime": "2026-06-20T09:00:00Z",
-      "endTime": "2026-06-20T09:30:00Z"
-    },
-    "task-1": {
-      "title": "VP escalation: upload timeout needs ETA",
+    "task-189": {
+      "title": "Executive request: incident RCA summary needed",
       "severity": "P1",
-      "source": "Outlook Emails + ServiceNow Defects + Jira Sprint Board + Slack Mentions",
-      "startTime": "2026-06-20T15:55:33.057Z",
-      "endTime": "2026-06-20T16:25:33.057Z"
+      "source": "Outlook Emails",
+      "startTime": "2026-06-22T04:21:40.362Z",
+      "endTime": "2026-06-22T04:51:40.362Z"
+    },
+    "task-235": {
+      "title": "Platform team blocked by API gateway errors",
+      "severity": "P1",
+      "source": "Slack Mentions",
+      "startTime": "2026-06-22T04:31:43.945Z",
+      "endTime": "2026-06-22T05:08:30.168Z"
+    },
+    "task-195": {
+      "title": "Urgent: API error rate increase detected",
+      "severity": "P1",
+      "source": "Outlook Emails",
+      "startTime": "2026-06-22T04:32:31.491Z",
+      "endTime": "2026-06-22T05:02:31.491Z"
+    },
+    "task-110": {
+      "title": "API gateway rejecting valid requests intermittently",
+      "severity": "P1",
+      "source": "ServiceNow Defects",
+      "startTime": "2026-06-22T04:32:52.841Z",
+      "endTime": "2026-06-22T05:02:52.841Z"
     }
   },
   "managerActivityFeed": [
     {
-      "message": "✓ Utkarsh Sinha completed \"VP escalation: upload timeout needs ETA\" (P1)",
+      "message": "✓ Homoai completed \"Platform team blocked by API gateway errors\" (P1)",
       "color": "#22a06b",
-      "time": "09:55 PM",
-      "taskId": "task-1"
+      "time": "10:38 AM",
+      "taskId": "task-235"
     },
     {
-      "message": "✓ Test completed",
-      "color": "#22a06b",
-      "time": "09:30 AM",
-      "taskId": "task-test-1"
+      "message": "Reassigned \"Billing adjustment workflow creating duplicate credits\" from Aisha to Vikram (balanced: Aisha count 28, Vikram count 28)",
+      "time": "10:37:38 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Executive review requires warehouse synchronization update\" from Neha to Arjun (balanced: Neha count 28, Arjun count 28)",
+      "time": "10:37:37 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Fix CSV upload timeout for enterprise imports\" from Meera to Arjun (balanced: Meera count 28, Arjun count 27)",
+      "time": "10:37:36 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Implement automated sprint health reporting\" from Utkarsh to Utkarsh",
+      "time": "10:37:26 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Assigned \"Fix notification provider failover workflow\" to Vikram (previously: Arjun)",
+      "time": "10:37:17 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Mobile push notifications not delivered\" to Aisha (previously: Arjun)",
+      "time": "10:37:17 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Review infrastructure scaling assumptions\" to Neha (previously: Karan)",
+      "time": "10:37:17 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Upgrade container security policies\" to Neha (previously: Vikram)",
+      "time": "10:37:17 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Compliance manager requesting warehouse sync confirmation\" to Karan (previously: Neha)",
+      "time": "10:37:17 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Security leadership requesting credential rotation status\" to Meera (previously: Vikram)",
+      "time": "10:37:17 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Reassigned \"Billing leadership requesting tax calculation validation\" from Aisha to Vikram (balanced: Aisha count 28, Vikram count 28)",
+      "time": "10:37:02 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Investigate mobile login timeout\" from Riya to Sanya (balanced: Riya count 28, Sanya count 28)",
+      "time": "10:37:02 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Platform team blocked by API gateway errors\" from Utkarsh to Rohan (balanced: Utkarsh count 28, Rohan count 28)",
+      "time": "10:37:01 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Action required: invoice processing SLA breach\" from Aisha to Meera (balanced: Aisha count 29, Meera count 28)",
+      "time": "10:37:00 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Fix partner API schema mismatch\" from Riya to Karan (balanced: Riya count 29, Karan count 27)",
+      "time": "10:36:59 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Executive request: incident RCA summary needed\" from Utkarsh to Vikram (balanced: Utkarsh count 29, Vikram count 27)",
+      "time": "10:36:58 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Finance team blocked by missing reconciliation data\" from Aisha to Rohan (balanced: Aisha count 30, Rohan count 27)",
+      "time": "10:36:58 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Tenant provisioning workflow stuck in pending state\" from Utkarsh to Meera (balanced: Utkarsh count 30, Meera count 27)",
+      "time": "10:36:57 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Fix payment webhook retry storm\" from Aisha to Karan (balanced: Aisha count 31, Karan count 26)",
+      "time": "10:36:56 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Bulk account provisioning failing for enterprise customers\" from Utkarsh to Rohan (balanced: Utkarsh count 31, Rohan count 26)",
+      "time": "10:36:55 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Resolve OAuth token refresh failures\" from Utkarsh to Meera (balanced: Utkarsh count 32, Meera count 26)",
+      "time": "10:36:54 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"From VP Product: Sprint risk review — leadership concerned about Q2 delivery\" from Utkarsh to Rohan (balanced: Utkarsh count 33, Rohan count 25)",
+      "time": "10:36:54 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Executive request: weekly delivery risk update\" from Utkarsh to Meera (balanced: Utkarsh count 34, Meera count 25)",
+      "time": "10:36:53 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Fix CSV upload timeout for enterprise imports\" from Utkarsh to Meera (balanced: Utkarsh count 35, Meera count 24)",
+      "time": "10:36:52 AM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Assigned \"API request tracing unavailable in production logs\" to Riya (previously: Sanya)",
+      "time": "10:36:48 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Customer support requesting ETA for profile update failures\" to Meera (previously: Meera)",
+      "time": "10:36:48 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Product request: search relevance improvement update\" to Aisha (previously: Meera)",
+      "time": "10:36:48 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Analyze search indexing delays\" to Meera (previously: Meera)",
+      "time": "10:36:48 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Engineering follow-up: developer portal adoption review\" to Karan (previously: Sanya)",
+      "time": "10:36:48 AM",
+      "color": "#22a06b"
+    },
+    {
+      "message": "Assigned \"Search autocomplete failing for large datasets\" to Rohan (previously: Meera)",
+      "time": "10:36:48 AM",
+      "color": "#22a06b"
     }
   ],
   "managerTaskPosts": [
     {
-      "id": "DONE-task-1",
-      "title": "VP escalation: upload timeout needs ETA",
-      "description": "Completed by Utkarsh Sinha at 09:55 PM",
+      "id": "DONE-task-235",
+      "title": "Platform team blocked by API gateway errors",
+      "description": "Completed by Homoai at 10:38 AM",
       "priority": "P1",
       "status": "Completed",
-      "postedBy": "Utkarsh Sinha",
-      "postedAt": "2026-06-20T16:25:33.057Z",
+      "postedBy": "Homoai",
+      "postedAt": "2026-06-22T05:08:30.168Z",
       "type": "completion"
     },
     {
-      "id": "DONE-task-test-1",
-      "title": "Test task",
+      "id": "MGR-40736",
+      "title": "Implement automated sprint health reporting",
+      "description": "Engineering managers lack visibility into sprint risks and workload distribution.",
+      "priority": "P3",
+      "deadline": "2026-07-09",
+      "team": "Platform Apps",
+      "postedBy": "Homoai",
+      "postedAt": "2026-06-22T05:05:40.736Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "alternativeAssignees": [
+          "Karan",
+          "Vikram"
+        ],
+        "assignmentReasoning": "Rohan has the lowest current task load.",
+        "priorityScore": 50,
+        "estimatedHours": 4,
+        "riskLevel": "Medium",
+        "teamUpdate": "\"Implement automated sprint health reporting\" assigned to Rohan — P3 priority, deadline 2026-07-09.",
+        "engineerPortalNote": "You've been assigned: Implement automated sprint health reporting. Priority P3. Deadline: 2026-07-09.",
+        "suggestedDeadline": "2026-07-09",
+        "dependencyWarnings": []
+      },
+      "status": "Posted"
+    },
+    {
+      "id": "DONE-task-110",
+      "title": "API gateway rejecting valid requests intermittently",
+      "description": "Completed by Utkarsh Sinha at 10:32 AM",
+      "priority": "P1",
       "status": "Completed",
-      "postedBy": "Test",
-      "postedAt": "2026-06-20T09:30:00Z",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-06-22T05:02:52.841Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-195",
+      "title": "Urgent: API error rate increase detected",
+      "description": "Completed by Utkarsh Sinha at 10:32 AM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-06-22T05:02:31.491Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-235",
+      "title": "Platform team blocked by API gateway errors",
+      "description": "Completed by Utkarsh Sinha at 10:31 AM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-06-22T05:01:43.945Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-189",
+      "title": "Executive request: incident RCA summary needed",
+      "description": "Completed by Utkarsh Sinha at 10:21 AM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-06-22T04:51:40.362Z",
       "type": "completion"
     }
   ],
-  "engineerPortalPosts": [],
-  "addedTasks": []
+  "engineerPortalPosts": [
+    {
+      "id": "MGR-40736",
+      "title": "Implement automated sprint health reporting",
+      "description": "Engineering managers lack visibility into sprint risks and workload distribution.",
+      "priority": "P3",
+      "deadline": "2026-07-09",
+      "team": "Platform Apps",
+      "postedBy": "Homoai",
+      "postedAt": "2026-06-22T05:05:40.736Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "alternativeAssignees": [
+          "Karan",
+          "Vikram"
+        ],
+        "assignmentReasoning": "Rohan has the lowest current task load.",
+        "priorityScore": 50,
+        "estimatedHours": 4,
+        "riskLevel": "Medium",
+        "teamUpdate": "\"Implement automated sprint health reporting\" assigned to Rohan — P3 priority, deadline 2026-07-09.",
+        "engineerPortalNote": "You've been assigned: Implement automated sprint health reporting. Priority P3. Deadline: 2026-07-09.",
+        "suggestedDeadline": "2026-07-09",
+        "dependencyWarnings": []
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You've been assigned: Implement automated sprint health reporting. Priority P3. Deadline: 2026-07-09."
+    }
+  ],
+  "addedTasks": [],
+  "reassignedTaskOwners": {
+    "INC-7875": "Rohan",
+    "MAIL-970": "Karan",
+    "MEET-40": "Meera",
+    "MEET-70": "Meera",
+    "MEET-90": "Meera",
+    "MEET-110": "Meera",
+    "MAIL-947": "Aisha",
+    "MAIL-968": "Aisha",
+    "SLACK-112": "Meera",
+    "SLACK-141": "Meera",
+    "INC-7876": "Riya",
+    "JIRA-421": "Arjun",
+    "INC-7741": "Arjun",
+    "MAIL-VP-001": "Arjun",
+    "MAIL-VP-003": "Arjun",
+    "MAIL-920": "Arjun",
+    "SLACK-55": "Arjun",
+    "SLACK-58": "Arjun",
+    "SLACK-85": "Arjun",
+    "SLACK-86": "Arjun",
+    "SLACK-101": "Arjun",
+    "SLACK-102": "Arjun",
+    "SLACK-116": "Arjun",
+    "SLACK-131": "Arjun",
+    "MAIL-951": "Meera",
+    "MAIL-972": "Meera",
+    "MEET-51": "Meera",
+    "MEET-61": "Meera",
+    "MEET-81": "Meera",
+    "MEET-100": "Meera",
+    "JIRA-388": "Rohan",
+    "MAIL-VP-002": "Rohan",
+    "SLACK-114": "Rohan",
+    "SLACK-130": "Rohan",
+    "SLACK-136": "Rohan",
+    "MEET-35": "Rohan",
+    "JIRA-540": "Meera",
+    "JIRA-568": "Meera",
+    "INC-7833": "Meera",
+    "GH-241": "Meera",
+    "INC-7840": "Rohan",
+    "GH-257": "Rohan",
+    "GH-221": "Karan",
+    "INC-7867": "Meera",
+    "SLACK-70": "Meera",
+    "SLACK-60": "Rohan",
+    "SLACK-87": "Rohan",
+    "MAIL-952": "Vikram",
+    "JIRA-522": "Karan",
+    "GH-247": "Karan",
+    "GH-262": "Karan",
+    "SLACK-108": "Karan",
+    "MAIL-944": "Meera",
+    "SLACK-117": "Rohan",
+    "JIRA-505": "Sanya",
+    "GH-223": "Sanya",
+    "SLACK-113": "Vikram",
+    "SLACK-69": "Meera",
+    "SLACK-88": "Meera",
+    "SLACK-119": "Meera",
+    "SLACK-142": "Karan",
+    "JIRA-524": "Neha",
+    "GH-245": "Neha",
+    "MAIL-941": "Neha",
+    "MEET-47": "Neha",
+    "MEET-67": "Neha",
+    "MEET-96": "Neha",
+    "MEET-107": "Neha",
+    "INC-7823": "Aisha",
+    "JIRA-577": "Vikram",
+    "JIRA-549": "Utkarsh",
+    "JIRA-580": "Utkarsh",
+    "JIRA-592": "Utkarsh",
+    "SLACK-109": "Arjun",
+    "SLACK-129": "Arjun",
+    "INC-7852": "Vikram"
+  }
 }

@@ -9,12 +9,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 function buildVertexUrl(model) {
-  const project  = process.env.VERTEX_AI_PROJECT  || "";
-  const location = process.env.VERTEX_AI_LOCATION || "us-central1";
   const modelId  = (model || "gemini-2.5-flash").replace(/^.*\//, "");
-  if (project) {
-    return `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
-  }
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
 }
 

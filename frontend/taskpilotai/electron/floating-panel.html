@@ -481,7 +481,7 @@
         showChips([
           { label: '📋 Show my tasks for today', act: 'show-tasks' },
           { label: '🔥 What\'s most urgent?',    act: 'show-top'   },
-          { label: '✅ I finished a task',       act: 'done-ask'   },
+          { label: '📧 Show VP emails',           act: 'vp-emails'  },
         ]);
       }
 
@@ -761,6 +761,18 @@
           userSay('Generate daily summary');
           await dailySummary(); return;
         }
+        if (act === 'vp-emails') {
+          userSay('Show emails from VP');
+          await showVpEmails(false); return;
+        }
+        if (act === 'summarize-vp') {
+          userSay('Summarize VP email');
+          await showVpEmails(true); return;
+        }
+        if (act === 'make-priority-vp') {
+          userSay('Make VP email top priority');
+          await escalateEmailToPriority(VP_EMAILS[0], 'make top priority'); return;
+        }
         if (act.startsWith('complete:')) {
           const id = act.slice(9);
           const t = TASKS.find(x => x.id === id);
@@ -935,9 +947,261 @@ Give a concise, actionable step-by-step procedure to resolve this — 4 to 6 num
         agentSay(`📝 **End-of-day summary for Utkarsh:**\n\n✅ Completed **${doneList.length} task${doneList.length!==1?'s':''}** today:\n${doneList.map((t,i)=>`${i+1}. ${t.title}`).join('\n')}\n\n🚀 Queue cleared. Great work!`);
       }
 
+      // ── VP / Executive email database (synced from outlook_emails.json) ─
+      const VP_EMAILS = [
+        {
+          id: 'MAIL-VP-001',
+          severity: 'P1',
+          from: 'Sarah Mitchell, VP Engineering',
+          title: 'From VP Engineering: Immediate action required on CSV upload SLA breach',
+          body: 'Utkarsh, I have been informed by Customer Success that the CSV upload failure for Acme Corp and Northstar has now breached our committed SLA window. This is unacceptable and I need your personal attention on this immediately. Please provide me with: 1. Current root cause assessment, 2. ETA for full resolution, 3. Customer communication plan. I need this in my inbox by 4 PM today. I will be presenting the status in the executive operations review at 5 PM. — Sarah Mitchell, VP Engineering',
+          actions: ['Reply to VP with RCA and ETA by 4 PM', 'Update INC-7741 and JIRA-421 with status', 'Prepare customer communication plan'],
+          due: '2026-06-20',
+          linkedTasks: ['JIRA-421', 'INC-7741']
+        },
+        {
+          id: 'MAIL-VP-002',
+          severity: 'P1',
+          from: 'Aryan Kapoor, VP Product Management',
+          title: 'From VP Product: Sprint risk review — leadership concerned about Q2 delivery',
+          body: 'Hi Utkarsh, I want to flag that leadership is tracking Q2 delivery commitments very closely this sprint. I am specifically worried about: 1. The audit log story (JIRA-388) — required for the compliance demo next Wednesday. 2. The partner API schema fix — partner has escalated twice. 3. OAuth token refresh failures — security team is asking why this slipped. Can you send me a written sprint risk summary by end of day? — Aryan Kapoor, VP Product Management',
+          actions: ['Confirm JIRA-388 compliance demo readiness', 'Update on partner API schema fix', 'Send written sprint risk summary to VP by EOD'],
+          due: '2026-06-21',
+          linkedTasks: ['JIRA-388']
+        },
+        {
+          id: 'MAIL-VP-003',
+          severity: 'P1',
+          from: 'Priya Desai, VP Customer Success',
+          title: 'From VP Customer Success: Enterprise client Northstar is threatening to churn',
+          body: 'Utkarsh, I need to escalate something critical. Northstar\'s CTO contacted me directly this morning. They are experiencing repeated CSV import failures and their team cannot process their end-of-month data. They have explicitly mentioned contract cancellation if this is not resolved before Monday. This is a revenue-at-risk situation linked to JIRA-421 and INC-7741. I need: a workaround for Northstar, a confirmed resolution date, and a call with their CTO on Monday. Please treat this as your #1 priority today. — Priya Desai, VP Customer Success',
+          actions: ['Provide workaround or manual import option for Northstar', 'Confirm resolution date', 'Schedule Monday call with Northstar CTO', 'Reply to VP Priya Desai with action plan'],
+          due: '2026-06-20',
+          linkedTasks: ['JIRA-421', 'INC-7741']
+        },
+        {
+          id: 'MAIL-VP-004',
+          severity: 'P1',
+          from: 'Sarah Mitchell, VP Engineering',
+          title: 'From VP Engineering: Security vulnerability in OAuth flow — immediate fix required',
+          body: 'Utkarsh, our security team flagged a potential token replay vulnerability in the OAuth refresh flow during the quarterly review. This is tied to PR-118 that has been waiting for review. Given the compliance audit next week, I need this resolved immediately — not just reviewed but merged and deployed to production. The security team has given us a 48-hour window. Please confirm: 1. When will PR-118 review be completed? 2. What is the deployment timeline to production? 3. Is there any regression risk? — Sarah Mitchell, VP Engineering',
+          actions: ['Complete PR-118 review immediately', 'Confirm production deployment timeline', 'Reply to VP Sarah Mitchell with timeline'],
+          due: '2026-06-21',
+          linkedTasks: ['PR-118']
+        },
+        {
+          id: 'MAIL-VP-005',
+          severity: 'P1',
+          from: 'Rajesh Mehta, VP Operations',
+          title: 'From VP Operations: Q2 infrastructure capacity — critical decisions needed this week',
+          body: 'Hi Utkarsh, as we approach end of Q2, I need your input on two infrastructure decisions: 1. Database connection pool sizing — projected to hit limits within 3 weeks. 2. CDN edge node expansion — 3 latency incidents in APAC this month, need a decision on Singapore and Sydney nodes by Thursday. Please review Karan\'s capacity report and give me your recommendation by Wednesday EOD. If I don\'t hear back I will escalate to the CTO. — Rajesh Mehta, VP Operations',
+          actions: ['Review Karan\'s capacity report', 'Provide DB connection pool scaling recommendation', 'Provide CDN edge node expansion recommendation', 'Reply to VP Rajesh Mehta by Wednesday EOD'],
+          due: '2026-06-24',
+          linkedTasks: []
+        },
+        {
+          id: 'MAIL-920',
+          severity: 'P1',
+          from: 'VP Customer Success',
+          title: 'VP escalation: upload timeout needs ETA',
+          body: 'From VP Customer Success: Please provide an ETA today for the CSV upload timeout affecting Acme imports. This appears related to JIRA-421 and INC-7741.',
+          actions: ['Reply with ETA by 4 PM'],
+          due: '2026-06-19',
+          linkedTasks: ['JIRA-421', 'INC-7741']
+        }
+      ];
+
+      // ── Render VP email cards inline ───────────────────────────────────
+      function renderVpEmailCards(emails) {
+        const sevColor = { P1: '#ad2f2f', P2: '#b87319', P3: '#18745f' };
+        const wrap = document.createElement('div');
+        emails.forEach(e => {
+          const color = sevColor[e.severity] || '#65717d';
+          const card = document.createElement('div');
+          card.style.cssText = `background:#fff;border:1px solid #ded5c8;border-left:4px solid ${color};border-radius:8px;padding:12px 14px;margin:6px 0;`;
+          card.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-size:10px;font-weight:900;background:${color}18;color:${color};padding:2px 8px;border-radius:10px;">${e.severity}</span>
+              <span style="font-size:10px;color:#94a3b8;">${e.id}</span>
+              <span style="font-size:10px;font-weight:800;color:#0c66e4;background:#e8f0fe;padding:1px 7px;border-radius:10px;">● Unread</span>
+            </div>
+            <div style="font-size:13px;font-weight:800;color:#17202a;line-height:1.4;margin-bottom:4px;">${e.title}</div>
+            <div style="font-size:11px;color:#65717d;margin-bottom:8px;">👤 From: <strong>${e.from}</strong> &nbsp;·&nbsp; 📅 Due: ${e.due}</div>
+            <div style="font-size:12px;color:#344563;background:#f7f4ee;border-radius:6px;padding:8px 10px;line-height:1.6;margin-bottom:8px;">${e.body}</div>
+            ${e.actions.length ? `<div style="font-size:11px;font-weight:700;color:#ad2f2f;padding:4px 8px;background:#fff0ee;border-radius:4px;">✅ Action needed: ${e.actions.join(' · ')}</div>` : ''}
+            ${e.linkedTasks.length ? `<div style="font-size:11px;color:#0c66e4;margin-top:4px;">🔗 Linked: ${e.linkedTasks.join(', ')}</div>` : ''}
+          `;
+          wrap.appendChild(card);
+        });
+        return wrap;
+      }
+
+      // ── VP email summary renderer ──────────────────────────────────────
+      async function showVpEmails(wantSummary) {
+        await think(700);
+        // Fix: use a DOM element for the header so HTML renders correctly
+        const headerEl = document.createElement('div');
+        headerEl.innerHTML = `<strong>📨 Found ${VP_EMAILS.length} VP/Executive emails in your inbox:</strong>`;
+        addMsg('agent', headerEl);
+        await wait(200);
+        addMsg('agent', renderVpEmailCards(VP_EMAILS));
+
+        if (wantSummary) {
+          await think(900);
+          // Try Gemini summary for the top VP email
+          const top = VP_EMAILS[0];
+          try {
+            const prompt = `You are TaskPilot AI. Summarise this VP email for a software engineer.
+
+Subject: ${top.title}
+From: ${top.from}
+Body: ${top.body}
+
+Return markdown with:
+- **TL;DR** (one sentence)
+- **Key Points** (bullet list, max 4)
+- **Action Items** (bullet list, each starting with ✅)
+- **Urgency**: Critical / High / Medium / Low
+
+Be concise. Don't say "Gemini".`;
+            const r = await window.taskPilotFloating.geminiChat(prompt, 'gemini-2.5-flash').catch(() => null);
+            if (r?.success && r.text) {
+              agentSay(`**AI Summary of top VP email (${top.id}):**\n\n${r.text.replace(/Gemini/gi, 'TaskPilot AI')}`);
+            } else {
+              agentSay(`**TL;DR:** ${top.title}\n\n**Action Items:**\n${top.actions.map(a => `✅ ${a}`).join('\n')}\n\n**Urgency:** Critical`);
+            }
+          } catch {
+            agentSay(`**TL;DR:** ${top.title}\n\n**Action Items:**\n${top.actions.map(a => `✅ ${a}`).join('\n')}\n\n**Urgency:** Critical`);
+          }
+        } else {
+          await wait(300);
+          agentSay(`The most urgent one is from **${VP_EMAILS[0].from}** — it's P1 and due ${VP_EMAILS[0].due}. Say **"summarize VP email"** to get a full TL;DR, or **"make MAIL-VP-001 priority"** to escalate it.`);
+        }
+
+        showChips([
+          { label: '📋 Summarize VP email',      act: 'summarize-vp'       },
+          { label: '🔴 Make MAIL-VP-001 P1',     act: 'make-priority-vp'   },
+          { label: '📋 Show my tasks',            act: 'show-tasks'         },
+        ]);
+      }
+
+      // ── Escalate a VP email to #1 priority ────────────────────────────
+      async function escalateEmailToPriority(email, text) {
+        await think(800);
+
+        // 1. Push the VP email as a new P1 task to TASKS array (top of queue)
+        const newTaskId = email.id + '-escalated';
+        const alreadyIn = TASKS.find(t => t.id === newTaskId);
+        if (!alreadyIn) {
+          TASKS.unshift({
+            id:   newTaskId,
+            rank: 0,
+            title: email.title.replace(/^From VP.*?:\s*/i, '').slice(0, 70),
+            sev:  'P1',
+            src:  'Outlook Emails (VP Escalation)',
+            eta:  '~30 min',
+            due:  email.due || 'Today'
+          });
+        }
+
+        // 2. Get AI explanation for why it's now #1
+        let whyText = '';
+        try {
+          const prompt = `You are TaskPilot AI. This VP email task has just been manually escalated to the absolute top priority (P1, score 100/100) by the engineer.
+
+Task: "${email.title}"
+From: ${email.from}
+Body: ${email.body}
+Actions needed: ${email.actions.join('; ')}
+
+Write 3 short bullet points explaining WHY this is now the #1 priority — cover: business risk, who is waiting, SLA impact. Be direct. Don't say "Gemini".`;
+          const r = await window.taskPilotFloating.geminiChat(prompt, 'gemini-2.5-flash').catch(() => null);
+          if (r?.success && r.text) whyText = r.text.replace(/Gemini/gi, 'TaskPilot AI');
+        } catch {}
+
+        if (!whyText) {
+          whyText = `• **Business risk:** VP is waiting for a direct response — SLA breach is imminent.\n• **Who is waiting:** ${email.from} has requested action by ${email.due}.\n• **Impact:** Failure to act will escalate to CTO and risk customer churn.`;
+        }
+
+        // 3. Build the confirmation card
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#fff0ee;border:1px solid #f4c4bb;border-left:4px solid #ad2f2f;border-radius:8px;padding:12px 14px;';
+        card.innerHTML = `
+          <div style="font-size:11px;font-weight:900;color:#ad2f2f;margin-bottom:6px;">🔴 ESCALATED TO #1 PRIORITY</div>
+          <div style="font-size:13px;font-weight:800;color:#17202a;margin-bottom:4px;">${email.title}</div>
+          <div style="font-size:11px;color:#65717d;margin-bottom:8px;">From: ${email.from} &nbsp;·&nbsp; Score: 100/100</div>
+          <div style="font-size:12px;color:#344563;line-height:1.6;">${email.actions.map(a => `✅ ${a}`).join('<br>')}</div>
+        `;
+        addMsg('agent', card);
+
+        await wait(300);
+        agentSay(`**${email.id} is now your #1 priority.** Here's why:\n\n${whyText}`);
+
+        // 4. Notify main app window to update both dashboards
+        try {
+          window.taskPilotFloating.completeTask('__priority_update__');
+        } catch {}
+
+        // 5. Push state update to main window via IPC message
+        try {
+          // Send a custom message to main window to trigger re-prioritization
+          window.taskPilotFloating.completeTask(newTaskId + '__mark_priority');
+        } catch {}
+
+        await wait(400);
+
+        // 6. Show manager dashboard update notification
+        const managerUpdate = document.createElement('div');
+        managerUpdate.style.cssText = 'background:#eaf6ff;border:1px solid #b3d9f7;border-left:4px solid #0c66e4;border-radius:8px;padding:10px 12px;margin-top:6px;';
+        managerUpdate.innerHTML = `
+          <div style="font-size:11px;font-weight:800;color:#0c66e4;margin-bottom:4px;">📊 Dashboard Updated</div>
+          <div style="font-size:12px;color:#172b4d;"><strong>Engineer dashboard:</strong> ${email.id} moved to #1 in task queue</div>
+          <div style="font-size:12px;color:#172b4d;margin-top:2px;"><strong>Manager dashboard:</strong> New P1 escalation posted to activity feed</div>
+          <div style="font-size:11px;color:#65717d;margin-top:4px;">📬 Manager notified · Score: 100/100 · Source: VP Escalation</div>
+        `;
+        addMsg('agent', managerUpdate);
+
+        refreshTaskBar();
+        showChips([
+          { label: `▶ Start ${email.id}`,       act: `explain:${newTaskId}` },
+          { label: '📋 Show updated queue',      act: 'show-tasks'           },
+          { label: '📧 Show all VP emails',      act: 'vp-emails'            },
+        ]);
+      }
+
       // ── Free-text handler ──────────────────────────────────────────────
       async function handleText(text) {
         const q = text.toLowerCase();
+
+        // ── MUST BE FIRST: Make priority / escalate intent ───────────────
+        // Catches: "make MAIL-VP-001 top priority", "escalate vp email", "set as p1"
+        if (/\b(make|set|escalat|bump|mark|force|push)\b.{0,30}\b(priority|p1|top|urgent|#1|number.?1|first)\b|\b(priority|p1|top|urgent)\b.{0,20}\b(make|set|escalat)\b/i.test(q)) {
+          // Find which VP email they're referring to
+          let targetEmail = VP_EMAILS.find(e => q.includes(e.id.toLowerCase()));
+          if (!targetEmail) {
+            // Try matching by partial title or keyword
+            targetEmail = VP_EMAILS.find(e =>
+              e.title.toLowerCase().split(' ').some(w => w.length > 4 && q.includes(w))
+            );
+          }
+          if (!targetEmail) targetEmail = VP_EMAILS[0]; // default to most urgent
+          await escalateEmailToPriority(targetEmail, text);
+          return;
+        }
+
+        // ── VP / executive email queries ──────────────────────────────────
+        // Note: this runs AFTER priority check so "make vp email priority" is handled above
+        if (/vp|vice.?president|executive|c-?suite|cto|ceo|coo|cpo|leadership.*email|exec.*email|email.*vp|what.*email.*from|email.*received|show.*mail|show.*email|list.*email|mail.*from.*vp|any.*mail.*vp|mail.*vp|vp.*mail/i.test(q)) {
+          const wantSummary = /summar|brief|tl;?dr|tldr|overview|digest/i.test(q);
+          await showVpEmails(wantSummary);
+          return;
+        }
+
+        // ── Summarize VP email chip ───────────────────────────────────────
+        if (/summar.*vp|vp.*summar|summarize.*email|email.*summary/i.test(q)) {
+          await showVpEmails(true);
+          return;
+        }
 
         // Completion intent
         if (/\b(done|finish|complet|closed|resolv|marked)\b/i.test(q)) {
@@ -951,13 +1215,12 @@ Give a concise, actionable step-by-step procedure to resolve this — 4 to 6 num
 
         // "how to / procedure / steps / fix / help with / explain" for a specific task
         if (/how\s*(can|do|to|should)|procedure|steps?|walk.?through|explain|guid|help.?(me|with|fix)|fix\s+(p1|p2|the|this)|resolv|debug|investigat/i.test(q)) {
-          // Try to find which task they're asking about
           const rem = remaining();
           const match = rem.find(t =>
             t.title.toLowerCase().split(' ').some(w => w.length > 4 && q.includes(w))
           ) || rem[0];
           if (match) {
-            userSay.skipped = true; // prevent double
+            userSay.skipped = true;
             await explainTask(match);
             return;
           }
@@ -973,19 +1236,26 @@ Give a concise, actionable step-by-step procedure to resolve this — 4 to 6 num
           await showTopTask(); return;
         }
 
-        // Everything else → Gemini with full context
+        // Everything else → Gemini with full context including VP emails
         await think(1000);
         try {
-          const top = remaining()[0];
           const taskContext = remaining().slice(0, 3).map((t, i) => `${i+1}. [${t.sev}] ${t.title} (${t.src}, due ${t.due})`).join('\n');
-          const prompt = `You are TaskPilot AI — a knowledgeable, direct engineering productivity assistant. You're helping Utkarsh, a software engineer.
+          const vpEmailContext = VP_EMAILS.slice(0, 3).map(e =>
+            `• ${e.id} | From: ${e.from} | Subject: ${e.title} | Due: ${e.due} | Actions: ${e.actions.join('; ')}`
+          ).join('\n');
+          const prompt = `You are TaskPilot AI — a knowledgeable, direct engineering productivity assistant helping Utkarsh, a software engineer.
 
-They said: "${text}"
+IMPORTANT: You have FULL ACCESS to the engineer's real email inbox and task data below. NEVER say you cannot access anything — use the data provided.
+
+VP / Executive emails in inbox:
+${vpEmailContext}
 
 Current top tasks:
 ${taskContext}
 
-Respond helpfully and specifically. If they're asking how to do something, give real technical guidance. If they're asking about status, answer directly. Be concise (3-5 sentences max). Don't say "Gemini". Don't be vague.`;
+Engineer says: "${text}"
+
+Answer directly and specifically using the real data above. Reference actual email IDs, sender names, task IDs. Be concise (3-5 sentences). Don't say "Gemini".`;
           const r = await window.taskPilotFloating.geminiChat(prompt, 'gemini-2.5-flash').catch(() => null);
           if (r?.success && r.text) {
             agentSay(r.text.replace(/Gemini/gi, 'TaskPilot AI'));
@@ -999,6 +1269,7 @@ Respond helpfully and specifically. If they're asking how to do something, give 
         const top = remaining()[0];
         showChips([
           { label: '📋 Show my tasks', act: 'show-tasks' },
+          { label: '📧 Show VP emails', act: 'vp-emails' },
           top ? { label: `🔍 Walk me through "${cut(top.title, 28)}"`, act: 'explain-top' } : { label: '🔥 Top priority', act: 'show-top' },
         ]);
       }

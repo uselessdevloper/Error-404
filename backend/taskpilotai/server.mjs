@@ -9,39 +9,85 @@ const env = loadEnv(join(root, ".env"));
 const datasetDir = resolve(root, env.TASKPILOT_DATASET_DIR || "./datasets");
 const port = Number(env.TASKPILOT_PORT || 8787);
 
-// Load primary Gemini key from EXPO_PUBLIC_FIREBASE_API_KEY or fallback to GEMINI_API_KEY
-const geminiApiKey = env.EXPO_PUBLIC_FIREBASE_API_KEY || env.GEMINI_API_KEY || "";
+// Load API keys based on configured provider
+const provider = env.LLM_PROVIDER || "gemini";
+const geminiApiKey = env.GEMINI_API_KEY || "";
+const nvidiaApiKey = env.NVIDIA_API_KEY || "";
+const grokApiKey = env.GROK_API_KEY || "";
 
-// ─── Vertex AI endpoint builder (uses GCP credits via aiplatform.googleapis.com)
+// ─── Multi-Provider LLM API Support ───────────────────────────────────────
 function buildVertexUrl(model) {
-  const project  = env.VERTEX_AI_PROJECT || "";
-  const location = env.VERTEX_AI_LOCATION || "us-central1";
   const modelId  = model.replace(/^.*\//, "");
-  if (project) {
-    return `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
-  }
-  // Fallback to generativelanguage API (AI Studio keys)
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
 }
 
-// ─── Unified Gemini call (handles both Vertex AI AQ. keys and AI Studio AIza keys)
 async function callGemini(prompt, { model, maxTokens = 2048, temperature = 0.7 } = {}) {
   const useModel = model || env.LLM_MODEL || "gemini-2.5-flash";
-  const url = buildVertexUrl(useModel) + `?key=${geminiApiKey}`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const llmProvider = env.LLM_PROVIDER || "gemini";
+  
+  let apiKey, url, requestBody, headers;
+  
+  if (llmProvider === "nvidia") {
+    apiKey = nvidiaApiKey;
+    if (!apiKey) throw new Error("NVIDIA_API_KEY not configured in .env");
+    url = "https://integrate.api.nvidia.com/v1/chat/completions";
+    headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    };
+    requestBody = {
+      model: useModel,
+      messages: [{ role: "user", content: prompt }],
+      temperature,
+      max_tokens: maxTokens
+    };
+  } else if (llmProvider === "grok") {
+    apiKey = grokApiKey;
+    if (!apiKey) throw new Error("GROK_API_KEY not configured in .env");
+    url = "https://api.x.ai/v1/chat/completions";
+    headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    };
+    requestBody = {
+      model: useModel,
+      messages: [{ role: "user", content: prompt }],
+      temperature,
+      max_tokens: maxTokens
+    };
+  } else {
+    // Default: Gemini
+    apiKey = geminiApiKey;
+    if (!apiKey) throw new Error("GEMINI_API_KEY not configured in .env");
+    url = buildVertexUrl(useModel) + `?key=${apiKey}`;
+    headers = { "Content-Type": "application/json" };
+    requestBody = {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: { maxOutputTokens: maxTokens, temperature }
-    })
+    };
+  }
+  
+  const resp = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestBody)
   });
+  
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`Gemini API ${resp.status}: ${err}`);
+    throw new Error(`${llmProvider.toUpperCase()} API ${resp.status}: ${err}`);
   }
+  
   const data = await resp.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  
+  // Extract response based on provider format
+  let text = "";
+  if (llmProvider === "nvidia" || llmProvider === "grok") {
+    text = data.choices?.[0]?.message?.content || "";
+  } else {
+    text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+  
   return text.trim();
 }
 
@@ -646,6 +692,64 @@ Write a 2-3 sentence manager briefing: what the genome analysis found, what's mo
       });
     } catch (error) {
       sendJson(response, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // ─── SSE Endpoint: Live Task Scanning Stream ──────────────────────────────────
+  if (url.pathname === "/api/agent/scan-stream" && request.method === "GET") {
+    response.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*"
+    });
+
+    try {
+      const agent = await initializeAgent();
+      
+      // Send initial status
+      response.write(`data: ${JSON.stringify({ 
+        type: "start", 
+        message: "🔍 Starting task scan...", 
+        progress: 0 
+      })}\n\n`);
+
+      // Simulate scanning through sources with delays for visualization
+      const sources = ["Jira Sprint Board", "ServiceNow Defects", "GitHub Work", "Outlook Emails", "Slack Mentions", "Meeting Notes"];
+      
+      for (let i = 0; i < sources.length; i++) {
+        const source = sources[i];
+        const progress = Math.round(((i + 1) / sources.length) * 100);
+        
+        response.write(`data: ${JSON.stringify({
+          type: "scanning",
+          source,
+          message: `🔎 Scanning ${source}...`,
+          progress,
+          currentIndex: i + 1,
+          total: sources.length
+        })}\n\n`);
+        
+        // Small delay to show progress (remove in production or make configurable)
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Send completion
+      response.write(`data: ${JSON.stringify({
+        type: "complete",
+        message: "✅ Scan complete",
+        progress: 100,
+        taskCount: agent.allTasks.length
+      })}\n\n`);
+
+      response.end();
+    } catch (error) {
+      response.write(`data: ${JSON.stringify({
+        type: "error",
+        message: `❌ Scan failed: ${error.message}`
+      })}\n\n`);
+      response.end();
     }
     return;
   }

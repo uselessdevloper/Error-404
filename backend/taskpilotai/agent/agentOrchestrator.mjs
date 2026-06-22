@@ -11,36 +11,80 @@ import path from 'path';
 
 dotenv.config();
 
-// ─── Vertex AI / Generative Language endpoint builder ─────────────────────────
+// ─── Multi-Provider LLM API Support (Gemini, NVIDIA, Grok) ─────────────────
 function buildVertexUrl(model) {
-  const project  = process.env.VERTEX_AI_PROJECT  || "";
-  const location = process.env.VERTEX_AI_LOCATION || "us-central1";
   const modelId  = (model || "gemini-2.5-flash").replace(/^.*\//, "");
-  if (project) {
-    return `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${modelId}:generateContent`;
-  }
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
 }
 
 async function callGemini(prompt, { model, maxTokens = 2048, temperature = 0.7 } = {}) {
-  const apiKey = process.env.GEMINI_API_KEY || "";
-  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+  const provider = process.env.LLM_PROVIDER || "gemini";
   const useModel = model || process.env.LLM_MODEL || "gemini-2.5-flash";
-  const url = buildVertexUrl(useModel) + `?key=${apiKey}`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  
+  let apiKey, url, requestBody, headers;
+  
+  if (provider === "nvidia") {
+    apiKey = process.env.NVIDIA_API_KEY;
+    if (!apiKey) throw new Error("NVIDIA_API_KEY not configured in .env");
+    url = "https://integrate.api.nvidia.com/v1/chat/completions";
+    headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    };
+    requestBody = {
+      model: useModel,
+      messages: [{ role: "user", content: prompt }],
+      temperature,
+      max_tokens: maxTokens
+    };
+  } else if (provider === "grok") {
+    apiKey = process.env.GROK_API_KEY;
+    if (!apiKey) throw new Error("GROK_API_KEY not configured in .env");
+    url = "https://api.x.ai/v1/chat/completions";
+    headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    };
+    requestBody = {
+      model: useModel,
+      messages: [{ role: "user", content: prompt }],
+      temperature,
+      max_tokens: maxTokens
+    };
+  } else {
+    // Default: Gemini
+    apiKey = process.env.GEMINI_API_KEY || "";
+    if (!apiKey) throw new Error("GEMINI_API_KEY not configured in .env");
+    url = buildVertexUrl(useModel) + `?key=${apiKey}`;
+    headers = { "Content-Type": "application/json" };
+    requestBody = {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: { maxOutputTokens: maxTokens, temperature }
-    })
+    };
+  }
+  
+  const resp = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestBody)
   });
+  
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`Gemini ${resp.status}: ${err}`);
+    throw new Error(`${provider.toUpperCase()} API ${resp.status}: ${err}`);
   }
+  
   const data = await resp.json();
-  return (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+  
+  // Extract response based on provider format
+  let text = "";
+  if (provider === "nvidia" || provider === "grok") {
+    text = data.choices?.[0]?.message?.content || "";
+  } else {
+    text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+  
+  return text.trim();
 }
 
 /** Extract first valid JSON array or object from raw Gemini text */
@@ -666,6 +710,132 @@ Explain in 3-4 sentences why the queue shifted and what the engineer must do RIG
     // ── Intent detection ──
     const msg = userMessage.toLowerCase();
 
+    // "Start working on task" intent
+    if ((msg.includes('start') || msg.includes('begin') || msg.includes('work on')) && 
+        !msg.includes('why') && !msg.includes('explain')) {
+      const taskMatch = this.allTasks.find(t =>
+        msg.includes(t.id.toLowerCase()) ||
+        msg.includes(t.title.toLowerCase().slice(0, 20)) ||
+        msg.includes('this') || msg.includes('it')
+      );
+      
+      if (taskMatch) {
+        // Mark as working
+        if (!this.workingTaskIds.includes(taskMatch.id)) {
+          this.workingTaskIds.push(taskMatch.id);
+          this.taskTimeLogs[taskMatch.id] = {
+            startTime: new Date().toISOString(),
+            endTime: null
+          };
+        }
+        
+        const reply = `✅ Started working on **${taskMatch.title}** (${taskMatch.id})\n\n` +
+          `**Priority:** ${taskMatch.severity} (Score: ${taskMatch.priorityScore}/100)\n` +
+          `**Estimated time:** ~${this._estimateTaskMinutes(taskMatch)} minutes\n\n` +
+          `I'll track your time automatically. When you're done, just say "mark done" or "complete ${taskMatch.id}".`;
+        this.conversationHistory.push({ role: 'assistant', content: reply });
+        return reply;
+      }
+    }
+
+    // "Mark done / complete task" intent
+    if ((msg.includes('done') || msg.includes('complete') || msg.includes('finish')) && 
+        !msg.includes('definition of done')) {
+      const taskMatch = this.allTasks.find(t =>
+        msg.includes(t.id.toLowerCase()) ||
+        msg.includes(t.title.toLowerCase().slice(0, 20)) ||
+        msg.includes('this') || msg.includes('it')
+      );
+      
+      if (taskMatch) {
+        // Mark as completed
+        if (!this.completedTaskIds.includes(taskMatch.id)) {
+          this.completedTaskIds.push(taskMatch.id);
+        }
+        // Remove from working
+        this.workingTaskIds = this.workingTaskIds.filter(id => id !== taskMatch.id);
+        // Update time log
+        if (this.taskTimeLogs[taskMatch.id]) {
+          this.taskTimeLogs[taskMatch.id].endTime = new Date().toISOString();
+        }
+        
+        // Add to manager activity feed
+        this.managerActivityFeed.push({
+          id: `activity-${Date.now()}`,
+          type: "completion",
+          engineer: engineerName,
+          task: taskMatch,
+          timestamp: new Date().toISOString(),
+          message: `${engineerName} completed: ${taskMatch.title}`
+        });
+        
+        const duration = this.taskTimeLogs[taskMatch.id] 
+          ? Math.round((new Date(this.taskTimeLogs[taskMatch.id].endTime) - new Date(this.taskTimeLogs[taskMatch.id].startTime)) / 60000)
+          : 0;
+        
+        // Find next task
+        const nextTask = this.allTasks.find(t => 
+          !this.completedTaskIds.includes(t.id) && 
+          t.id !== taskMatch.id
+        );
+        
+        let reply = `🎉 **Task completed!** "${taskMatch.title}" (${taskMatch.id})\n\n` +
+          `**Time spent:** ${duration} minutes\n` +
+          `**Manager notified:** ✓ Activity logged\n\n`;
+        
+        if (nextTask) {
+          reply += `**Next priority:** ${nextTask.title} (${nextTask.id})\n` +
+            `Score: ${nextTask.priorityScore}/100 · ${nextTask.severity}\n\n` +
+            `Ready to start? Just say "start working" or "begin ${nextTask.id}"`;
+        } else {
+          reply += `✨ All tasks completed! Great work today.`;
+        }
+        
+        this.conversationHistory.push({ role: 'assistant', content: reply });
+        return reply;
+      }
+    }
+
+    // "Cancel / stop working" intent
+    if ((msg.includes('cancel') || msg.includes('stop') || msg.includes('pause')) && 
+        (msg.includes('work') || msg.includes('task'))) {
+      const taskMatch = this.allTasks.find(t =>
+        msg.includes(t.id.toLowerCase()) ||
+        msg.includes(t.title.toLowerCase().slice(0, 20)) ||
+        msg.includes('this') || msg.includes('it')
+      ) || (this.workingTaskIds.length > 0 ? this.allTasks.find(t => t.id === this.workingTaskIds[0]) : null);
+      
+      if (taskMatch && this.workingTaskIds.includes(taskMatch.id)) {
+        this.workingTaskIds = this.workingTaskIds.filter(id => id !== taskMatch.id);
+        
+        const reply = `⏸️ Stopped working on **${taskMatch.title}** (${taskMatch.id})\n\n` +
+          `Task returned to your queue. You can restart it anytime by saying "start working on ${taskMatch.id}".`;
+        this.conversationHistory.push({ role: 'assistant', content: reply });
+        return reply;
+      }
+    }
+
+    // "Show my tasks" / "what should I work on" intent
+    if (msg.includes('show') && (msg.includes('task') || msg.includes('work')) ||
+        msg.includes('what should i') || msg.includes("today's tasks")) {
+      const myTasks = this.allTasks
+        .filter(t => !this.completedTaskIds.includes(t.id))
+        .slice(0, 5);
+      
+      let reply = `📋 **Your top ${myTasks.length} tasks for today:**\n\n`;
+      myTasks.forEach((t, i) => {
+        const isWorking = this.workingTaskIds.includes(t.id);
+        const status = isWorking ? '● Working' : '';
+        reply += `${i+1}. **${t.title}** (${t.id}) ${status}\n`;
+        reply += `   ${t.severity} · Score: ${t.priorityScore}/100 · Due: ${t.deadline || 'N/A'}\n\n`;
+      });
+      
+      reply += `\nTo start a task, say "start working on <task-id>" or "begin <task-name>"`;
+      
+      this.conversationHistory.push({ role: 'assistant', content: reply });
+      return reply;
+    }
+
     // "VP email" intent
     if (msg.includes('vp') || msg.includes('vice president') || msg.includes("vp's email") || msg.includes("vp email")) {
       const vpEmails = await this.getVpEmails();
@@ -798,6 +968,11 @@ Respond helpfully, specifically, and concisely (3-5 sentences). Reference real t
     }
   }
 
+  // Helper function to estimate task duration
+  _estimateTaskMinutes(task) {
+    const sevMins = { P1: 45, P2: 60, P3: 75, P4: 90 };
+    return sevMins[task.severity] || 60;
+  }
 
   // ─── URGENT DETECTION ────────────────────────────────────────────────────────
   async detectUrgentItems() {

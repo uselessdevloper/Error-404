@@ -9,12 +9,15 @@
     "dev": "node scripts/sync-datasets.mjs && node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
     "preview": "node scripts/serve.mjs dist",
-    "electron": "electron .",
+    "electron": "node scripts/build.mjs && electron .",
     "desktop": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
     "test": "node scripts/sync-datasets.mjs && node src/taskEngine.test.mjs"
   },
-  "dependencies": {},
+  "dependencies": {
+    "jspdf": "^2.5.1",
+    "html2canvas": "^1.4.1"
+  },
   "devDependencies": {
     "electron": "^37.0.0",
     "electron-builder": "^26.0.0"

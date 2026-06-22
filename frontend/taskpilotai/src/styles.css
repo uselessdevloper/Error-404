@@ -4506,3 +4506,176 @@ h2 {
 
 /* ── Severity chip colours (inline, used in manager kanban) ─────────────── */
 [style*="color:#de350b"] { color: var(--status-p1) !important; }
+
+/* ─── Print Styles for PDF Generation ────────────────────────────────────────── */
+@media print {
+  /* Hide UI chrome when printing */
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  
+  .sidebar,
+  .topbar,
+  button,
+  .floating-companion,
+  #engCalPdfBtn,
+  #analyticsPdfBtn {
+    display: none !important;
+  }
+
+  /* Optimize page for printing */
+  body {
+    background: white;
+    margin: 0;
+    padding: 20px;
+  }
+
+  #engCalendarPage,
+  .analytics-page {
+    background: white;
+    max-width: none;
+    padding: 0;
+  }
+
+  /* Make calendar grid print-friendly */
+  #engCalendarPage > div[style*="grid-template-columns"] {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure week summary cards print well */
+  .week-summary-card {
+    page-break-inside: avoid;
+  }
+
+  /* Make task table readable */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Add page header for calendar */
+  #engCalendarPage::before {
+    content: "TaskPilot AI - My Weekly Calendar";
+    display: block;
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #172b4d;
+  }
+
+  /* Ensure colors show in PDF */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* ─── Live Scanning Panel ─────────────────────────────────────────────────── */
+.live-scanning-panel {
+  position: relative;
+  margin-bottom: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f4f8ff 0%, #fef6e4 100%);
+  border-radius: 12px;
+  border: 1px solid #c7ddfb;
+  box-shadow: 0 2px 8px rgba(12, 102, 228, 0.08);
+  animation: scanningFadeIn 0.3s ease;
+}
+
+@keyframes scanningFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scanning-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scanning-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scanning-icon {
+  font-size: 24px;
+  animation: scanningPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes scanningPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.scanning-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #172b4d;
+}
+
+.scanning-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.scanning-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0c66e4, #579dff);
+  border-radius: 999px;
+  transition: width 0.3s ease, background 0.3s ease;
+  animation: scanningShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes scanningShimmer {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.scanning-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #44546f;
+}
+
+.scanning-count {
+  font-weight: 700;
+  color: #0c66e4;
+}
+
+/* ─── Pulse animation for scanning status ─────────────────────────────────── */
+@keyframes tp-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
