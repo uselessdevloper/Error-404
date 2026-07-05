@@ -7,7 +7,7 @@ import { SettingsAPI } from "./api/settingsApi.mjs";
 const root = resolve(import.meta.dirname);
 const env = loadEnv(join(root, ".env"));
 const datasetDir = resolve(root, env.TASKPILOT_DATASET_DIR || "./datasets");
-const port = Number(env.TASKPILOT_PORT || 8787);
+const port = Number(process.env.PORT || env.TASKPILOT_PORT || 8787);
 
 // Load API keys based on configured provider
 const provider = env.LLM_PROVIDER || "gemini";

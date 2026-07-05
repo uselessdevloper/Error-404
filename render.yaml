@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: taskpilot-ai-backend
+    runtime: node
+    rootDir: backend/taskpilotai
+    buildCommand: npm install
+    startCommand: node server.mjs
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TASKPILOT_PORT
+        value: 10000
+      - key: TASKPILOT_DATASET_DIR
+        value: ./datasets
+      - key: TASKPILOT_TEE_MODE
+        value: local-attested
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-2.5-flash
+      - key: LLM_TEMPERATURE
+        value: "0.7"
+      - key: LLM_MAX_TOKENS
+        value: "2048"
+      - key: PRIORITY_WEIGHT_SEVERITY
+        value: "0.4"
+      - key: PRIORITY_WEIGHT_DEADLINE
+        value: "0.3"
+      - key: PRIORITY_WEIGHT_DEPENDENCIES
+        value: "0.2"
+      - key: PRIORITY_WEIGHT_BUSINESS_IMPACT
+        value: "0.1"
+      - key: DEDUP_SIMILARITY_THRESHOLD
+        value: "0.85"
+      # Set these secret keys in Render dashboard → Environment
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
