@@ -365,7 +365,7 @@ Format the report with a summary of achievements, next day focus, and some recom
         pass
         
     # Local fallback
-    fallback = f"# 📝 TaskPilot EOD Report\n\n- **Completed Tasks:** {len(completed)}\n- **Remaining Tasks:** {len(remaining)}\n\nGreat job on wrapping up work today! Continue focusing on your remaining tasks tomorrow."
+    fallback = f"# TaskPilot EOD Report\n\n- **Completed Tasks:** {len(completed)}\n- **Remaining Tasks:** {len(remaining)}\n\nGreat job on wrapping up work today! Continue focusing on your remaining tasks tomorrow."
     return {"summary": fallback}
 
 

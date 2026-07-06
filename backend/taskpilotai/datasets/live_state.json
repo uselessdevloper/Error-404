@@ -1,19 +1,236 @@
 {
   "completedTaskIds": [],
   "workingTaskIds": [],
-  "taskTimeLogs": {},
+  "taskTimeLogs": {
+    "task-1": {
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "severity": "P1",
+      "source": "Jira Sprint Board + ServiceNow Defects + Outlook Emails + Slack Mentions",
+      "startTime": "2026-06-22T12:56:00.605Z",
+      "endTime": "2026-06-22T13:26:00.605Z"
+    },
+    "task-171": {
+      "title": "Customer escalation: API rate limit increase request",
+      "severity": "P1",
+      "source": "Outlook Emails",
+      "startTime": "2026-06-22T13:09:54.554Z",
+      "endTime": "2026-06-22T13:39:54.554Z"
+    },
+    "task-145": {
+      "title": "Address API rate limiting alerts",
+      "severity": "P1",
+      "source": "GitHub",
+      "startTime": "2026-06-22T13:10:06.546Z",
+      "endTime": "2026-06-22T13:40:06.546Z"
+    }
+  },
   "managerActivityFeed": [
     {
-      "message": "Reassigned \"Data import validation allowing invalid records\" from Utkarsh to Utkarsh",
-      "time": "3:24:25 PM",
+      "message": "Reassigned \"Infrastructure auto-scaling not responding to load spikes\" from Sanya to Vikram (balanced: Sanya count 28, Vikram count 28)",
+      "time": "7:15:12 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Action required: invoice processing SLA breach\" from Aisha to Rohan (balanced: Aisha count 28, Rohan count 28)",
+      "time": "7:15:12 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Fix partner API schema mismatch\" from Riya to Meera (balanced: Riya count 28, Meera count 28)",
+      "time": "7:15:11 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Executive request: incident RCA summary needed\" from Utkarsh to Karan (balanced: Utkarsh count 28, Karan count 27)",
+      "time": "7:15:10 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Finance team blocked by missing reconciliation data\" from Aisha to Vikram (balanced: Aisha count 29, Vikram count 27)",
+      "time": "7:15:09 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Tenant provisioning workflow stuck in pending state\" from Utkarsh to Rohan (balanced: Utkarsh count 29, Rohan count 27)",
+      "time": "7:15:08 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Fix payment webhook retry storm\" from Aisha to Meera (balanced: Aisha count 30, Meera count 27)",
+      "time": "7:15:08 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Bulk account provisioning failing for enterprise customers\" from Utkarsh to Karan (balanced: Utkarsh count 30, Karan count 26)",
+      "time": "7:15:07 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Resolve OAuth token refresh failures\" from Utkarsh to Rohan (balanced: Utkarsh count 31, Rohan count 26)",
+      "time": "7:15:06 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"From VP Product: Sprint risk review — leadership concerned about Q2 delivery\" from Utkarsh to Karan (balanced: Utkarsh count 32, Karan count 25)",
+      "time": "7:15:05 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Executive request: weekly delivery risk update\" from Utkarsh to Rohan (balanced: Utkarsh count 33, Rohan count 25)",
+      "time": "7:15:04 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"Fix CSV upload timeout for enterprise imports\" from Utkarsh to Rohan (balanced: Utkarsh count 34, Rohan count 24)",
+      "time": "7:15:04 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"From VP Operations: Q2 infrastructure capacity — critical decisions needed this week\" from Meera to Meera",
+      "time": "7:14:56 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Reassigned \"From VP Operations: Q2 infrastructure capacity — critical decisions needed this week\" from Utkarsh to Meera",
+      "time": "7:14:53 PM",
       "color": "#0c66e4"
     }
   ],
-  "managerTaskPosts": [],
-  "engineerPortalPosts": [],
+  "managerTaskPosts": [
+    {
+      "id": "MGR-78107",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "team": "Platform Apps",
+      "postedBy": "Homoai",
+      "postedAt": "2026-06-22T13:42:58.107Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "alternativeAssignees": [
+          "Karan",
+          "Meera"
+        ],
+        "assignmentReasoning": "Rohan has the lowest current task load.",
+        "priorityScore": 92,
+        "estimatedHours": 4,
+        "riskLevel": "Critical",
+        "teamUpdate": "\"Fix CSV upload timeout for enterprise imports\" assigned to Rohan — P1 priority, deadline 2026-06-18.",
+        "engineerPortalNote": "You've been assigned: Fix CSV upload timeout for enterprise imports. Priority P1. Deadline: 2026-06-18.",
+        "suggestedDeadline": "2026-06-18",
+        "dependencyWarnings": []
+      },
+      "status": "Posted"
+    },
+    {
+      "id": "DONE-task-145",
+      "title": "Address API rate limiting alerts",
+      "description": "Completed by Utkarsh Sinha at 07:10 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-06-22T13:40:06.546Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-171",
+      "title": "Customer escalation: API rate limit increase request",
+      "description": "Completed by Utkarsh Sinha at 07:09 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-06-22T13:39:54.554Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-1",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Completed by Utkarsh Sinha at 06:56 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-06-22T13:26:00.605Z",
+      "type": "completion"
+    }
+  ],
+  "engineerPortalPosts": [
+    {
+      "id": "MGR-78107",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "team": "Platform Apps",
+      "postedBy": "Homoai",
+      "postedAt": "2026-06-22T13:42:58.107Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "alternativeAssignees": [
+          "Karan",
+          "Meera"
+        ],
+        "assignmentReasoning": "Rohan has the lowest current task load.",
+        "priorityScore": 92,
+        "estimatedHours": 4,
+        "riskLevel": "Critical",
+        "teamUpdate": "\"Fix CSV upload timeout for enterprise imports\" assigned to Rohan — P1 priority, deadline 2026-06-18.",
+        "engineerPortalNote": "You've been assigned: Fix CSV upload timeout for enterprise imports. Priority P1. Deadline: 2026-06-18.",
+        "suggestedDeadline": "2026-06-18",
+        "dependencyWarnings": []
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You've been assigned: Fix CSV upload timeout for enterprise imports. Priority P1. Deadline: 2026-06-18."
+    }
+  ],
   "addedTasks": [],
   "reassignedTaskOwners": {
-    "INC-7860": "Utkarsh",
-    "SLACK-127": "Utkarsh"
+    "MAIL-VP-005": "Meera",
+    "JIRA-421": "Rohan",
+    "INC-7741": "Rohan",
+    "MAIL-VP-001": "Rohan",
+    "MAIL-VP-003": "Rohan",
+    "MAIL-920": "Rohan",
+    "SLACK-55": "Rohan",
+    "SLACK-58": "Rohan",
+    "SLACK-85": "Rohan",
+    "SLACK-86": "Rohan",
+    "SLACK-101": "Rohan",
+    "SLACK-102": "Rohan",
+    "SLACK-116": "Rohan",
+    "SLACK-131": "Rohan",
+    "MAIL-951": "Rohan",
+    "MAIL-972": "Rohan",
+    "MEET-51": "Rohan",
+    "MEET-61": "Rohan",
+    "MEET-81": "Rohan",
+    "MEET-100": "Rohan",
+    "JIRA-388": "Karan",
+    "MAIL-VP-002": "Karan",
+    "SLACK-114": "Karan",
+    "SLACK-130": "Karan",
+    "SLACK-136": "Karan",
+    "MEET-35": "Karan",
+    "JIRA-540": "Rohan",
+    "JIRA-568": "Rohan",
+    "INC-7833": "Rohan",
+    "GH-241": "Rohan",
+    "INC-7840": "Karan",
+    "GH-257": "Karan",
+    "GH-221": "Meera",
+    "INC-7867": "Rohan",
+    "SLACK-70": "Rohan",
+    "SLACK-60": "Vikram",
+    "SLACK-87": "Vikram",
+    "MAIL-952": "Karan",
+    "JIRA-522": "Meera",
+    "GH-247": "Meera",
+    "GH-262": "Meera",
+    "SLACK-108": "Meera",
+    "MAIL-944": "Rohan",
+    "INC-7880": "Vikram",
+    "SLACK-75": "Vikram",
+    "SLACK-92": "Vikram"
   }
 }
