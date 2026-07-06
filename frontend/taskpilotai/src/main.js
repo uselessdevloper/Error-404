@@ -770,21 +770,34 @@ function bindLoginEvents() {
     authError = "";
     renderLogin();
     try {
-      const result = await window.taskPilotDesktop.googleLogin("engineer");
-      if (result.success) {
-        authSession = result.session;
-        activeProfile = result.session.role || "engineer";
-        localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
-        await loadUserProfile();
-        render();
+      if (isDesktopShell && window.taskPilotDesktop?.googleLogin) {
+        // Electron: use IPC-based OAuth flow
+        const result = await window.taskPilotDesktop.googleLogin("engineer");
+        if (result.success) {
+          authSession = result.session;
+          activeProfile = result.session.role || "engineer";
+          localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+          await loadUserProfile();
+          render();
+        } else {
+          authError = result.error || "Google sign-in failed. Try demo mode.";
+        }
       } else {
-        authError = result.error || "Google sign-in failed. Try demo mode.";
+        // Browser: use Supabase OAuth redirect
+        const SUPABASE_URL = "https://pfotrcjqnopvyihwqvhu.supabase.co";
+        const SUPABASE_ANON = "sb_publishable_zcHEO26770jC8ZG5NdUx0w_lrdz8wuV";
+        localStorage.setItem("taskpilot:pending-role", "engineer");
+        const redirectTo = window.location.origin + window.location.pathname;
+        const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
+        authorizeUrl.searchParams.set("provider", "google");
+        authorizeUrl.searchParams.set("redirect_to", redirectTo);
+        authorizeUrl.searchParams.set("scopes", "openid email profile");
+        window.location.href = authorizeUrl.toString();
       }
     } catch (err) {
       authError = err.message || "Sign-in error. Try demo mode.";
-    } finally {
       authLoading = false;
-      if (!authSession) renderLogin();
+      renderLogin();
     }
   });
 
@@ -793,21 +806,33 @@ function bindLoginEvents() {
     authError = "";
     renderLogin();
     try {
-      const result = await window.taskPilotDesktop.googleLogin("manager");
-      if (result.success) {
-        authSession = result.session;
-        activeProfile = result.session.role || "manager";
-        localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
-        await loadUserProfile();
-        render();
+      if (isDesktopShell && window.taskPilotDesktop?.googleLogin) {
+        // Electron: use IPC-based OAuth flow
+        const result = await window.taskPilotDesktop.googleLogin("manager");
+        if (result.success) {
+          authSession = result.session;
+          activeProfile = result.session.role || "manager";
+          localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+          await loadUserProfile();
+          render();
+        } else {
+          authError = result.error || "Google sign-in failed. Try demo mode.";
+        }
       } else {
-        authError = result.error || "Google sign-in failed. Try demo mode.";
+        // Browser: use Supabase OAuth redirect
+        const SUPABASE_URL = "https://pfotrcjqnopvyihwqvhu.supabase.co";
+        localStorage.setItem("taskpilot:pending-role", "manager");
+        const redirectTo = window.location.origin + window.location.pathname;
+        const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
+        authorizeUrl.searchParams.set("provider", "google");
+        authorizeUrl.searchParams.set("redirect_to", redirectTo);
+        authorizeUrl.searchParams.set("scopes", "openid email profile");
+        window.location.href = authorizeUrl.toString();
       }
     } catch (err) {
       authError = err.message || "Sign-in error. Try demo mode.";
-    } finally {
       authLoading = false;
-      if (!authSession) renderLogin();
+      renderLogin();
     }
   });
 }
@@ -10664,6 +10689,68 @@ function safeRender() {
     }
   }
 }
+
+// ─── Browser OAuth callback handler ──────────────────────────────────────────
+// Supabase redirects back with #access_token=...&token_type=bearer in the URL hash
+(async function handleOAuthCallback() {
+  if (isDesktopShell) return; // Electron handles auth via IPC — skip
+  const hash = window.location.hash;
+  if (!hash.includes("access_token=")) return;
+
+  const params = new URLSearchParams(hash.slice(1));
+  const accessToken = params.get("access_token");
+  if (!accessToken) return;
+
+  // Clear the hash from the URL so it doesn't persist on refresh
+  window.history.replaceState(null, "", window.location.pathname);
+
+  try {
+    const SUPABASE_URL = "https://pfotrcjqnopvyihwqvhu.supabase.co";
+    const SUPABASE_ANON = "sb_publishable_zcHEO26770jC8ZG5NdUx0w_lrdz8wuV";
+
+    // Fetch user info from Supabase
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        "apikey": SUPABASE_ANON,
+        "Authorization": `Bearer ${accessToken}`
+      }
+    });
+    if (!res.ok) throw new Error("Failed to validate Google session");
+    const user = await res.json();
+
+    // Restore the role the user chose before the redirect
+    const pendingRole = localStorage.getItem("taskpilot:pending-role") || "engineer";
+    localStorage.removeItem("taskpilot:pending-role");
+
+    // Save role back to Supabase user metadata
+    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        "apikey": SUPABASE_ANON,
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ data: { ...(user.user_metadata || {}), taskpilot_role: pendingRole } })
+    });
+
+    authSession = {
+      provider: "google-supabase",
+      role: pendingRole,
+      userId: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
+      avatarUrl: user.user_metadata?.avatar_url || ""
+    };
+    activeProfile = pendingRole;
+    localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+    syncSettingsProfileWithSession();
+    completedTaskIds = getMyCompletedIds();
+    workingTaskIds   = getMyWorkingIds();
+  } catch (err) {
+    console.error("[TaskPilot] OAuth callback failed:", err.message);
+    authError = "Google sign-in failed. Please try again.";
+  }
+})();
 
 // Validate session before boot — clear malformed sessions
 try {
