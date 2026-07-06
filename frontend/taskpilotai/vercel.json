@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "name": "taskpilot-ai",
-  "buildCommand": "node scripts/build.mjs",
+  "name": "taskpilot-ai-v2",
+  "buildCommand": "rm -rf dist && node scripts/build.mjs",
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
@@ -11,7 +11,15 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
         }
       ]
     }
