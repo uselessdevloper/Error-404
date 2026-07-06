@@ -690,7 +690,7 @@ function renderLogin() {
         <p class="eyebrow" style="color:#8b5cf6;">Sign in to continue</p>
         <h2>Welcome back</h2>
         <p class="login-subtitle">
-          ${hasGemini ? '<span style="color:#10b981;">&#10003;</span> TaskPilot AI Engine ready' : '<span style="color:#f43f5e;">&#9888; Add GEMINI_API_KEY to backend/.env</span>'}
+          ${hasGemini ? '<span style="color:#10b981;">&#10003;</span> TaskPilot AI Engine ready' : '<span style="color:#64748b;">Demo mode available</span>'}
           &nbsp;&middot;&nbsp;
           ${hasSupabase ? '<span style="color:#10b981;">&#10003;</span> Google auth enabled' : '<span style="color:#64748b;">Google auth optional</span>'}
         </p>
