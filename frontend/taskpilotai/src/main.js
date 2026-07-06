@@ -16,7 +16,7 @@ const isDesktopShell = Boolean(window.taskPilotDesktop?.isDesktop) || new URLSea
 const BACKEND_URL = (typeof window !== "undefined" && window.__TASKPILOT_BACKEND__)
   ? window.__TASKPILOT_BACKEND__
   : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "${BACKEND_URL}"
+    ? "http://localhost:8787"
     : "https://taskpilotaibackend.onrender.com";
 
 // ─── Application State ────────────────────────────────────────────────────────
