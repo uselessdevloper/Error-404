@@ -10,6 +10,13 @@ import "./styles.css";
 const app = document.querySelector("#app");
 const isDesktopShell = Boolean(window.taskPilotDesktop?.isDesktop) || new URLSearchParams(window.location.search).has("desktop");
 
+// ─── Backend URL — uses Render in production, localhost in dev ────────────────
+const BACKEND_URL = (typeof window !== "undefined" && window.__TASKPILOT_BACKEND__)
+  ? window.__TASKPILOT_BACKEND__
+  : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "${BACKEND_URL}"
+    : "https://taskpilotaibackend.onrender.com";
+
 // ─── Application State ────────────────────────────────────────────────────────
 let activeTheme = localStorage.getItem("taskpilot:theme") || "light";
 document.documentElement.setAttribute("data-theme", activeTheme);
@@ -368,7 +375,7 @@ let reassignedTaskOwners = {};      // map of originalTaskId -> newOwner
 
 async function syncStateWithBackend() {
   try {
-    await fetch("http://127.0.0.1:8787/api/taskpilot/sync-state", {
+    await fetch("${BACKEND_URL}/api/taskpilot/sync-state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -399,7 +406,7 @@ async function startRealTimeSync() {
   // Sync state from backend every 2 seconds
   stateSyncInterval = setInterval(async () => {
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/taskpilot/state");
+      const resp = await fetch("${BACKEND_URL}/api/taskpilot/state");
       if (resp.ok) {
         const backendState = await resp.json();
         if (backendState.success) {
@@ -472,14 +479,14 @@ async function pushPresenceHeartbeat() {
   localStorage.setItem(activeProfile === "manager" ? "taskpilot:managerLastActive" : "taskpilot:engineerLastActive", new Date().toISOString());
 
   try {
-    await fetch("http://127.0.0.1:8787/api/presence/heartbeat", {
+    await fetch("${BACKEND_URL}/api/presence/heartbeat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, status, role, email })
     });
 
     // Also fetch all presence data so manager can see everyone
-    const resp = await fetch("http://127.0.0.1:8787/api/presence/all");
+    const resp = await fetch("${BACKEND_URL}/api/presence/all");
     if (resp.ok) {
       const data = await resp.json();
       presenceAllUsers = data.presence || {};
@@ -505,7 +512,7 @@ function stopRealTimeSync() {
 // Register offline on page unload
 window.addEventListener("beforeunload", () => {
   const name = settingsProfile?.name || authSession?.name || "Engineer";
-  navigator.sendBeacon("http://127.0.0.1:8787/api/presence/offline", JSON.stringify({ name }));
+  navigator.sendBeacon("${BACKEND_URL}/api/presence/offline", JSON.stringify({ name }));
 });
 
 function formatLastSeen(isoStr) {
@@ -1326,7 +1333,7 @@ function startLiveScanning() {
   render(); // Call render instead of refreshPage
   
   // Connect to SSE endpoint
-  scanningEventSource = new EventSource("http://127.0.0.1:8787/api/agent/scan-stream");
+  scanningEventSource = new EventSource("${BACKEND_URL}/api/agent/scan-stream");
   
   scanningEventSource.onmessage = (event) => {
     try {
@@ -7517,7 +7524,7 @@ function bindEvents() {
     render();
 
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/manager/assign-task", {
+      const resp = await fetch("${BACKEND_URL}/api/manager/assign-task", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description, priority, deadline, team, managerName: settingsProfile.name })
@@ -7613,7 +7620,7 @@ function bindEvents() {
   // ─── Engineer: Sync + Accept portal tasks ────────────────────────────────
   document.querySelector("#syncPortalBtn")?.addEventListener("click", async () => {
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/manager/team-portal");
+      const resp = await fetch("${BACKEND_URL}/api/manager/team-portal");
       const data = await resp.json();
       if (data.posts) {
         const existing = engineerPortalPosts.map(p => p.id);
@@ -7797,7 +7804,7 @@ function bindEvents() {
     await sleep(250);
 
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/agent/initialize", {
+      const resp = await fetch("${BACKEND_URL}/api/agent/initialize", {
         method: "POST"
       });
       if (!resp.ok) {
@@ -7974,7 +7981,7 @@ function bindEvents() {
     await sleep(250);
 
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/scan", {
+      const resp = await fetch("${BACKEND_URL}/api/agent/meetings/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ engineerName: settingsProfile.name })
@@ -8033,7 +8040,7 @@ function bindEvents() {
       // Try backend first
       let result = null;
       if (backendConfig.geminiConfigured) {
-        const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/analyze", {
+        const resp = await fetch("${BACKEND_URL}/api/agent/meetings/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -8105,7 +8112,7 @@ function bindEvents() {
       try {
         let result = null;
         if (backendConfig.geminiConfigured) {
-          const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/analyze", {
+          const resp = await fetch("${BACKEND_URL}/api/agent/meetings/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -8202,7 +8209,7 @@ function bindEvents() {
       } else {
         // Browser: call backend to generate ICS, then open data URL
         try {
-          const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/save-calendar", {
+          const resp = await fetch("${BACKEND_URL}/api/agent/meetings/save-calendar", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(selectedMeetingToSave)
@@ -8454,7 +8461,7 @@ function bindEvents() {
 
     try {
       if (authSession && authSession.userId && authSession.provider !== "demo") {
-        const response = await fetch("http://127.0.0.1:8787/api/settings/profile", {
+        const response = await fetch("${BACKEND_URL}/api/settings/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -8543,7 +8550,7 @@ function bindEvents() {
     }
     if (authSession && authSession.userId && authSession.provider !== "demo") {
       try {
-        await fetch("http://127.0.0.1:8787/api/settings/profile", {
+        await fetch("${BACKEND_URL}/api/settings/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -8581,7 +8588,7 @@ function bindEvents() {
     }
     if (authSession && authSession.userId && authSession.provider !== "demo") {
       try {
-        await fetch("http://127.0.0.1:8787/api/settings/profile", {
+        await fetch("${BACKEND_URL}/api/settings/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -10184,7 +10191,7 @@ async function analyzeScreenWithTaskPilot(dataUrl, sourceName) {
       const result = await window.taskPilotDesktop.summarizeVision(visionRequest);
       return result.summary;
     }
-    const response = await fetch("http://127.0.0.1:8787/api/taskpilot/vision-summary", {
+    const response = await fetch("${BACKEND_URL}/api/taskpilot/vision-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(visionRequest)
@@ -10202,7 +10209,7 @@ async function loadUserProfile() {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2000);
-    const url = `http://127.0.0.1:8787/api/settings/profile?email=${encodeURIComponent(authSession.email)}&id=${encodeURIComponent(authSession.userId || "")}`;
+    const url = `${BACKEND_URL}/api/settings/profile?email=${encodeURIComponent(authSession.email)}&id=${encodeURIComponent(authSession.userId || "")}`;
     const response = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
     const data = await response.json();
     if (data.profile) {
@@ -10226,7 +10233,7 @@ async function loadBackendConfig() {
     if (window.taskPilotDesktop?.getBackendConfig) {
       backendConfig = await window.taskPilotDesktop.getBackendConfig();
     } else {
-      const response = await fetchWithTimeout("http://127.0.0.1:8787/api/taskpilot/config");
+      const response = await fetchWithTimeout("${BACKEND_URL}/api/taskpilot/config");
       backendConfig = await response.json();
     }
   } catch {
@@ -10235,7 +10242,7 @@ async function loadBackendConfig() {
 
   // Fetch live state from backend to synchronize the local state
   try {
-    const response = await fetchWithTimeout("http://127.0.0.1:8787/api/taskpilot/state");
+    const response = await fetchWithTimeout("${BACKEND_URL}/api/taskpilot/state");
     const data = await response.json();
     if (data.success) {
       // Merge backend completedTaskIds into per-user store (don't override Supabase data)

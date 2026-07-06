@@ -7,7 +7,7 @@ const BACKEND = typeof import.meta !== "undefined" && import.meta.env?.VITE_BACK
   ? import.meta.env.VITE_BACKEND_URL
   : (typeof window !== "undefined" && window.__TASKPILOT_BACKEND__)
     ? window.__TASKPILOT_BACKEND__
-    : "http://127.0.0.1:8787";
+    : "https://taskpilotaibackend.onrender.com";
 const DEFAULT_MODEL = "gemini-2.5-flash";
 // API key should be configured in backend .env file
 // The frontend calls the backend API which handles authentication
