@@ -1,3 +1,5 @@
+// ─── TaskPilot AI — Main Application ────────────────────────────────────────
+// Build timestamp: 2026-07-06T16:05:00Z
 import { calendarBlocks, demoProfiles, sources, meetingsData, logoDataUrl } from "./data.js";
 import { answerQuery, buildState, completeAndAssignNext, createExecutionBrief, createDailyPlan, buildTodayQueue, buildTodayCapacityQueue, buildDependencyGraph } from "./taskEngine.js";
 import { createTeeSession, sealForTee, teePlanSteps } from "./teeTrust.js";
@@ -9,6 +11,13 @@ import "./styles.css";
 
 const app = document.querySelector("#app");
 const isDesktopShell = Boolean(window.taskPilotDesktop?.isDesktop) || new URLSearchParams(window.location.search).has("desktop");
+
+// ─── Backend URL — uses Render in production, localhost in dev ────────────────
+const BACKEND_URL = (typeof window !== "undefined" && window.__TASKPILOT_BACKEND__)
+  ? window.__TASKPILOT_BACKEND__
+  : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "${BACKEND_URL}"
+    : "https://taskpilotaibackend.onrender.com";
 
 // ─── Application State ────────────────────────────────────────────────────────
 let activeTheme = localStorage.getItem("taskpilot:theme") || "light";
@@ -368,7 +377,7 @@ let reassignedTaskOwners = {};      // map of originalTaskId -> newOwner
 
 async function syncStateWithBackend() {
   try {
-    await fetch("http://127.0.0.1:8787/api/taskpilot/sync-state", {
+    await fetch("${BACKEND_URL}/api/taskpilot/sync-state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -399,7 +408,7 @@ async function startRealTimeSync() {
   // Sync state from backend every 2 seconds
   stateSyncInterval = setInterval(async () => {
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/taskpilot/state");
+      const resp = await fetch("${BACKEND_URL}/api/taskpilot/state");
       if (resp.ok) {
         const backendState = await resp.json();
         if (backendState.success) {
@@ -472,14 +481,14 @@ async function pushPresenceHeartbeat() {
   localStorage.setItem(activeProfile === "manager" ? "taskpilot:managerLastActive" : "taskpilot:engineerLastActive", new Date().toISOString());
 
   try {
-    await fetch("http://127.0.0.1:8787/api/presence/heartbeat", {
+    await fetch("${BACKEND_URL}/api/presence/heartbeat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, status, role, email })
     });
 
     // Also fetch all presence data so manager can see everyone
-    const resp = await fetch("http://127.0.0.1:8787/api/presence/all");
+    const resp = await fetch("${BACKEND_URL}/api/presence/all");
     if (resp.ok) {
       const data = await resp.json();
       presenceAllUsers = data.presence || {};
@@ -505,7 +514,7 @@ function stopRealTimeSync() {
 // Register offline on page unload
 window.addEventListener("beforeunload", () => {
   const name = settingsProfile?.name || authSession?.name || "Engineer";
-  navigator.sendBeacon("http://127.0.0.1:8787/api/presence/offline", JSON.stringify({ name }));
+  navigator.sendBeacon("${BACKEND_URL}/api/presence/offline", JSON.stringify({ name }));
 });
 
 function formatLastSeen(isoStr) {
@@ -763,21 +772,34 @@ function bindLoginEvents() {
     authError = "";
     renderLogin();
     try {
-      const result = await window.taskPilotDesktop.googleLogin("engineer");
-      if (result.success) {
-        authSession = result.session;
-        activeProfile = result.session.role || "engineer";
-        localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
-        await loadUserProfile();
-        render();
+      if (isDesktopShell && window.taskPilotDesktop?.googleLogin) {
+        // Electron: use IPC-based OAuth flow
+        const result = await window.taskPilotDesktop.googleLogin("engineer");
+        if (result.success) {
+          authSession = result.session;
+          activeProfile = result.session.role || "engineer";
+          localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+          await loadUserProfile();
+          render();
+        } else {
+          authError = result.error || "Google sign-in failed. Try demo mode.";
+        }
       } else {
-        authError = result.error || "Google sign-in failed. Try demo mode.";
+        // Browser: use Supabase OAuth redirect
+        const SUPABASE_URL = "https://pfotrcjqnopvyihwqvhu.supabase.co";
+        const SUPABASE_ANON = "sb_publishable_zcHEO26770jC8ZG5NdUx0w_lrdz8wuV";
+        localStorage.setItem("taskpilot:pending-role", "engineer");
+        const redirectTo = window.location.origin + window.location.pathname;
+        const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
+        authorizeUrl.searchParams.set("provider", "google");
+        authorizeUrl.searchParams.set("redirect_to", redirectTo);
+        authorizeUrl.searchParams.set("scopes", "openid email profile");
+        window.location.href = authorizeUrl.toString();
       }
     } catch (err) {
       authError = err.message || "Sign-in error. Try demo mode.";
-    } finally {
       authLoading = false;
-      if (!authSession) renderLogin();
+      renderLogin();
     }
   });
 
@@ -786,21 +808,33 @@ function bindLoginEvents() {
     authError = "";
     renderLogin();
     try {
-      const result = await window.taskPilotDesktop.googleLogin("manager");
-      if (result.success) {
-        authSession = result.session;
-        activeProfile = result.session.role || "manager";
-        localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
-        await loadUserProfile();
-        render();
+      if (isDesktopShell && window.taskPilotDesktop?.googleLogin) {
+        // Electron: use IPC-based OAuth flow
+        const result = await window.taskPilotDesktop.googleLogin("manager");
+        if (result.success) {
+          authSession = result.session;
+          activeProfile = result.session.role || "manager";
+          localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+          await loadUserProfile();
+          render();
+        } else {
+          authError = result.error || "Google sign-in failed. Try demo mode.";
+        }
       } else {
-        authError = result.error || "Google sign-in failed. Try demo mode.";
+        // Browser: use Supabase OAuth redirect
+        const SUPABASE_URL = "https://pfotrcjqnopvyihwqvhu.supabase.co";
+        localStorage.setItem("taskpilot:pending-role", "manager");
+        const redirectTo = window.location.origin + window.location.pathname;
+        const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
+        authorizeUrl.searchParams.set("provider", "google");
+        authorizeUrl.searchParams.set("redirect_to", redirectTo);
+        authorizeUrl.searchParams.set("scopes", "openid email profile");
+        window.location.href = authorizeUrl.toString();
       }
     } catch (err) {
       authError = err.message || "Sign-in error. Try demo mode.";
-    } finally {
       authLoading = false;
-      if (!authSession) renderLogin();
+      renderLogin();
     }
   });
 }
@@ -1326,7 +1360,7 @@ function startLiveScanning() {
   render(); // Call render instead of refreshPage
   
   // Connect to SSE endpoint
-  scanningEventSource = new EventSource("http://127.0.0.1:8787/api/agent/scan-stream");
+  scanningEventSource = new EventSource("${BACKEND_URL}/api/agent/scan-stream");
   
   scanningEventSource.onmessage = (event) => {
     try {
@@ -7517,7 +7551,7 @@ function bindEvents() {
     render();
 
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/manager/assign-task", {
+      const resp = await fetch("${BACKEND_URL}/api/manager/assign-task", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description, priority, deadline, team, managerName: settingsProfile.name })
@@ -7613,7 +7647,7 @@ function bindEvents() {
   // ─── Engineer: Sync + Accept portal tasks ────────────────────────────────
   document.querySelector("#syncPortalBtn")?.addEventListener("click", async () => {
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/manager/team-portal");
+      const resp = await fetch("${BACKEND_URL}/api/manager/team-portal");
       const data = await resp.json();
       if (data.posts) {
         const existing = engineerPortalPosts.map(p => p.id);
@@ -7797,7 +7831,7 @@ function bindEvents() {
     await sleep(250);
 
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/agent/initialize", {
+      const resp = await fetch("${BACKEND_URL}/api/agent/initialize", {
         method: "POST"
       });
       if (!resp.ok) {
@@ -7974,7 +8008,7 @@ function bindEvents() {
     await sleep(250);
 
     try {
-      const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/scan", {
+      const resp = await fetch("${BACKEND_URL}/api/agent/meetings/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ engineerName: settingsProfile.name })
@@ -8033,7 +8067,7 @@ function bindEvents() {
       // Try backend first
       let result = null;
       if (backendConfig.geminiConfigured) {
-        const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/analyze", {
+        const resp = await fetch("${BACKEND_URL}/api/agent/meetings/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -8105,7 +8139,7 @@ function bindEvents() {
       try {
         let result = null;
         if (backendConfig.geminiConfigured) {
-          const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/analyze", {
+          const resp = await fetch("${BACKEND_URL}/api/agent/meetings/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -8202,7 +8236,7 @@ function bindEvents() {
       } else {
         // Browser: call backend to generate ICS, then open data URL
         try {
-          const resp = await fetch("http://127.0.0.1:8787/api/agent/meetings/save-calendar", {
+          const resp = await fetch("${BACKEND_URL}/api/agent/meetings/save-calendar", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(selectedMeetingToSave)
@@ -8454,7 +8488,7 @@ function bindEvents() {
 
     try {
       if (authSession && authSession.userId && authSession.provider !== "demo") {
-        const response = await fetch("http://127.0.0.1:8787/api/settings/profile", {
+        const response = await fetch("${BACKEND_URL}/api/settings/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -8543,7 +8577,7 @@ function bindEvents() {
     }
     if (authSession && authSession.userId && authSession.provider !== "demo") {
       try {
-        await fetch("http://127.0.0.1:8787/api/settings/profile", {
+        await fetch("${BACKEND_URL}/api/settings/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -8581,7 +8615,7 @@ function bindEvents() {
     }
     if (authSession && authSession.userId && authSession.provider !== "demo") {
       try {
-        await fetch("http://127.0.0.1:8787/api/settings/profile", {
+        await fetch("${BACKEND_URL}/api/settings/profile", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -10184,7 +10218,7 @@ async function analyzeScreenWithTaskPilot(dataUrl, sourceName) {
       const result = await window.taskPilotDesktop.summarizeVision(visionRequest);
       return result.summary;
     }
-    const response = await fetch("http://127.0.0.1:8787/api/taskpilot/vision-summary", {
+    const response = await fetch("${BACKEND_URL}/api/taskpilot/vision-summary", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(visionRequest)
@@ -10202,7 +10236,7 @@ async function loadUserProfile() {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2000);
-    const url = `http://127.0.0.1:8787/api/settings/profile?email=${encodeURIComponent(authSession.email)}&id=${encodeURIComponent(authSession.userId || "")}`;
+    const url = `${BACKEND_URL}/api/settings/profile?email=${encodeURIComponent(authSession.email)}&id=${encodeURIComponent(authSession.userId || "")}`;
     const response = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
     const data = await response.json();
     if (data.profile) {
@@ -10226,7 +10260,7 @@ async function loadBackendConfig() {
     if (window.taskPilotDesktop?.getBackendConfig) {
       backendConfig = await window.taskPilotDesktop.getBackendConfig();
     } else {
-      const response = await fetchWithTimeout("http://127.0.0.1:8787/api/taskpilot/config");
+      const response = await fetchWithTimeout("${BACKEND_URL}/api/taskpilot/config");
       backendConfig = await response.json();
     }
   } catch {
@@ -10235,7 +10269,7 @@ async function loadBackendConfig() {
 
   // Fetch live state from backend to synchronize the local state
   try {
-    const response = await fetchWithTimeout("http://127.0.0.1:8787/api/taskpilot/state");
+    const response = await fetchWithTimeout("${BACKEND_URL}/api/taskpilot/state");
     const data = await response.json();
     if (data.success) {
       // Merge backend completedTaskIds into per-user store (don't override Supabase data)
@@ -10657,6 +10691,68 @@ function safeRender() {
     }
   }
 }
+
+// ─── Browser OAuth callback handler ──────────────────────────────────────────
+// Supabase redirects back with #access_token=...&token_type=bearer in the URL hash
+(async function handleOAuthCallback() {
+  if (isDesktopShell) return; // Electron handles auth via IPC — skip
+  const hash = window.location.hash;
+  if (!hash.includes("access_token=")) return;
+
+  const params = new URLSearchParams(hash.slice(1));
+  const accessToken = params.get("access_token");
+  if (!accessToken) return;
+
+  // Clear the hash from the URL so it doesn't persist on refresh
+  window.history.replaceState(null, "", window.location.pathname);
+
+  try {
+    const SUPABASE_URL = "https://pfotrcjqnopvyihwqvhu.supabase.co";
+    const SUPABASE_ANON = "sb_publishable_zcHEO26770jC8ZG5NdUx0w_lrdz8wuV";
+
+    // Fetch user info from Supabase
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        "apikey": SUPABASE_ANON,
+        "Authorization": `Bearer ${accessToken}`
+      }
+    });
+    if (!res.ok) throw new Error("Failed to validate Google session");
+    const user = await res.json();
+
+    // Restore the role the user chose before the redirect
+    const pendingRole = localStorage.getItem("taskpilot:pending-role") || "engineer";
+    localStorage.removeItem("taskpilot:pending-role");
+
+    // Save role back to Supabase user metadata
+    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        "apikey": SUPABASE_ANON,
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ data: { ...(user.user_metadata || {}), taskpilot_role: pendingRole } })
+    });
+
+    authSession = {
+      provider: "google-supabase",
+      role: pendingRole,
+      userId: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
+      avatarUrl: user.user_metadata?.avatar_url || ""
+    };
+    activeProfile = pendingRole;
+    localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+    syncSettingsProfileWithSession();
+    completedTaskIds = getMyCompletedIds();
+    workingTaskIds   = getMyWorkingIds();
+  } catch (err) {
+    console.error("[TaskPilot] OAuth callback failed:", err.message);
+    authError = "Google sign-in failed. Please try again.";
+  }
+})();
 
 // Validate session before boot — clear malformed sessions
 try {

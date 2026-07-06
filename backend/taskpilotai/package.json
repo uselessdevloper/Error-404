@@ -4,14 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "./venv/bin/python3 server.py",
-    "check": "./venv/bin/python3 server.py --check",
-    "clean-data": "python3 clean_datasets.py"
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "check": "node server.mjs --check",
+    "clean-data": "node clean_datasets.py"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.39.0",
     "dotenv": "^16.3.1",
     "ws": "^8.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

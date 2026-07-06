@@ -7,7 +7,7 @@ import { SettingsAPI } from "./api/settingsApi.mjs";
 const root = resolve(import.meta.dirname);
 const env = loadEnv(join(root, ".env"));
 const datasetDir = resolve(root, env.TASKPILOT_DATASET_DIR || "./datasets");
-const port = Number(env.TASKPILOT_PORT || 8787);
+const port = Number(process.env.PORT || env.TASKPILOT_PORT || 8787);
 
 // Load API keys based on configured provider
 const provider = env.LLM_PROVIDER || "gemini";
@@ -15,50 +15,44 @@ const geminiApiKey = env.GEMINI_API_KEY || "";
 const nvidiaApiKey = env.NVIDIA_API_KEY || "";
 const grokApiKey = env.GROK_API_KEY || "";
 
-// ─── Multi-Provider LLM API Support ───────────────────────────────────────
+// ─── Multi-Provider LLM API with automatic fallback ──────────────────────────
+// Priority: configured provider → NVIDIA → Grok → Gemini
 function buildVertexUrl(model) {
   const modelId  = model.replace(/^.*\//, "");
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
 }
 
-async function callGemini(prompt, { model, maxTokens = 2048, temperature = 0.7 } = {}) {
-  const useModel = model || env.LLM_MODEL || "gemini-2.5-flash";
-  const llmProvider = env.LLM_PROVIDER || "gemini";
-  
+// Call a single provider — throws on failure
+async function callProvider(provider, prompt, { model, maxTokens = 2048, temperature = 0.7 } = {}) {
   let apiKey, url, requestBody, headers;
-  
-  if (llmProvider === "nvidia") {
+
+  if (provider === "nvidia") {
     apiKey = nvidiaApiKey;
-    if (!apiKey) throw new Error("NVIDIA_API_KEY not configured in .env");
+    if (!apiKey) throw new Error("NVIDIA_API_KEY not set");
     url = "https://integrate.api.nvidia.com/v1/chat/completions";
-    headers = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    };
+    headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
     requestBody = {
-      model: useModel,
+      model: model || "nvidia/llama-3.1-nemotron-70b-instruct",
       messages: [{ role: "user", content: prompt }],
       temperature,
       max_tokens: maxTokens
     };
-  } else if (llmProvider === "grok") {
+  } else if (provider === "grok") {
     apiKey = grokApiKey;
-    if (!apiKey) throw new Error("GROK_API_KEY not configured in .env");
+    if (!apiKey) throw new Error("GROK_API_KEY not set");
     url = "https://api.x.ai/v1/chat/completions";
-    headers = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    };
+    headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
     requestBody = {
-      model: useModel,
+      model: model || "grok-3-mini",
       messages: [{ role: "user", content: prompt }],
       temperature,
       max_tokens: maxTokens
     };
   } else {
-    // Default: Gemini
+    // gemini
     apiKey = geminiApiKey;
-    if (!apiKey) throw new Error("GEMINI_API_KEY not configured in .env");
+    if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+    const useModel = model || env.LLM_MODEL || "gemini-2.5-flash";
     url = buildVertexUrl(useModel) + `?key=${apiKey}`;
     headers = { "Content-Type": "application/json" };
     requestBody = {
@@ -66,29 +60,43 @@ async function callGemini(prompt, { model, maxTokens = 2048, temperature = 0.7 }
       generationConfig: { maxOutputTokens: maxTokens, temperature }
     };
   }
-  
-  const resp = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(requestBody)
-  });
-  
+
+  const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(requestBody) });
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`${llmProvider.toUpperCase()} API ${resp.status}: ${err}`);
+    throw new Error(`${provider.toUpperCase()} API ${resp.status}: ${err.slice(0, 200)}`);
   }
-  
   const data = await resp.json();
-  
-  // Extract response based on provider format
-  let text = "";
-  if (llmProvider === "nvidia" || llmProvider === "grok") {
-    text = data.choices?.[0]?.message?.content || "";
-  } else {
-    text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  }
-  
+  const text = (provider === "nvidia" || provider === "grok")
+    ? (data.choices?.[0]?.message?.content || "")
+    : (data.candidates?.[0]?.content?.parts?.[0]?.text || "");
   return text.trim();
+}
+
+// ─── callGemini: tries configured provider first, then falls back through all available ──
+async function callGemini(prompt, opts = {}) {
+  const primary = env.LLM_PROVIDER || "gemini";
+
+  // Build fallback chain: start with primary, then try others that have keys
+  const chain = [primary];
+  const others = ["gemini", "nvidia", "grok"].filter(p => p !== primary);
+  const hasKey = { gemini: Boolean(geminiApiKey), nvidia: Boolean(nvidiaApiKey), grok: Boolean(grokApiKey) };
+  others.filter(p => hasKey[p]).forEach(p => chain.push(p));
+
+  let lastErr;
+  for (const provider of chain) {
+    try {
+      const text = await callProvider(provider, prompt, opts);
+      if (chain.indexOf(provider) > 0) {
+        console.warn(`[LLM] Fell back to ${provider} (primary ${primary} failed: ${lastErr?.message})`);
+      }
+      return text;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[LLM] ${provider} failed: ${err.message}`);
+    }
+  }
+  throw new Error(`All LLM providers failed. Last error: ${lastErr?.message}`);
 }
 
 // Initialize Agent Orchestrator
@@ -1270,8 +1278,8 @@ Return ONLY valid JSON.`;
   response.end(JSON.stringify({ error: "Not found" }));
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`TaskPilot backend running at http://127.0.0.1:${port}`);
+server.listen(port, "0.0.0.0", () => {
+  console.log(`TaskPilot backend running at http://0.0.0.0:${port}`);
 });
 
 function readJson(file) {

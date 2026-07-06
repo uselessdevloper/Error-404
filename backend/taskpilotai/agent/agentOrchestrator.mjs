@@ -11,50 +11,41 @@ import path from 'path';
 
 dotenv.config();
 
-// ─── Multi-Provider LLM API Support (Gemini, NVIDIA, Grok) ─────────────────
+// ─── Multi-Provider LLM API with automatic fallback (Gemini → NVIDIA → Grok) ─
 function buildVertexUrl(model) {
-  const modelId  = (model || "gemini-2.5-flash").replace(/^.*\//, "");
+  const modelId = (model || "gemini-2.5-flash").replace(/^.*\//, "");
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
 }
 
-async function callGemini(prompt, { model, maxTokens = 2048, temperature = 0.7 } = {}) {
-  const provider = process.env.LLM_PROVIDER || "gemini";
-  const useModel = model || process.env.LLM_MODEL || "gemini-2.5-flash";
-  
+async function callProvider(provider, prompt, { model, maxTokens = 2048, temperature = 0.7 } = {}) {
   let apiKey, url, requestBody, headers;
-  
+
   if (provider === "nvidia") {
     apiKey = process.env.NVIDIA_API_KEY;
-    if (!apiKey) throw new Error("NVIDIA_API_KEY not configured in .env");
+    if (!apiKey) throw new Error("NVIDIA_API_KEY not set");
     url = "https://integrate.api.nvidia.com/v1/chat/completions";
-    headers = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    };
+    headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
     requestBody = {
-      model: useModel,
+      model: model || "nvidia/llama-3.1-nemotron-70b-instruct",
       messages: [{ role: "user", content: prompt }],
       temperature,
       max_tokens: maxTokens
     };
   } else if (provider === "grok") {
     apiKey = process.env.GROK_API_KEY;
-    if (!apiKey) throw new Error("GROK_API_KEY not configured in .env");
+    if (!apiKey) throw new Error("GROK_API_KEY not set");
     url = "https://api.x.ai/v1/chat/completions";
-    headers = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    };
+    headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
     requestBody = {
-      model: useModel,
+      model: model || "grok-3-mini",
       messages: [{ role: "user", content: prompt }],
       temperature,
       max_tokens: maxTokens
     };
   } else {
-    // Default: Gemini
     apiKey = process.env.GEMINI_API_KEY || "";
-    if (!apiKey) throw new Error("GEMINI_API_KEY not configured in .env");
+    if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+    const useModel = model || process.env.LLM_MODEL || "gemini-2.5-flash";
     url = buildVertexUrl(useModel) + `?key=${apiKey}`;
     headers = { "Content-Type": "application/json" };
     requestBody = {
@@ -62,29 +53,44 @@ async function callGemini(prompt, { model, maxTokens = 2048, temperature = 0.7 }
       generationConfig: { maxOutputTokens: maxTokens, temperature }
     };
   }
-  
-  const resp = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(requestBody)
-  });
-  
+
+  const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(requestBody) });
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`${provider.toUpperCase()} API ${resp.status}: ${err}`);
+    throw new Error(`${provider.toUpperCase()} API ${resp.status}: ${err.slice(0, 200)}`);
   }
-  
   const data = await resp.json();
-  
-  // Extract response based on provider format
-  let text = "";
-  if (provider === "nvidia" || provider === "grok") {
-    text = data.choices?.[0]?.message?.content || "";
-  } else {
-    text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  }
-  
+  const text = (provider === "nvidia" || provider === "grok")
+    ? (data.choices?.[0]?.message?.content || "")
+    : (data.candidates?.[0]?.content?.parts?.[0]?.text || "");
   return text.trim();
+}
+
+async function callGemini(prompt, opts = {}) {
+  const primary = process.env.LLM_PROVIDER || "gemini";
+  const hasKey = {
+    gemini: Boolean(process.env.GEMINI_API_KEY),
+    nvidia: Boolean(process.env.NVIDIA_API_KEY),
+    grok:   Boolean(process.env.GROK_API_KEY)
+  };
+
+  // Build fallback chain starting with primary, then any others that have keys
+  const chain = [primary, ...["gemini", "nvidia", "grok"].filter(p => p !== primary && hasKey[p])];
+
+  let lastErr;
+  for (const provider of chain) {
+    try {
+      const text = await callProvider(provider, prompt, opts);
+      if (chain.indexOf(provider) > 0) {
+        console.warn(`[AgentLLM] Fell back to ${provider} (${primary} failed: ${lastErr?.message})`);
+      }
+      return text;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[AgentLLM] ${provider} failed: ${err.message}`);
+    }
+  }
+  throw new Error(`All LLM providers failed. Last: ${lastErr?.message}`);
 }
 
 /** Extract first valid JSON array or object from raw Gemini text */

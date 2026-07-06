@@ -3,7 +3,11 @@
  * Tries Electron IPC first, then direct Google AI REST API, then backend as last resort.
  */
 
-const BACKEND = "http://127.0.0.1:8787";
+const BACKEND = typeof import.meta !== "undefined" && import.meta.env?.VITE_BACKEND_URL
+  ? import.meta.env.VITE_BACKEND_URL
+  : (typeof window !== "undefined" && window.__TASKPILOT_BACKEND__)
+    ? window.__TASKPILOT_BACKEND__
+    : "https://taskpilotaibackend.onrender.com";
 const DEFAULT_MODEL = "gemini-2.5-flash";
 // API key should be configured in backend .env file
 // The frontend calls the backend API which handles authentication
