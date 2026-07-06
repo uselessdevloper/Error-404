@@ -36,6 +36,10 @@ services:
       # Set these secret keys in Render dashboard → Environment
       - key: GEMINI_API_KEY
         sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: GROK_API_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
