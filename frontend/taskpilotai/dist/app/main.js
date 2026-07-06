@@ -1,3 +1,5 @@
+// ─── TaskPilot AI — Main Application ────────────────────────────────────────
+// Build timestamp: 2026-07-06T16:05:00Z
 import { calendarBlocks, demoProfiles, sources, meetingsData, logoDataUrl } from "./data.js";
 import { answerQuery, buildState, completeAndAssignNext, createExecutionBrief, createDailyPlan, buildTodayQueue, buildTodayCapacityQueue, buildDependencyGraph } from "./taskEngine.js";
 import { createTeeSession, sealForTee, teePlanSteps } from "./teeTrust.js";
