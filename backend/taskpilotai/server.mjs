@@ -1278,8 +1278,8 @@ Return ONLY valid JSON.`;
   response.end(JSON.stringify({ error: "Not found" }));
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`TaskPilot backend running at http://127.0.0.1:${port}`);
+server.listen(port, "0.0.0.0", () => {
+  console.log(`TaskPilot backend running at http://0.0.0.0:${port}`);
 });
 
 function readJson(file) {
