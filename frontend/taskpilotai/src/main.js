@@ -2950,11 +2950,11 @@ function renderDiscordUserPanel() {
       ${showSettingsMenu ? `
         <div id="sidebarSettingsMenu" style="position:absolute; bottom:52px; right:10px; width:150px; background:#fff; border:1px solid #ded5c8; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.15); z-index:999; padding:6px; display:grid; gap:4px;">
           <button id="sidebarGoToSettingsBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:6px; cursor:pointer; text-align:left; font-size:12px; font-weight:700; color:#334155; transition:background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
-            <span style="font-size:14px; margin-right:2px; color:#0c66e4;">⚙</span>
+            <svg width="14" height="14" fill="none" stroke="#0c66e4" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             <span>Settings</span>
           </button>
           <button id="sidebarSignOutBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:6px; cursor:pointer; text-align:left; font-size:12px; font-weight:700; color:#de350b; transition:background 0.15s;" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background='none'">
-            <span style="font-size:14px; margin-right:2px;">🚪</span>
+            <svg width="14" height="14" fill="none" stroke="#de350b" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             <span>Sign out</span>
           </button>
         </div>
