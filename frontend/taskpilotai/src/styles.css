@@ -4216,54 +4216,94 @@ h2 {
 
 /* ── Sidebar polish ─────────────────────────────────────────────────────── */
 .sidebar {
-  background: #fafbfc;
-  border-right: 1px solid var(--border);
+  background: #f7f4ee !important;
+  border-right: 1px solid #ded5c8 !important;
+  color: #44546f !important;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  height: 100vh;
+  box-sizing: border-box;
 }
 
-.nav-group button {
-  border-radius: var(--radius-sm);
-  transition: background 0.12s, color 0.12s;
+.brand-mark {
+  background: #ffffff !important;
+  border: 1px solid #ded5c8 !important;
 }
 
-.nav-group button span {
-  transition: background 0.12s, color 0.12s;
+.brand strong {
+  color: #172b4d !important;
+  font-weight: 700;
+}
+.brand span {
+  color: #65717d !important;
 }
 
-.nav-group button:hover {
-  background: var(--surface-1);
+.nav-group p {
+  color: #65717d !important;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 16px 0 6px 4px;
 }
 
-.nav-group button.active {
-  background: #e9f2ff;
-  color: var(--src-jira);
+.app-nav button {
+  color: #44546f !important;
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  gap: 10px;
+  margin-bottom: 4px;
+  position: relative;
+  cursor: pointer;
+}
+
+.app-nav button:hover {
+  background: #efe9dd !important;
+  color: #172b4d !important;
+}
+
+.app-nav button.active {
+  background: #e9f2ff !important;
+  color: #0c66e4 !important;
   font-weight: 700;
 }
 
-.nav-group button.active span {
-  background: var(--src-jira);
-  color: #fff;
+.app-nav button.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: #0c66e4;
+  border-radius: 0 4px 4px 0;
 }
 
-/* Manager sidebar active = dark teal */
+.nav-svg-wrapper {
+  color: currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Manager active state overrides */
 .role-manager .nav-group button.active {
-  background: #e3f5f0;
-  color: #0d6649;
+  background: #e3f5f0 !important;
+  color: #18745f !important;
 }
 
-.role-manager .nav-group button.active span {
-  background: #18745f;
-  color: #fff;
-}
-
-/* Genome nav item highlight */
-.nav-group button[data-nav="genome"].active {
-  background: #f0ebff;
-  color: #5b21b6;
-}
-
-.nav-group button[data-nav="genome"].active span {
-  background: #7c3aed;
-  color: #fff;
+.role-manager .nav-group button.active::before {
+  background: #18745f !important;
 }
 
 /* ── Source tile card (All Sources overview) ────────────────────────────── */
@@ -5099,4 +5139,597 @@ h2 {
 @keyframes blink {
   0%, 100% { opacity: 0.15; }
   50%       { opacity: 1; }
+}
+
+
+/* ─── TaskPilot AI Admin Dashboard Styles ────────────────────────────────────── */
+
+.admin-dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 140px);
+  min-height: 520px;
+  margin-top: 10px;
+  position: relative;
+  overflow: hidden;
+  gap: 0;
+}
+
+.n8n-canvas-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden !important;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  flex: 1;
+  min-height: 0;
+}
+
+.n8n-canvas {
+  width: 960px;
+  height: 440px;
+  position: relative;
+  background-color: var(--bg-card);
+  background-image: radial-gradient(var(--border-color) 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+  border-radius: 8px;
+}
+
+.n8n-node {
+  position: absolute;
+  width: 145px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  user-select: none;
+}
+
+.n8n-node:hover {
+  border-color: #8b5cf6;
+  box-shadow: 0 8px 12px -3px rgba(139, 92, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+.n8n-node.selected-node {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+  background: rgba(139, 92, 246, 0.03);
+}
+
+/* Node statuses */
+.n8n-node.status-active-node {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.n8n-node.status-error-node {
+  border-color: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* Sub nodes / Pill styling */
+.n8n-node-pill {
+  position: absolute;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1.5px dashed var(--border-color);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.n8n-node-pill:hover {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.02);
+}
+
+.n8n-node-pill.selected-node {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.n8n-node-pill.status-active-node {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
+}
+
+.n8n-node-pill.status-error-node {
+  border-color: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Circular sub nodes */
+.n8n-node-circle {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.n8n-node-circle:hover {
+  border-color: #6366f1;
+  transform: scale(1.05);
+}
+
+.n8n-node-circle.selected-node {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.n8n-node-circle.status-active-node {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
+}
+
+/* Connectors dots at bottom of AI Agent */
+.agent-ports-container {
+  display: flex;
+  justify-content: space-around;
+  padding: 0 10px;
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 100%;
+}
+
+.agent-port-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  border: 1.5px solid var(--border-color);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot.status-online {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.status-dot.status-active {
+  background-color: #8b5cf6;
+  box-shadow: 0 0 8px #8b5cf6;
+  animation: pulse-active-dot 1.2s infinite alternate;
+}
+
+.status-dot.status-error {
+  background-color: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: pulse-error-dot 0.8s infinite;
+}
+
+@keyframes pulse-active-dot {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
+@keyframes pulse-error-dot {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
+
+/* Sidebar log console */
+.admin-sidebar-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.admin-sidebar-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.01);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-log-console {
+  flex-grow: 1;
+  background: #fbfbfa;
+  color: #1f2937;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  padding: 16px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.admin-log-line {
+  margin-bottom: 6px;
+  word-break: break-all;
+  border-left: 2.5px solid transparent;
+  padding-left: 6px;
+}
+
+.admin-log-line.tag-system { border-color: #64748b; }
+.admin-log-line.tag-jira { border-color: #1868db; }
+.admin-log-line.tag-email { border-color: #ef4444; }
+.admin-log-line.tag-slack { border-color: #a855f7; }
+.admin-log-line.tag-coordinator { border-color: #8b5cf6; }
+.admin-log-line.tag-llm { border-color: #3b82f6; }
+.admin-log-line.tag-formatter { border-color: #eab308; }
+.admin-log-line.tag-database { border-color: #10b981; }
+
+.log-timestamp {
+  color: #64748b;
+  margin-right: 4px;
+}
+
+.log-tag {
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+.log-tag.system { color: #475569; }
+.log-tag.jira { color: #1d4ed8; }
+.log-tag.email { color: #b91c1c; }
+.log-tag.slack { color: #6b21a8; }
+.log-tag.coordinator { color: #5b21b6; }
+.log-tag.llm { color: #1e3a8a; }
+.log-tag.formatter { color: #854d0e; }
+.log-tag.database { color: #065f46; }
+
+.admin-controls-card {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.01);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* SVG Line styles */
+.n8n-svg path.n8n-line-active {
+  stroke-dasharray: 6 4;
+  animation: stroke-flow 1s linear infinite;
+  stroke: #8b5cf6;
+}
+
+.n8n-svg path.n8n-line-error {
+  stroke: #ef4444 !important;
+}
+
+
+
+/* ─── Discord Sidebar (Light) & Light Theme Admin Canvas ─────────────────────── */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Light n8n Canvas Wrapper */
+.role-admin .n8n-canvas-wrapper {
+  background: #fbfbfa !important;
+  border-color: var(--border-color) !important;
+}
+
+.role-admin .n8n-canvas {
+  background-color: #fbfbfa !important;
+  background-image: radial-gradient(var(--border-color) 1.5px, transparent 1.5px) !important;
+  background-size: 20px 20px;
+}
+
+.role-admin .n8n-node {
+  background: #ffffff !important;
+  border-color: var(--border-color) !important;
+  color: #17202a !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+}
+
+.role-admin .n8n-node:hover {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 8px 12px rgba(139, 92, 246, 0.12) !important;
+}
+
+.role-admin .n8n-node .node-header {
+  color: #17202a !important;
+}
+
+.role-admin .n8n-node-pill {
+  background: #ffffff !important;
+  border-color: var(--border-color) !important;
+  color: #17202a !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+.role-admin .n8n-node-circle {
+  background: #ffffff !important;
+  border-color: var(--border-color) !important;
+  color: #17202a !important;
+}
+
+/* VS Code style Terminal bottom wrapper - Light Theme */
+.admin-terminal-wrapper {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.admin-terminal-header {
+  background: #f3f3f3;
+  border-bottom: 1.5px solid var(--border-color);
+  height: 35px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.terminal-tabs {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+  align-items: center;
+}
+
+.terminal-tab {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 2px;
+}
+
+.terminal-tab.active {
+  color: #1f2937;
+  border-color: #007acc; /* VS Code blue accent */
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.terminal-action-btn {
+  background: transparent;
+  border: none;
+  color: #4b5563;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  font-weight: 600;
+}
+
+.terminal-action-btn:hover {
+  background: #e4e4e7;
+  color: #111827;
+}
+
+.terminal-action-btn.btn-run {
+  color: #0f766e;
+}
+
+.terminal-action-btn.btn-error {
+  color: #b91c1c;
+}
+
+.terminal-action-btn.btn-reset {
+  color: #b45309;
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 12px;
+  background: #007acc;
+  vertical-align: middle;
+  animation: terminal-blink 1s infinite;
+}
+
+@keyframes terminal-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+
+
+/* Drag Resizer for VS Code Terminal */
+.terminal-resizer {
+  height: 6px;
+  background: #e4e4e7;
+  border-top: 1.5px solid var(--border-color);
+  border-bottom: 1.5px solid var(--border-color);
+  cursor: ns-resize;
+  width: 100%;
+  user-select: none;
+  transition: background 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+  margin: 4px 0;
+}
+
+.terminal-resizer:hover, .terminal-resizer.resizing {
+  background: #007acc !important;
+  border-color: #007acc !important;
+}
+
+.admin-terminal-wrapper {
+  flex-shrink: 0;
+}
+
+
+/* Additional n8n Canvas and Diagnostics Styles */
+.path-active {
+  stroke: #8b5cf6 !important;
+  stroke-dasharray: 6 6;
+  animation: n8n-flow 25s linear infinite;
+}
+
+.path-error {
+  stroke: #ef4444 !important;
+  stroke-dasharray: 4 4;
+}
+
+.path-idle {
+  stroke: #cbd5e1 !important;
+}
+
+.status-warn-node {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
+}
+
+.status-warn-node:hover {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.4) !important;
+}
+
+.selected-node {
+  border-color: #007acc !important;
+  box-shadow: 0 0 12px rgba(0, 122, 204, 0.3) !important;
+  transform: scale(1.03);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
+
+/* Admin n8n Canvas Layout Adjustments for scrolling */
+.role-admin .n8n-canvas-wrapper {
+  display: block !important;
+  overflow: auto !important;
+  padding: 16px !important;
+}
+
+.role-admin .n8n-canvas {
+  margin: 0 auto;
+}
+
+/* ── n8n Canvas: animated flow paths ─────────────────── */
+.path-animated {
+  stroke: #6366f1 !important;
+  stroke-dasharray: 10 6;
+  animation: n8n-dash-flow 1.2s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(99,102,241,0.5));
+}
+
+.path-error {
+  stroke: #ef4444 !important;
+  stroke-dasharray: 5 4;
+  animation: n8n-dash-flow 2s linear infinite;
+}
+
+.path-warning {
+  stroke: #f59e0b !important;
+  stroke-dasharray: 6 5;
+}
+
+.path-idle {
+  stroke: #c7d2fe !important;
+  transition: stroke 0.3s ease;
+}
+
+@keyframes n8n-dash-flow {
+  to { stroke-dashoffset: -40; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.4); }
+}
+
+/* ── Diagnostics journey cards hover ─────────────────── */
+.diag-journey-card {
+  transition: transform 0.2s cubic-bezier(.4,0,.2,1), box-shadow 0.2s ease;
+}
+.diag-journey-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.14) !important;
+}
+
+/* ── Admin terminal always visible ────────────────────── */
+.admin-terminal-wrapper {
+  flex-shrink: 0;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-log-console {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }

@@ -1,3 +1,19 @@
+
+// ─── Real Brand Logo SVGs ──────────────────────────────────────────────────────
+const JIRA_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#0052cc" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M11.6 3.4l-7.7 7.7c-.5.5-.5 1.3 0 1.8l2.2 2.2c.5.5 1.3.5 1.8 0L15.6 7.4c.5-.5.5-1.3 0-1.8L13.4 3.4c-.5-.5-1.3-.5-1.8 0zm6.8 6.8l-7.7 7.7c-.5.5-.5 1.3 0 1.8l2.2 2.2c.5.5 1.3.5 1.8 0l7.7-7.7c.5-.5.5-1.3 0-1.8l-2.2-2.2c-.5-.5-1.3-.5-1.8 0z"/></svg>`;
+const SLACK_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path fill="#e01e5a" d="M5.04 15.12a2.52 2.52 0 1 1-2.52-2.52h2.52v2.52zm1.26 0a2.52 2.52 0 0 1 5.04 0v5.04a2.52 2.52 0 1 1-5.04 0v-5.04z"/><path fill="#36c5f0" d="M8.88 5.04a2.52 2.52 0 1 1 2.52-2.52v2.52H8.88zm0 1.26a2.52 2.52 0 0 1 0 5.04H3.84a2.52 2.52 0 1 1 0-5.04h5.04z"/><path fill="#2eb67d" d="M18.96 8.88a2.52 2.52 0 1 1 2.52 2.52h-2.52V8.88zm-1.26 0a2.52 2.52 0 0 1-5.04 0V3.84a2.52 2.52 0 1 1 5.04 0v5.04z"/><path fill="#ecb22e" d="M15.12 18.96a2.52 2.52 0 1 1-2.52 2.52v-2.52h2.52zm0-1.26a2.52 2.52 0 0 1 0-5.04h5.04a2.52 2.52 0 1 1 0 5.04h-5.04z"/></svg>`;
+const GITHUB_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#24292e" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.646.64.699 1.026 1.592 1.026 2.683 0 3.842-2.337 4.687-4.565 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>`;
+const GMAIL_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path fill="#4285F4" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 6l8 5 8-5v2l-8 5-8-5V6z"/></svg>`;
+const SERVICENOW_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#81B5A2" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>`;
+const ZOOM_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#2D8CFF" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M21 8.5v7l-4-3 4-4zM3 7h12v10H3V7z"/></svg>`;
+const GOOGLE_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.22-.67-.35-1.37-.35-2.09z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>`;
+const NVIDIA_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#76B900" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10-10-4.48-10-10 4.48-10 10-10zm2 14.5c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5.67 1.5 1.5 1.5 1.5-.67 1.5-1.5zm-1.5-11.5c-2.48 0-4.5 2.02-4.5 4.5s2.02 4.5 4.5 4.5 4.5-2.02 4.5-4.5-2.02-4.5-4.5-4.5z"/></svg>`;
+const SUPABASE_LOGO = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#3ECF8E" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M19 10.5h-5.5V3l-9.5 10.5h5.5v7.5L19 10.5z"/></svg>`;
+const GROK_LOGO = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#000000" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`;
+const FASTAPI_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#009485" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>`;
+const BRAIN_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>`;
+const ALERTS_LOGO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`;
+
 // ─── TaskPilot AI — Main Application ────────────────────────────────────────
 // Build timestamp: 2026-07-06T16:05:00Z
 import { calendarBlocks, demoProfiles, sources, meetingsData, logoDataUrl } from "./data.js";
@@ -21,6 +37,298 @@ const BACKEND_URL = (typeof window !== "undefined" && window.__TASKPILOT_BACKEND
 
 // ─── Application State ────────────────────────────────────────────────────────
 let activeTheme = localStorage.getItem("taskpilot:theme") || "light";
+
+// Admin Dashboard state
+let adminSelectedNodeId = "all";
+
+// Full Architecture State & Diagnostics Database
+let adminArchitectureNodes = {
+  jira: {
+    id: "jira",
+    name: "Jira Trigger Node",
+    status: "healthy",
+    description: "Ingests sprint board issues, ticket updates, and webhook state events.",
+    error: null, code: null, fix: null
+  },
+  slack: {
+    id: "slack",
+    name: "Slack Channel Node",
+    status: "healthy",
+    description: "Monitors and processes messages from real-time developer channels.",
+    error: null, code: null, fix: null
+  },
+  github: {
+    id: "github",
+    name: "GitHub PR Ingest",
+    status: "healthy",
+    description: "Tracks pull requests, review workflows, and merge approvals.",
+    error: null, code: null, fix: null
+  },
+  outlook: {
+    id: "outlook",
+    name: "Outlook/Gmail Ingest",
+    status: "healthy",
+    description: "Scans VP emails and high-priority escalation notifications.",
+    error: null, code: null, fix: null
+  },
+  servicenow: {
+    id: "servicenow",
+    name: "ServiceNow Ingest",
+    status: "healthy",
+    description: "Ingests critical production incident triggers and webhook alerts.",
+    error: null, code: null, fix: null
+  },
+  meetings: {
+    id: "meetings",
+    name: "Meetings Ingest",
+    status: "healthy",
+    description: "Retrieves calendar meeting audio and processes action transcript logs.",
+    error: null, code: null, fix: null
+  },
+  gcs: {
+    id: "gcs",
+    name: "Google Cloud Storage",
+    status: "healthy",
+    description: "Raw landing bucket for unstructured files and JSON attachments.",
+    error: null, code: null, fix: null
+  },
+  cudf: {
+    id: "cudf",
+    name: "NVIDIA cuDF (GPU Pandas)",
+    status: "healthy",
+    description: "NVIDIA GPU-accelerated DataFrame queries for massive logs cleaning.",
+    error: null, code: null, fix: null
+  },
+  cleaner: {
+    id: "cleaner",
+    name: "Data Cleaning Node",
+    status: "healthy",
+    description: "Normalizes data fields, validates inputs, and filters duplicate tasks.",
+    error: null, code: null, fix: null
+  },
+  bigquery: {
+    id: "bigquery",
+    name: "Google BigQuery Store",
+    status: "healthy",
+    description: "Task schema store, embeddings vector search, and analytical tables.",
+    error: null, code: null, fix: null
+  },
+  fastapi: {
+    id: "fastapi",
+    name: "FastAPI Backend API",
+    status: "healthy",
+    description: "Serves analytical workloads and routes real-time client state sync.",
+    error: null, code: null, fix: null
+  },
+  orchestrator: {
+    id: "orchestrator",
+    name: "AI Agent Orchestrator",
+    status: "healthy",
+    description: "Manages tool runs, tracks state changes, and updates context memory using Google ADK.",
+    error: null, code: null, fix: null
+  },
+  router: {
+    id: "router",
+    name: "Multi-LLM Smart Router",
+    status: "healthy",
+    description: "Determines latency/health profiles of Vertex AI, NVIDIA NIM, and Grok xAI models.",
+    error: null, code: null, fix: null
+  },
+  gemini: {
+    id: "gemini",
+    name: "Vertex AI (Gemini 2.5)",
+    status: "healthy",
+    description: "Primary LLM service for advanced context reasoning and intent parsing.",
+    error: null, code: null, fix: null
+  },
+  nemotron: {
+    id: "nemotron",
+    name: "NVIDIA NIM (Nemotron)",
+    status: "healthy",
+    description: "NVIDIA NIM inference service fallback and high-speed execution route.",
+    error: null, code: null, fix: null
+  },
+  grok: {
+    id: "grok",
+    name: "Grok xAI (Grok Beta)",
+    status: "healthy",
+    description: "Third-party fallback model for supplementary structured tasks.",
+    error: null, code: null, fix: null
+  },
+  supabase: {
+    id: "supabase",
+    name: "Supabase DB (Postgres)",
+    status: "healthy",
+    description: "Persists task completions, user presence updates, and OAuth login profiles.",
+    error: null, code: null, fix: null
+  },
+  alerts: {
+    id: "alerts",
+    name: "Alerts & Notifications",
+    status: "error",
+    description: "Sends Slack channel alerts and real-time desktop notifications.",
+    error: "Slack Webhook authentication failed (403 Unauthorized). Missing or expired OAuth Token.",
+    code: `def send_slack_alert(text):\n    webhook_url = os.getenv("SLACK_WEBHOOK_URL")\n    # Missing Bearer token in headers for secured channels\n    response = requests.post(webhook_url, json={"text": text})\n    return response.status_code == 200`,
+    fix: `def send_slack_alert(text):\n    webhook_url = os.getenv("SLACK_WEBHOOK_URL")\n    token = os.getenv("SLACK_BOT_TOKEN")\n    \n    # NVIDIA Copilot Suggestion: Pass Bearer authorization in headers\n    headers = {\n        "Authorization": f"Bearer {token}",\n        "Content-Type": "application/json"\n    }\n    response = requests.post(webhook_url, json={"text": text}, headers=headers)\n    if response.status_code == 403:\n        logger.error("Token verification failed. Triggering credentials refresh.")\n        refresh_slack_credentials()\n    return response.status_code == 200`
+  }
+};
+let adminPipelineRunning = false;
+let adminErrorSimulated = false;
+let selectedDiagTierId = "user";
+let activeNvidiaNodeId = null;
+let adminNodeStatuses = {
+  jira: "online",
+  email: "online",
+  slack: "online",
+  coordinator: "online",
+  llm: "online",
+  memory: "online",
+  tool: "online",
+  parser: "online",
+  format: "online",
+  sheets: "online"
+};
+let adminLogs = [
+  { time: new Date().toTimeString().split(' ')[0], tag: "system", text: "Control plane online. Connected to Supabase." },
+  { time: new Date().toTimeString().split(' ')[0], tag: "coordinator", text: "Registered 5 sub-agents: JiraAgent, SlackAgent, ServiceNowAgent, OutlookAgent, MeetingAgent." },
+  { time: new Date().toTimeString().split(' ')[0], tag: "jira", text: "Webhook subscriber active on project 'Error-404'." },
+  { time: new Date().toTimeString().split(' ')[0], tag: "email", text: "Outlook polling active. Refreshing every 60s." },
+  { time: new Date().toTimeString().split(' ')[0], tag: "slack", text: "Websocket stream connected to #engineering." },
+  { time: new Date().toTimeString().split(' ')[0], tag: "llm", text: "LLM Provider check: Google Gemini-2.5-Flash is ready." }
+];
+
+function addAdminLog(tag, text) {
+  const time = new Date().toTimeString().split(' ')[0];
+  adminLogs.push({ time, tag, text });
+  if (adminLogs.length > 100) adminLogs.shift();
+}
+
+async function runAdminPipeline() {
+  if (adminPipelineRunning) return;
+  adminPipelineRunning = true;
+  adminSelectedNodeId = "all";
+  
+  // Reset statuses
+  Object.keys(adminNodeStatuses).forEach(k => {
+    adminNodeStatuses[k] = adminErrorSimulated && k === "llm" ? "error" : "online";
+  });
+  
+  addAdminLog("system", "Starting automated agent scan execution pipeline...");
+  render();
+  
+  // Step 1: Sources active
+  await new Promise(r => setTimeout(r, 1200));
+  if (!adminPipelineRunning) return;
+  adminNodeStatuses.jira = "active";
+  adminNodeStatuses.email = "active";
+  adminNodeStatuses.slack = "active";
+  addAdminLog("jira", "[SCAN] Polling active sprint boards. 1 new ticket detected.");
+  addAdminLog("email", "[SCAN] Processing unread emails. Detected 1 critical thread from VP.");
+  addAdminLog("slack", "[SCAN] Monitoring #engineering for active blocker alerts.");
+  render();
+  
+  // Step 2: Coordinator active
+  await new Promise(r => setTimeout(r, 1500));
+  if (!adminPipelineRunning) return;
+  adminNodeStatuses.jira = "online";
+  adminNodeStatuses.email = "online";
+  adminNodeStatuses.slack = "online";
+  adminNodeStatuses.coordinator = "active";
+  adminNodeStatuses.memory = "active";
+  adminNodeStatuses.tool = "active";
+  adminNodeStatuses.parser = "active";
+  
+  if (adminErrorSimulated) {
+    adminNodeStatuses.llm = "error";
+  } else {
+    adminNodeStatuses.llm = "active";
+  }
+  
+  addAdminLog("coordinator", "Ingesting 3 signals into Orchestrator core...");
+  render();
+  
+  await new Promise(r => setTimeout(r, 1500));
+  if (!adminPipelineRunning) return;
+  
+  if (adminErrorSimulated) {
+    addAdminLog("llm", "[ERROR] Gemini rate limit hit or invalid credentials. HTTP 401 Unauthorized.");
+    addAdminLog("coordinator", "[CRITICAL] Orchestrator LLM call failed. Falling back to local rules.");
+    adminNodeStatuses.coordinator = "error";
+    adminNodeStatuses.memory = "online";
+    adminNodeStatuses.tool = "online";
+    adminNodeStatuses.parser = "online";
+    adminNodeStatuses.format = "online";
+    adminNodeStatuses.sheets = "online";
+    adminPipelineRunning = false;
+    render();
+    return;
+  }
+  
+  addAdminLog("llm", "Prompt sent to Gemini 2.5 Flash. Performing deduplication.");
+  addAdminLog("llm", "Gemini response: Combined priority set to P1.");
+  addAdminLog("coordinator", "Successfully prioritized 1 combined P1 escalation.");
+  render();
+  
+  // Step 3: Formatter active
+  await new Promise(r => setTimeout(r, 1500));
+  if (!adminPipelineRunning) return;
+  adminNodeStatuses.coordinator = "online";
+  adminNodeStatuses.llm = "online";
+  adminNodeStatuses.memory = "online";
+  adminNodeStatuses.tool = "online";
+  adminNodeStatuses.parser = "online";
+  adminNodeStatuses.format = "active";
+  addAdminLog("formatter", "Serializing backlog items to database schema.");
+  addAdminLog("formatter", "Generated markdown execution brief for engineer portal.");
+  render();
+  
+  // Step 4: Sheets active
+  await new Promise(r => setTimeout(r, 1200));
+  if (!adminPipelineRunning) return;
+  adminNodeStatuses.format = "online";
+  adminNodeStatuses.sheets = "active";
+  addAdminLog("database", "Writing completion history to Supabase public.user_logins and public.user_completions.");
+  addAdminLog("database", "Database transaction committed successfully. Row ID = 0c2f9d8a.");
+  render();
+  
+  // Step 5: Finished
+  await new Promise(r => setTimeout(r, 1200));
+  if (!adminPipelineRunning) return;
+  adminNodeStatuses.sheets = "online";
+  adminPipelineRunning = false;
+  addAdminLog("system", "Pipeline execution completed successfully.");
+  render();
+}
+
+function triggerAdminErrorSimulation() {
+  adminErrorSimulated = !adminErrorSimulated;
+  if (adminErrorSimulated) {
+    adminNodeStatuses.llm = "error";
+    addAdminLog("llm", "[SIMULATED ERROR] LLM Provider marked offline due to key validation failure.");
+  } else {
+    adminNodeStatuses.llm = "online";
+    if (adminNodeStatuses.coordinator === "error") {
+      adminNodeStatuses.coordinator = "online";
+    }
+    addAdminLog("llm", "[SIMULATED ERROR] LLM Provider recovered. Status: Online.");
+  }
+  render();
+}
+
+function resetAdminSystem() {
+  adminPipelineRunning = false;
+  adminErrorSimulated = false;
+  adminSelectedNodeId = "all";
+  Object.keys(adminNodeStatuses).forEach(k => {
+    adminNodeStatuses[k] = "online";
+  });
+  adminLogs = [
+    { time: new Date().toTimeString().split(' ')[0], tag: "system", text: "System control plane reset completed." },
+    { time: new Date().toTimeString().split(' ')[0], tag: "system", text: "Connected to Supabase database. Standing by..." }
+  ];
+  render();
+}
+
 document.documentElement.setAttribute("data-theme", activeTheme);
 let activePage = "overview";
 let activeProfile = "engineer";
@@ -209,6 +517,7 @@ document.addEventListener("keydown", updateLastActivity);
 document.addEventListener("click", updateLastActivity);
 
 let showStatusSelector = false;
+let showSettingsMenu = false;
 let chatAttachedFile = null;
 
 window.addEventListener("storage", (e) => {
@@ -529,28 +838,64 @@ function formatLastSeen(isoStr) {
 
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
+const ADMIN_NAV = [
+  { label: "Control Center", items: [
+      ["overview", "Agent Monitor", "overview"],
+      ["diagnostics", "System Diagnostics", "diagnostics"]
+    ]
+  },
+  { label: "System Tools", items: [
+      ["users", "User Management", "users"],
+      ["database", "Database Explorer", "database"],
+      ["models", "NIM Model Hub", "models"]
+    ]
+  },
+  { label: "Account", items: [
+      ["settings", "Settings", "settings"]
+    ]
+  }
+];
+
 const ENGINEER_NAV = [
-  { label: "Command",      items: [["overview","Dashboard","⌂"],["today","My Tasks","◎"],["agent-scan","AI Agent","✦"]] },
-  { label: "Intelligence", items: [["inbox","All Sources","✉"],["source-tree","Source Tree","🌳"],["meetings","Meetings","◷"],["my-analytics","My Analytics","▥"]] },
-  { label: "My Week",      items: [["eng-calendar","My Calendar","📆"],["execution","Execution plan","✓"]] },
-  { label: "Team",         items: [["eng-portal","Team workload","📋"],["chat","Chat with Manager","💬"]] },
-  { label: "Account",      items: [["settings","Settings","⚙"]] }
+  { label: "Control Center", items: [
+      ["overview", "Command Center", "overview"],
+      ["today", "Task Directory", "today"],
+      ["incidents", "Quality Assurance", "incidents"],
+      ["team-portal", "Leaderboard", "team-portal"],
+      ["calendar-ai", "AI Planner", "calendar-ai"],
+      ["agent-scan", "Copilot Chat", "agent-scan"]
+    ]
+  }
 ];
 
 const MANAGER_NAV = [
-  { label: "Command",      items: [["overview","Dashboard","⌂"]] },
-  { label: "Intelligence", items: [
-    ["inbox","All Sources","✉"],
-    ["source-tree","Source Tree","🌳"],
-    ["meetings","Meetings","◷"]
-  ]},
-  { label: "Genome",       items: [["genome","Sprint Genome","🧬"],["calendar-ai","CalendarAI","📆"]] },
-  { label: "Team",         items: [["team-portal","Team workload","📋"],["chat","Chat with Engineer","💬"],["analytics","Analytics","▥"],["engineer-analytics","Engineer Charts","📈"]] },
-  { label: "Account",      items: [["settings","Settings","⚙"]] }
+  { label: "Control Center", items: [
+      ["overview", "Dashboard", "overview"],
+      ["inbox", "All Sources", "inbox"],
+      ["source-tree", "Source Tree", "source-tree"],
+      ["meetings", "Meetings", "meetings"],
+      ["genome", "Sprint Genome", "genome"],
+      ["calendar-ai", "CalendarAI", "calendar-ai"],
+      ["team-portal", "Team Workload", "team-portal"],
+      ["chat", "Chat with Engineer", "chat"],
+      ["analytics", "Analytics", "analytics"],
+      ["engineer-analytics", "Charts", "engineer-analytics"]
+    ]
+  }
 ];
 
+function getActiveNav() {
+  if (activeProfile === "admin") return ADMIN_NAV;
+  return activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
+}
+
+function getProfileLabel() {
+  if (activeProfile === "admin") return "Admin";
+  return activeProfile === "manager" ? "Manager" : "Engineer";
+}
+
 function navLabel(page) {
-  const currentNav = activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
+  const currentNav = getActiveNav();
   for (const g of currentNav) {
     for (const [id, label] of g.items) {
       if (id === page) return label;
@@ -703,6 +1048,9 @@ function renderLogin() {
         <button class="google-login" id="loginManagerBtn" ${authLoading ? 'disabled' : ''} style="margin-top:10px">
           ${authLoading ? '<span>Signing in...</span>' : `${googleSvg} Sign in with Google &middot; Manager`}
         </button>
+        <button class="google-login" id="loginAdminBtn" ${authLoading ? 'disabled' : ''} style="margin-top:10px">
+          ${authLoading ? '<span>Signing in...</span>' : `${googleSvg} Sign in with Google &middot; Admin`}
+        </button>
 
         <p class="login-footnote">
           Sign in with your Google account to access your personalised TaskPilot workspace.
@@ -712,9 +1060,10 @@ function renderLogin() {
         ${(!hasSupabase || !isDesktopShell) ? `
           <div style="margin-top:20px;padding:16px;border:1px solid #dfe3ea;border-radius:12px;background:rgba(0,0,0,0.02);box-shadow:inset 0 1px 0 rgba(255,255,255,0.8);">
             <p style="margin:0 0 12px;font-size:12px;color:#65717d;line-height:1.45;">Explore the workspace directly using the sandbox credentials:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              <button id="demoEngineerBtn" style="font-size:13px;padding:10px 12px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;box-shadow:0 4px 12px rgba(139,92,246,0.25);transition:transform 0.15s ease;">Engineer Mode</button>
-              <button id="demoManagerBtn" style="font-size:13px;padding:10px 12px;background:#ffffff;border:1px solid #dadce0;color:#1f2937;font-weight:700;border-radius:8px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.05);transition:transform 0.15s ease;">Manager Mode</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+              <button id="demoEngineerBtn" style="font-size:11px;padding:10px 6px;background:linear-gradient(135deg,#8b5cf6,#6366f1);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;box-shadow:0 4px 12px rgba(139,92,246,0.25);transition:transform 0.15s ease;">Engineer</button>
+              <button id="demoManagerBtn" style="font-size:11px;padding:10px 6px;background:#ffffff;border:1px solid #dadce0;color:#1f2937;font-weight:700;border-radius:8px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.05);transition:transform 0.15s ease;">Manager</button>
+              <button id="demoAdminBtn" style="font-size:11px;padding:10px 6px;background:#ffffff;border:1px solid #dadce0;color:#de350b;font-weight:700;border-radius:8px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.05);transition:transform 0.15s ease;">Admin</button>
             </div>
           </div>
         ` : ''}
@@ -748,6 +1097,74 @@ function bindLoginEvents() {
     startPresenceHeartbeat();
     syncCompletionsFromSupabase().then(() => { startRealtimeSync(); safeRender(); });
     render();
+  });
+
+  document.querySelector("#demoAdminBtn")?.addEventListener("click", () => {
+    authSession = {
+      provider: "demo",
+      role: "admin",
+      userId: "demo-admin",
+      email: "admin@taskpilot.dev",
+      name: "Demo Admin",
+      avatarUrl: ""
+    };
+    activeProfile = "admin";
+    localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+    syncSettingsProfileWithSession();
+    
+    // Log sign-in history to Supabase
+    logUserLogin(authSession.email, authSession.name, authSession.role);
+    
+    completedTaskIds = getMyCompletedIds();
+    workingTaskIds   = getMyWorkingIds();
+    startRealTimeSync();
+    startPresenceHeartbeat();
+    syncCompletionsFromSupabase().then(() => { startRealtimeSync(); safeRender(); });
+    render();
+  });
+
+  document.querySelector("#loginAdminBtn")?.addEventListener("click", async () => {
+    authLoading = true;
+    authError = "";
+    renderLogin();
+    try {
+      if (isDesktopShell && window.taskPilotDesktop?.googleLogin) {
+        // Electron: use IPC-based OAuth flow
+        const result = await window.taskPilotDesktop.googleLogin("admin");
+        if (result.success) {
+          authSession = result.session;
+          activeProfile = result.session.role || "admin";
+          localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
+          syncSettingsProfileWithSession();
+          
+          // Log sign-in history to Supabase
+          logUserLogin(authSession.email, authSession.name, authSession.role);
+          
+          completedTaskIds = getMyCompletedIds();
+          workingTaskIds   = getMyWorkingIds();
+          startRealTimeSync();
+          startPresenceHeartbeat();
+          syncCompletionsFromSupabase().then(() => { startRealtimeSync(); safeRender(); });
+          render();
+        } else {
+          authError = result.error || "Google sign-in failed. Try demo mode.";
+        }
+      } else {
+        // Browser: use Supabase OAuth redirect
+        const SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
+        localStorage.setItem("taskpilot:pending-role", "admin");
+        const redirectTo = window.location.origin + window.location.pathname;
+        const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
+        authorizeUrl.searchParams.set("provider", "google");
+        authorizeUrl.searchParams.set("redirect_to", redirectTo);
+        authorizeUrl.searchParams.set("scopes", "openid email profile");
+        window.location.href = authorizeUrl.toString();
+      }
+    } catch (err) {
+      authError = err.message || "Sign-in error. Try demo mode.";
+      authLoading = false;
+      renderLogin();
+    }
   });
 
   document.querySelector("#demoManagerBtn")?.addEventListener("click", () => {
@@ -1045,7 +1462,7 @@ function render() {
           </div>
           <div>
             <strong>TaskPilot AI</strong>
-            <span>${activeProfile === "manager" ? "Manager" : "Engineer"}</span>
+            <span>${getProfileLabel()}</span>
           </div>
         </div>
 
@@ -1061,15 +1478,19 @@ function render() {
           <div>
             <p class="eyebrow">Friday, June 19, 2026</p>
             <h1>${navLabel(activePage)}</h1>
-            <p class="topbar-subtitle">Active Profile: <strong>${escapeHtml(settingsProfile.name)}</strong> (${activeProfile === "manager" ? "Manager" : "Engineer"}) &middot; ${escapeHtml(authSession.email)}</p>
+            <p class="topbar-subtitle">Active Profile: <strong>${escapeHtml(settingsProfile.name)}</strong> (${getProfileLabel()}) &middot; ${escapeHtml(authSession.email)}</p>
           </div>
           <div class="top-actions">
-            ${activeProfile === "manager"
-              ? `<button class="secondary success" id="completePriority">Approve next handoff</button>
-                 <button class="secondary" id="simulateUrgent">Simulate team load shift</button>`
-              : `<button class="primary" id="runScan">Run autonomous scan</button>`
+            ${activeProfile === "admin"
+              ? `<button class="primary" id="executePipelineBtn">Execute Pipeline</button>
+                 <button class="secondary ${adminErrorSimulated ? 'success' : 'danger'}" id="simulateErrorBtn">${adminErrorSimulated ? 'Clear LLM Error' : 'Simulate LLM Error'}</button>
+                 <button class="secondary" id="resetAdminBtn">Reset System</button>`
+              : activeProfile === "manager"
+                ? `<button class="secondary success" id="completePriority">Approve next handoff</button>
+                   <button class="secondary" id="simulateUrgent">Simulate team load shift</button>`
+                : `<button class="primary" id="runScan">Run autonomous scan</button>`
             }
-            <button class="secondary icon-action" id="logoutBtn">Sign out</button>
+
           </div>
         </header>
 
@@ -1082,33 +1503,103 @@ function render() {
     ${renderAddJiraModal()}
     ${renderCalendarTaskModal()}
     ${renderFilePreviewModal()}
+    ${renderNvidiaCopilotSidebar()}
   `;
 
   bindEvents();
+
+  // Auto-scroll admin console to bottom on update
+  if (activeProfile === "admin") {
+    // NVIDIA Copilot Sidebar Event Handlers
+    document.querySelector("#closeNvidiaSidebarBtn")?.addEventListener("click", () => {
+      activeNvidiaNodeId = null;
+      render();
+    });
+
+    document.querySelector("#sidebarOptBtn")?.addEventListener("click", () => {
+      const area = document.querySelector("#optStubArea");
+      if (area) {
+        area.style.display = area.style.display === "none" ? "block" : "none";
+      }
+    });
+
+    document.querySelector("#deployNvidiaSidebarFixBtn")?.addEventListener("click", (e) => {
+      const nodeId = e.currentTarget.dataset.nodeId;
+      e.currentTarget.disabled = true;
+      e.currentTarget.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:8px;"></span>Deploying Fix...`;
+
+      if (nodeId === "alerts") {
+        addAdminLog("nvidia", `[NVIDIA NIM] Analysis: Expired Slack Bot Token (Slack Webhook 403) detected.`);
+        addAdminLog("nvidia", `[NVIDIA NIM] Applying Bearer authentication header hotfix to slack_agent.py.`);
+        addAdminLog("nvidia", `[NVIDIA NIM] Re-verifying webhook response... HTTP 200 OK.`);
+        addAdminLog("system", `[SYSTEM] Hotfix deployed successfully. Alerts node is restored to Healthy.`);
+        
+        setTimeout(() => {
+          adminArchitectureNodes.alerts.status = "healthy";
+          adminArchitectureNodes.alerts.error = null;
+          adminArchitectureNodes.alerts.code = null;
+          adminArchitectureNodes.alerts.fix = null;
+          adminErrorSimulated = false; // clear simulated failure
+          activeNvidiaNodeId = null;
+          triggerLocalNotification("NVIDIA NIM Fix Deployed", "Slack webhook bot token updated successfully.");
+          render();
+        }, 1500);
+      } else if (nodeId === "gemini") {
+        addAdminLog("nvidia", `[NVIDIA NIM] Analysis: Gemini rate limits exceeded (HTTP 429).`);
+        addAdminLog("nvidia", `[NVIDIA NIM] Applying circuit-breaker fallback decorator with Nemotron-70B.`);
+        addAdminLog("nvidia", `[NVIDIA NIM] Re-verifying API response... HTTP 200 OK.`);
+        addAdminLog("system", `[SYSTEM] Hotfix deployed successfully. Gemini node is restored to Healthy.`);
+
+        setTimeout(() => {
+          adminErrorSimulated = false;
+          activeNvidiaNodeId = null;
+          triggerLocalNotification("NVIDIA NIM Fix Deployed", "Gemini circuit-breaker fallback active.");
+          render();
+        }, 1500);
+      } else if (nodeId === "router") {
+        addAdminLog("nvidia", `[NVIDIA NIM] Analysis: Smart Router latency hotspot detected.`);
+        addAdminLog("nvidia", `[NVIDIA NIM] Applying load-aware routing dispatcher to main.js.`);
+        addAdminLog("nvidia", `[NVIDIA NIM] Re-verifying routing times... 95ms.`);
+        addAdminLog("system", `[SYSTEM] Hotfix deployed successfully. Smart Router node is restored to Healthy.`);
+
+        setTimeout(() => {
+          adminErrorSimulated = false;
+          activeNvidiaNodeId = null;
+          triggerLocalNotification("NVIDIA NIM Fix Deployed", "Smart Router optimized load balancing active.");
+          render();
+        }, 1500);
+      }
+    });
+
+    const logConsole = document.querySelector("#adminLogConsole");
+    if (logConsole) {
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+  }
 }
 
 const NAV_ICONS = {
-  overview: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>`,
-  today: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`,
-  "agent-scan": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21L8.188 15.904L3 15L8.188 14.096L9 9L9.813 14.096L15 15L9.813 15.904Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.071 4.929a10 10 0 00-14.142 0M12 3V1m0 22v-2m10-10h-2M4 12H2m16.071-6.071l-1.414 1.414M7.343 16.657l-1.414 1.414m12.728 0l-1.414-1.414M7.343 7.343L5.929 5.929"/></svg>`,
-  inbox: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-3.5 3.5a2 2 0 01-2.828 0L13.5 15M4 13L7.5 16.5a2 2 0 002.828 0L13.5 13"/></svg>`,
-  "source-tree": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.697V19a2 2 0 01-2 2H4a2 2 0 01-2-2v-3a2 2 0 012-2h12a2 2 0 012 2v.697m0-5.394V10a2 2 0 00-2-2H4a2 2 0 00-2 2v3a2 2 0 002 2h12a2 2 0 002-2v-1.394m0-5.394V3a2 2 0 00-2-2H4a2 2 0 00-2 2v3a2 2 0 002 2h12a2 2 0 002-2V4.606z"/></svg>`,
-  meetings: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`,
-  "my-analytics": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2zm9-10v10a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2h-2a2 2 0 00-2 2z"/></svg>`,
-  analytics: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2zm9-10v10a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2h-2a2 2 0 00-2 2z"/></svg>`,
-  "eng-calendar": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`,
-  "calendar-ai": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`,
-  execution: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`,
-  "eng-portal": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
-  "team-portal": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
-  chat: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`,
-  settings: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
-  genome: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4M16.5 7.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM16.5 16.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>`,
-  "engineer-analytics": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21h12a2 2 0 002-2V7a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`
+  overview: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
+  today: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>`,
+  incidents: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 17v-4M11 17V9M15 17V5M19 17v-8"/></svg>`,
+  "team-portal": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`,
+  "calendar-ai": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4"/></svg>`,
+  "agent-scan": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="8" cy="16" r="1.5"/><circle cx="16" cy="16" r="1.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6a3 3 0 016 0M12 2v4M4 11V9a2 2 0 012-2h12a2 2 0 012 2v2"/></svg>`,
+  settings: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+  diagnostics: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>`,
+  inbox: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-3.5 3.5a2 2 0 01-2.828 0L13.5 15M4 13L7.5 16.5a2 2 0 002.828 0L13.5 13"/></svg>`,
+  "source-tree": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.697V19a2 2 0 01-2 2H4a2 2 0 01-2-2v-3a2 2 0 012-2h12a2 2 0 012 2v.697m0-5.394V10a2 2 0 00-2-2H4a2 2 0 00-2 2v3a2 2 0 002 2h12a2 2 0 002-2v-1.394m0-5.394V3a2 2 0 00-2-2H4a2 2 0 00-2 2v3a2 2 0 002 2h12a2 2 0 002-2V4.606z"/></svg>`,
+  meetings: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`,
+  genome: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4M16.5 7.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM16.5 16.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>`,
+  "engineer-analytics": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21h12a2 2 0 002-2V7a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`,
+  chat: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`,
+  users: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+  database: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>`,
+  models: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>`
 };
 
 function renderNavigation() {
-  const currentNav = activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
+  const currentNav = getActiveNav();
   // Map nav page IDs to SOURCE_LOGO_MAP keys
   const NAV_LOGO = {
     "inbox":"", "mgr-jira":"jira","mgr-github":"github",
@@ -1134,12 +1625,147 @@ function renderNavigation() {
 }
 
 // ─── Switch Page Contents ─────────────────────────────────────────────────────
+
+function renderNvidiaCopilotSidebar() {
+  if (!activeNvidiaNodeId) return "";
+
+  const nodeId = activeNvidiaNodeId;
+  const isErr = adminErrorSimulated && nodeId === "gemini";
+  const isWarn = adminErrorSimulated && nodeId === "router";
+  
+  let nodeTitle = "";
+  let nodeSub = "";
+  let status = "healthy";
+  let desc = "";
+  let errorMsg = "";
+  let codeSnippet = "";
+  let fixSnippet = "";
+
+  if (nodeId === "alerts") {
+    nodeTitle = "Alerts & Notifications";
+    nodeSub = "Alerts Node";
+    status = adminArchitectureNodes.alerts.status;
+    desc = adminArchitectureNodes.alerts.description;
+    errorMsg = adminArchitectureNodes.alerts.error;
+    codeSnippet = adminArchitectureNodes.alerts.code;
+    fixSnippet = adminArchitectureNodes.alerts.fix;
+  } else if (nodeId === "gemini") {
+    nodeTitle = "Gemini 2.5 Flash Node";
+    nodeSub = "LLM Inference API";
+    status = isErr ? "error" : "healthy";
+    desc = "Primary LLM agent reasoning, priority scoring, and daily schedule generator.";
+    if (isErr) {
+      errorMsg = "Vertex AI API Quota Exceeded (HTTP 429 Too Many Requests). Daily prompt quota exhausted.";
+      codeSnippet = `def call_gemini_api(prompt):\n    # Direct call to Vertex AI Flash model\n    model = genai.GenerativeModel('gemini-2.5-flash')\n    response = model.generate_content(prompt)\n    return response.text`;
+      fixSnippet = `def call_gemini_api(prompt):\n    # NVIDIA Copilot Suggestion: Add fallback circuit breaker\n    try:\n        model = genai.GenerativeModel('gemini-2.5-flash')\n        return model.generate_content(prompt).text\n    except Exception as e:\n        if "429" in str(e):\n            logger.warn("Gemini Rate Limit hit. Falling back to Nemotron-70B NIM.")\n            return call_nemotron_nim_fallback(prompt)\n        raise e`;
+    }
+  } else if (nodeId === "router") {
+    nodeTitle = "Smart Router Node";
+    nodeSub = "Multi-LLM Dispatcher";
+    status = isWarn ? "warning" : "healthy";
+    desc = "Balances inference loads and determines optimal LLM routing fallbacks.";
+    if (isWarn) {
+      errorMsg = "Smart Router load-balancing threshold exceeded. Latency spike detected (>420ms).";
+      codeSnippet = `def route_request(request):\n    # Bug: Chooses random provider\n    provider = random.choice(providers)\n    return provider.call(request)`;
+      fixSnippet = `def route_request(request):\n    # NVIDIA Copilot Suggestion: Apply load-aware dispatch routing\n    healthy = [p for p in providers if p.latency < 150]\n    provider = min(healthy or providers, key=lambda p: p.current_load)\n    return provider.call(request)`;
+    }
+  } else {
+    const n = adminArchitectureNodes[nodeId] || { name: nodeId, description: "System component." };
+    nodeTitle = n.name || nodeId;
+    nodeSub = "System Component";
+    status = "healthy";
+    desc = n.description || "Active subsystem.";
+  }
+
+  const badgeColor = status === "error" ? "#ef4444" : status === "warning" ? "#f59e0b" : "#10b981";
+  const badgeText = status === "error" ? "Error" : status === "warning" ? "Warning" : "Healthy";
+
+  return `
+    <div id="nvidiaCopilotSidebar" style="position:fixed; top:0; right:0; width:450px; height:100vh; background:#1e1e24; box-shadow:-8px 0 32px rgba(0,0,0,0.3); border-left:3px solid #76b900; z-index:20000; display:flex; flex-direction:column; color:#fff; font-family:'Outfit', sans-serif; transition:all 0.3s ease;">
+      <!-- Header -->
+      <div style="padding:16px 20px; border-bottom:1px solid #2e2e38; display:flex; align-items:center; justify-content:space-between; background:#111115;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px; font-weight:900; color:#76b900; letter-spacing:0.04em;">NVIDIA NIM</span>
+          <span style="font-size:10px; font-weight:700; background:#76b900; color:#000; padding:1px 5px; border-radius:3px; text-transform:uppercase;">Copilot</span>
+        </div>
+        <button id="closeNvidiaSidebarBtn" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer; padding:2px; margin-left:auto; line-height:1;">&times;</button>
+      </div>
+
+      <!-- Body -->
+      <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px;">
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#76b900; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:2px;">${nodeSub}</div>
+          <strong style="font-size:18px; color:#fff; display:block;">${nodeTitle}</strong>
+          <span style="display:inline-flex; align-items:center; gap:4px; margin-top:6px; font-size:11px; font-weight:700; background:${badgeColor}22; color:${badgeColor}; border:1px solid ${badgeColor}33; border-radius:4px; padding:2px 6px;">
+            <span style="width:5px; height:5px; border-radius:50%; background:${badgeColor}; display:inline-block;"></span>
+            ${badgeText}
+          </span>
+        </div>
+
+        <p style="font-size:12.5px; color:#cbd5e1; margin:0; line-height:1.4;">${desc}</p>
+
+        ${status !== "healthy" ? `
+          <div style="background:#ef444415; border:1px solid #ef444422; border-radius:6px; padding:10px;">
+            <strong style="font-size:11px; color:#fca5a5; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:2px;">Error Details</strong>
+            <p style="font-size:11.5px; color:#fecaca; margin:0; line-height:1.3;">${errorMsg}</p>
+          </div>
+
+          <div>
+            <strong style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Vulnerable Code block</strong>
+            <pre style="margin:0; background:#0e0e12; padding:10px; border-radius:6px; border:1px solid #2e2e38; font-size:10.5px; font-family:monospace; overflow-x:auto; color:#f87171; line-height:1.35;">${escapeHtml(codeSnippet)}</pre>
+          </div>
+
+          <div>
+            <strong style="font-size:11px; color:#76b900; text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:4px;">Suggested Fix (NVIDIA NIM)</strong>
+            <pre style="margin:0; background:#0e0e12; padding:10px; border-radius:6px; border:1px solid #76b90033; font-size:10.5px; font-family:monospace; overflow-x:auto; color:#4ade80; line-height:1.35;">${escapeHtml(fixSnippet)}</pre>
+          </div>
+
+          <button class="primary" id="deployNvidiaSidebarFixBtn" data-node-id="${nodeId}" style="background:#76b900 !important; color:#000 !important; border:none !important; font-weight:800; font-size:12px; padding:10px; border-radius:6px; width:100%; cursor:pointer; margin-top:4px; display:flex; align-items:center; justify-content:center; gap:6px;">
+            Apply Hotfix in Real-Time
+          </button>
+        ` : `
+          <div style="background:#76b90015; border:1px solid #76b90022; border-radius:6px; padding:12px; display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+            <div style="display:flex; align-items:center; gap:5px; color:#4ade80;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <strong style="font-size:12px;">NVIDIA NIM Telemetry check</strong>
+            </div>
+            <p style="font-size:11.5px; color:#a3e635; margin:0; line-height:1.4;">
+              Subsystem status verified: Healthy. All tests passed. Latency: 32ms.
+            </p>
+            <button id="sidebarOptBtn" style="background:#2e2e38; border:1px solid #444; border-radius:6px; color:#fff; font-size:11px; font-weight:700; padding:6px; cursor:pointer; margin-top:2px;">
+              Show cuDF Performance Tuning Code
+            </button>
+            <div id="optStubArea" style="display:none; margin-top:6px;">
+              <pre style="margin:0; background:#0e0e12; padding:8px; border-radius:6px; border:1px solid #2e2e38; font-size:9.5px; font-family:monospace; overflow-x:auto; color:#cbd5e1; line-height:1.3;">
+import cudf
+# Accelerated data load
+df = cudf.read_json(raw_json)
+processed = df.groupby('tier').mean()</pre>
+            </div>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+
 function renderPageContent(selected, executionBrief, dynamicPlan) {
   switch (activePage) {
     case "overview":
-      return activeProfile === "manager"
-        ? renderManagerDashboard(selected)
-        : renderEngineerDashboard(selected, executionBrief, dynamicPlan);
+      return activeProfile === "admin"
+        ? renderAdminDashboard(selected)
+        : activeProfile === "manager"
+          ? renderManagerDashboard(selected)
+          : renderEngineerDashboard(selected, executionBrief, dynamicPlan);
+    case "diagnostics":
+      return renderAdminDiagnosticsPage();
+    case "users":
+      return renderAdminUsersPage();
+    case "database":
+      return renderAdminDatabasePage();
+    case "models":
+      return renderAdminModelsPage();
     case "today":
       return renderTodayPriority(dynamicPlan);
     case "agent-scan":
@@ -1336,6 +1962,146 @@ function renderPageContent(selected, executionBrief, dynamicPlan) {
 // Shows real-time scanning visualization when tasks are being processed
 let scanningActive = false;
 let scanningEventSource = null;
+
+
+function renderAdminUsersPage() {
+  return `
+    <section class="board" style="padding:18px; font-family:'Poppins', sans-serif;">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Admin Workspace</p>
+          <h2>User Management</h2>
+        </div>
+      </div>
+      <div class="panel" style="background:#fff; margin-top:15px; padding:20px; border-radius:10px; border:1px solid #ded5c8;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+          <thead>
+            <tr style="border-bottom:2px solid #ded5c8; color:#64748b;">
+              <th style="padding:10px 8px;">User</th>
+              <th style="padding:10px 8px;">Role</th>
+              <th style="padding:10px 8px;">Email</th>
+              <th style="padding:10px 8px;">Status</th>
+              <th style="padding:10px 8px;">Last Active</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${[
+              { name: "Miso", role: "Administrator", email: "miso220601@gmail.com", status: "online", time: "Active now", color: "#3b82f6" },
+              { name: "Utkarsh Sinha", role: "Full-stack Engineer", email: "utkarsh@taskpilot.dev", status: "idle", time: "12m ago", color: "#10b981" },
+              { name: "Sarah Connor", role: "Product Manager", email: "sarah@taskpilot.dev", status: "dnd", time: "1h ago", color: "#0d9488" }
+            ].map(u => `
+              <tr style="border-bottom:1px solid #f1f5f9; color:#172b4d;">
+                <td style="padding:12px 8px; display:flex; align-items:center; gap:8px;">
+                  <span style="width:24px; height:24px; border-radius:50%; background:${u.color}; color:#fff; display:grid; place-items:center; font-weight:800; font-size:11px;">${u.name[0]}</span>
+                  <strong>${u.name}</strong>
+                </td>
+                <td style="padding:12px 8px;">${u.role}</td>
+                <td style="padding:12px 8px; color:#64748b;">${u.email}</td>
+                <td style="padding:12px 8px;">
+                  <span style="display:inline-flex; align-items:center; gap:4px; font-weight:600; font-size:11.5px; color:${u.status === 'online' ? '#22c55e' : u.status === 'idle' ? '#f59e0b' : '#ef4444'};">
+                    <span style="width:6px; height:6px; border-radius:50%; background:${u.status === 'online' ? '#22c55e' : u.status === 'idle' ? '#f59e0b' : '#ef4444'};"></span>
+                    ${u.status}
+                  </span>
+                </td>
+                <td style="padding:12px 8px; color:#64748b;">${u.time}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminDatabasePage() {
+  return `
+    <section class="board" style="padding:18px; font-family:'Poppins', sans-serif;">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Admin Workspace</p>
+          <h2>Database Explorer (Supabase)</h2>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 220px 1fr; gap:16px; margin-top:15px;">
+        <div class="panel" style="background:#fff; padding:12px; border-radius:10px; border:1px solid #ded5c8; display:grid; gap:8px; align-content:start;">
+          <strong style="font-size:11px; color:#64748b; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.04em;">Tables</strong>
+          ${["tasks", "users", "time_logs", "settings", "audit_logs"].map((t, idx) => `
+            <div style="padding:8px 10px; border-radius:6px; font-size:12.5px; font-weight:600; cursor:pointer; background:${idx === 0 ? '#eff6ff' : 'none'}; color:${idx === 0 ? '#0c66e4' : '#44546f'}; border:1px solid ${idx === 0 ? '#bfdbfe' : 'transparent'};">
+              🗄️ ${t}
+            </div>
+          `).join("")}
+        </div>
+        <div class="panel" style="background:#fff; padding:16px; border-radius:10px; border:1px solid #ded5c8; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" value="SELECT * FROM tasks WHERE severity = 'P1' LIMIT 10;" style="flex:1; padding:8px 12px; border:1px solid #ded5c8; border-radius:6px; font-size:12.5px; font-family:monospace; background:#f8fafc; color:#172b4d;">
+            <button class="primary" style="padding:8px 16px;">Run Query</button>
+          </div>
+          <div style="overflow-x:auto; border:1px solid #ded5c8; border-radius:8px;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+              <thead>
+                <tr style="background:#fcfbf9; border-bottom:1px solid #ded5c8; color:#64748b;">
+                  <th style="padding:8px;">ID</th>
+                  <th style="padding:8px;">Title</th>
+                  <th style="padding:8px;">Severity</th>
+                  <th style="padding:8px;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:8px; font-family:monospace; color:#0c66e4;">tsk-101</td>
+                  <td style="padding:8px; font-weight:700; color:#172b4d;">Fix DB Deadlocks on Prod</td>
+                  <td style="padding:8px; color:#ef4444; font-weight:700;">P1</td>
+                  <td style="padding:8px; color:#f59e0b; font-weight:700;">In Progress</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:8px; font-family:monospace; color:#0c66e4;">tsk-104</td>
+                  <td style="padding:8px; font-weight:700; color:#172b4d;">Supabase RLS Policy check</td>
+                  <td style="padding:8px; color:#ef4444; font-weight:700;">P1</td>
+                  <td style="padding:8px; color:#10b981; font-weight:700;">Resolved</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminModelsPage() {
+  return `
+    <section class="board" style="padding:18px; font-family:'Poppins', sans-serif;">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Admin Workspace</p>
+          <h2>NVIDIA NIM Model Hub</h2>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:15px;">
+        ${[
+          { name: "Nemotron-70B-Instruct", desc: "NVIDIA NIM specialized orchestration & reasoning.", latency: "85ms", status: "healthy", tokens: "420K" },
+          { name: "Llama-3-70B-Instruct", desc: "General purpose backup reasoning and tool call agent.", latency: "110ms", status: "healthy", tokens: "180K" },
+          { name: "Mixtral-8x22B-Instruct", desc: "Complex multi-turn planning fallback agent.", latency: "140ms", status: "healthy", tokens: "95K" }
+        ].map(m => `
+          <div class="panel" style="background:#fff; border:1px solid #ded5c8; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size:14px; color:#172b4d;">${m.name}</strong>
+              <span style="font-size:10px; font-weight:700; color:#10b981; background:#dcfce7; border:1px solid #bbf7d0; border-radius:4px; padding:2px 6px; text-transform:uppercase;">
+                ${m.status}
+              </span>
+            </div>
+            <p style="font-size:12px; color:#65717d; line-height:1.4; margin:0;">${m.desc}</p>
+            <div style="display:flex; justify-content:space-between; font-size:12px; border-top:1px solid #f1f5f9; padding-top:10px; margin-top:auto;">
+              <span style="color:#64748b;">Latency: <strong>${m.latency}</strong></span>
+              <span style="color:#64748b;">Tokens/sec: <strong>72 t/s</strong></span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 
 function renderLiveScanningPanel() {
   if (!scanningActive) return "";
@@ -2125,11 +2891,11 @@ function renderDiscordUserPanel() {
   const nameInitial = displayName ? displayName[0] : "U";
 
   return `
-    <div class="discord-user-panel" style="margin-top:auto; padding:10px; background:#e6decb; border-radius:12px; border:1px solid #dcd5c6; display:flex; align-items:center; justify-content:space-between; position:relative; gap:8px; font-family:'Outfit', sans-serif;">
+    <div class="discord-user-panel" style="margin-top:auto; padding:10px; background:#efe9dd; border-radius:12px; border:1px solid #ded5c8; display:flex; align-items:center; justify-content:space-between; position:relative; gap:8px; font-family:'Outfit', sans-serif;">
       <!-- Avatar and Info -->
       <div style="display:flex; align-items:center; gap:8px; cursor:pointer; flex:1; min-width:0;" id="openStatusSelectorBtn">
         <div style="position:relative; width:36px; height:36px; flex-shrink:0;">
-          <div style="width:100%; height:100%; border-radius:50%; background:#152238; color:#fff; display:grid; place-items:center; font-weight:800; font-size:15px; text-transform:uppercase;">
+          <div style="width:100%; height:100%; border-radius:50%; background:#0c66e4; color:#fff; display:grid; place-items:center; font-weight:800; font-size:15px; text-transform:uppercase;">
             ${nameInitial}
           </div>
           <!-- Cutout status badge -->
@@ -2138,7 +2904,7 @@ function renderDiscordUserPanel() {
           </div>
         </div>
         <div style="min-width:0; line-height:1.2;">
-          <div style="font-size:12.5px; font-weight:800; color:#17202a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          <div style="font-size:12.5px; font-weight:800; color:#172b4d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
             ${escapeHtml(displayName.split(" ")[0])}
           </div>
           <div style="font-size:10px; color:#65717d; text-transform:capitalize; font-weight:600;">
@@ -2148,27 +2914,24 @@ function renderDiscordUserPanel() {
       </div>
 
       <!-- Decorative and Controls -->
-      <div style="display:flex; align-items:center; gap:6px; color:#475569;" class="user-panel-controls">
-        <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme" style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center;">
+      <div style="display:flex; align-items:center; gap:6px; color:#65717d;" class="user-panel-controls">
+        <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme" style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center; color:inherit;">
           ${activeTheme === "light"
             ? `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>`
             : `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 17a5 5 0 100-10 5 5 0 000 10z"/></svg>`
           }
         </button>
-        <button style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center;" onclick="alert('Mic muted');" title="Mute Mic">
+        <button style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center; color:inherit;" onclick="alert('Mic muted');" title="Mute Mic">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
         </button>
-        <button style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center;" onclick="alert('Audio deafened');" title="Deafen Audio">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.5a6.5 6.5 0 01-6.5-6.5V7.5a6.5 6.5 0 0113 0v4.5a6.5 6.5 0 01-6.5 6.5zm-6.5-6.5h13M5.5 12h13"/></svg>
-        </button>
-        <button style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center;" id="panelSettingsBtn" title="Settings">
+        <button style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center; color:inherit;" id="panelSettingsBtn" title="Settings">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
         </button>
       </div>
 
       <!-- Popup selector menu -->
       ${showStatusSelector ? `
-        <div id="presenceStatusMenu" style="position:absolute; bottom:52px; left:0; width:170px; background:#fff; border:1px solid #dcd5c6; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.15); z-index:999; padding:6px; display:grid; gap:4px;">
+        <div id="presenceStatusMenu" style="position:absolute; bottom:52px; left:0; width:170px; background:#fff; border:1px solid #ded5c8; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.15); z-index:999; padding:6px; display:grid; gap:4px;">
           ${[
             { id: "online", label: "Online", clr: "#23a55a" },
             { id: "idle", label: "Idle", clr: "#f0b232" },
@@ -2182,10 +2945,23 @@ function renderDiscordUserPanel() {
           `).join("")}
         </div>
       ` : ""}
+
+      <!-- Popup settings menu -->
+      ${showSettingsMenu ? `
+        <div id="sidebarSettingsMenu" style="position:absolute; bottom:52px; right:10px; width:150px; background:#fff; border:1px solid #ded5c8; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.15); z-index:999; padding:6px; display:grid; gap:4px;">
+          <button id="sidebarGoToSettingsBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:6px; cursor:pointer; text-align:left; font-size:12px; font-weight:700; color:#334155; transition:background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
+            <span style="font-size:14px; margin-right:2px; color:#0c66e4;">⚙</span>
+            <span>Settings</span>
+          </button>
+          <button id="sidebarSignOutBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:6px; cursor:pointer; text-align:left; font-size:12px; font-weight:700; color:#de350b; transition:background 0.15s;" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background='none'">
+            <span style="font-size:14px; margin-right:2px;">🚪</span>
+            <span>Sign out</span>
+          </button>
+        </div>
+      ` : ""}
     </div>
   `;
 }
-
 function renderChatPage() {
   const otherRole = activeProfile === "manager" ? "Engineer" : "Manager";
   const otherStatus = activeProfile === "manager" ? engineerPresenceStatus : managerPresenceStatus;
@@ -3917,6 +4693,582 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <h3>Ask TaskPilot AI</h3>
             ${renderManagerQueries()}
             <div class="answer" id="answerBox" style="margin-top:8px;max-height:120px;overflow-y:auto;font-size:12px;">${lastAnswer}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+
+
+// ─── Full Architecture Canvas & Diagnostics Rendering ──────────────────────────
+
+function getNodeLogo(id) {
+  switch(id) {
+    case "jira":
+      return `<svg viewBox="0 0 32 32" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M15.48 0l-7.74 7.74a2.67 2.67 0 000 3.77l3.97 3.97 7.74-7.74L15.48 0z" fill="#0052CC"/><path d="M8 7.78L.26 15.52a2.67 2.67 0 000 3.77L8 27.03l7.74-7.74L8 11.55V7.78z" fill="#2684FF"/><path d="M15.48 15.52L8 23.26 15.48 30.75l7.74-7.74a2.67 2.67 0 000-3.77l-7.74-3.72z" fill="#0052CC"/><path d="M23.22 7.78v3.77l-7.74 7.74 7.74 7.74 7.74-7.74a2.67 2.67 0 000-3.77L23.22 7.78z" fill="#2684FF"/></svg>`;
+    case "slack":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zm2.521-10.123a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/></svg>`;
+    case "github":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path fill="#24292f" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>`;
+    case "outlook":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="1" y="4" width="22" height="16" rx="2" fill="#0078D4"/><path d="M1 7l11 7 11-7" stroke="#fff" stroke-width="1.6" fill="none"/></svg>`;
+    case "servicenow":
+      return `<svg viewBox="0 0 32 32" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><circle cx="16" cy="16" r="16" fill="#81B5A2"/><path d="M10 22l6-12 6 12" stroke="#fff" stroke-width="2.5" fill="none"/><path d="M10 22h12" stroke="#fff" stroke-width="2.5" fill="none"/></svg>`;
+    case "meetings":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect width="24" height="24" rx="6" fill="#2D8CFF"/><path d="M4 8.5A1.5 1.5 0 015.5 7h8a1.5 1.5 0 0115 8.5v7a1.5 1.5 0 0113.5 17h-8a1.5 1.5 0 01-1.5-1.5v-7zm11 2.2l3.6-2.4A.5.5 0 0120 8.8v6.4a.5.5 0 01-.8.4L15 13.3V10.7z" fill="#fff"/></svg>`;
+    case "gcs":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="2" y="4" width="20" height="16" rx="3" fill="#1a73e8"/><path d="M6 8h12M6 12h12M6 16h12" stroke="#fff" stroke-width="2"/></svg>`;
+    case "cudf":
+    case "nemotron":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z" fill="#76b900"/><path d="M12 6l7 3.5v5L12 18l-7-3.5v-5L12 6z" fill="#fff"/></svg>`;
+    case "cleaner":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M19 4h-3V2h-8v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c0 1.1.9-2 2-2V6c0-1.1-.9-2-2-2z" fill="#64748b"/><path d="M12 8v8M8 12h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;
+    case "bigquery":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="2" y="4" width="20" height="16" rx="3" fill="#4285f4"/><path d="M12 8a4 4 0 100 8 4 4 0 000-8z" fill="#ffbb00"/></svg>`;
+    case "fastapi":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2L2 12h9v10l10-10h-9V2z" fill="#059669"/></svg>`;
+    case "orchestrator":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="3" y="3" width="18" height="18" rx="4" fill="#0c66e4"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg>`;
+    case "router":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M4 4h4l8 16h4M4 20h4l8-16h4" stroke="#4b5563" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+    case "gemini":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2c0 5.5-4.5 10-10 10 5.5 0 10 4.5 10 10 0-5.5 4.5-10 10-10-5.5 0-10-4.5-10-10z" fill="url(#geminiGrad)"/><defs><linearGradient id="geminiGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a73e8"/><stop offset="100%" stop-color="#e8710a"/></linearGradient></defs></svg>`;
+    case "grok":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="3" y="3" width="18" height="18" rx="4" fill="#000"/><path d="M7 7h10v10H7z" fill="#fff"/><path d="M9 9h6v6H9z" fill="#000"/></svg>`;
+    case "supabase":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2L3 13.5h7.5V22l9-11.5H12V2z" fill="#3ecf8e"/></svg>`;
+    case "alerts":
+      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2a7 7 0 00-7 7v5.5L3.3 17a1 1 0 00.7 1.5h16a1 1 0 00.7-1.5L19 14.5V9a7 7 0 00-7-7z" fill="#f59e0b"/><circle cx="12" cy="21" r="2" fill="#d97706"/></svg>`;
+    default:
+      return "";
+  }
+}
+
+
+function renderFullArchitectureCanvas() {
+  const getStatus = (id) => {
+    if (adminErrorSimulated && id === "gemini")  return "error";
+    if (adminErrorSimulated && id === "router")  return "warning";
+    return adminArchitectureNodes[id]?.status || "healthy";
+  };
+
+  const N = {
+    // Column 1: Triggers (x: 10, w: 152)
+    jira:        { x: 10,   y: 12,  w: 152, h: 42, label: "Jira Sprint",       sub: "Board webhooks"      },
+    slack:       { x: 10,   y: 72,  w: 152, h: 42, label: "Slack",             sub: "Channel stream"      },
+    github:      { x: 10,   y: 132, w: 152, h: 42, label: "GitHub",            sub: "PR & commit feed"    },
+    outlook:     { x: 10,   y: 192, w: 152, h: 42, label: "Gmail/Outlook",     sub: "Inbox poller"        },
+    servicenow:  { x: 10,   y: 252, w: 152, h: 42, label: "ServiceNow",        sub: "Incident trigger"    },
+    meetings:    { x: 10,   y: 312, w: 152, h: 42, label: "Zoom Meetings",     sub: "Meeting sync"        },
+
+    // Column 2: Ingestion & Storage (x: 210, w: 150)
+    gcs:         { x: 210,  y: 32,  w: 150, h: 50, label: "Google GCS",        sub: "Raw landing bucket"  },
+    cudf:        { x: 210,  y: 162, w: 150, h: 50, label: "NVIDIA cuDF",       sub: "GPU dataframes"      },
+    cleaner:     { x: 210,  y: 292, w: 150, h: 50, label: "Data Cleaner",      sub: "Normalize & dedupe"  },
+
+    // Column 3: Warehouse & API (x: 410, w: 160)
+    bigquery:    { x: 410,  y: 72,  w: 160, h: 56, label: "Google BigQuery",   sub: "Unified warehouse"   },
+    fastapi:     { x: 410,  y: 232, w: 160, h: 50, label: "FastAPI",           sub: "REST backend"        },
+
+    // Column 4: Orchestrator (x: 620, w: 170)
+    orchestrator:{ x: 620,  y: 152, w: 170, h: 56, label: "Orchestrator",      sub: "Google ADK core"     },
+
+    // Column 4b: Smart Router (x: 840, w: 150)
+    router:      { x: 840,  y: 157, w: 150, h: 50, label: "Smart Router",      sub: "Multi-LLM dispatch"  },
+
+    // Column 5: LLM Providers (x: 1040, w: 150)
+    gemini:      { x: 1040, y: 42,  w: 150, h: 50, label: "Gemini 2.5",        sub: "Vertex AI"           },
+    nemotron:    { x: 1040, y: 162, w: 150, h: 50, label: "NVIDIA NIM",        sub: "Nemotron-70B"        },
+    grok:        { x: 1040, y: 282, w: 150, h: 50, label: "Grok xAI",          sub: "X AI Beta"           },
+
+    // Column 6: Output / Action (x: 1240, w: 150)
+    supabase:    { x: 1240, y: 92,  w: 150, h: 50, label: "Supabase DB",       sub: "Postgres store"      },
+    alerts:      { x: 1240, y: 212, w: 150, h: 50, label: "Alerts",            sub: "Webhooks & notifs"   }
+  };
+
+  const rc = (id) => [N[id].x + N[id].w, N[id].y + N[id].h / 2];
+  const lc = (id) => [N[id].x, N[id].y + N[id].h / 2];
+
+  const curve = ([x1, y1], [x2, y2]) => {
+    const mx = (x1 + x2) / 2;
+    return `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
+  };
+
+  const mkPath = (d, s) => {
+    const colors = { healthy: "#cbd5e1", active: "#3b82f6", error: "#ef4444", warning: "#f59e0b" };
+    const col = colors[s] || colors.healthy;
+    const animated = (adminPipelineRunning || s === "active");
+    return `<path d="${d}" stroke="${col}" stroke-width="1.8" fill="none" stroke-linecap="round"
+      stroke-dasharray="${s === 'error' ? '4 3' : animated ? '8 5' : 'none'}"
+      style="${animated ? 'animation:n8n-dash-flow 1.4s linear infinite;' : ''}"/>`;
+  };
+
+  const paths = [
+    // Column 1 Triggers → Column 2 Ingest/Processing
+    mkPath(curve(rc("jira"), lc("gcs")), getStatus("jira")),
+    mkPath(curve(rc("github"), lc("gcs")), getStatus("github")),
+    mkPath(curve(rc("slack"), lc("cudf")), getStatus("slack")),
+    mkPath(curve(rc("outlook"), lc("cudf")), getStatus("outlook")),
+    mkPath(curve(rc("servicenow"), lc("cleaner")), getStatus("servicenow")),
+    mkPath(curve(rc("meetings"), lc("cleaner")), getStatus("meetings")),
+
+    // Column 2 Ingest/Processing → Column 3 Warehouse/API
+    mkPath(curve(rc("gcs"), lc("bigquery")), getStatus("gcs")),
+    mkPath(curve(rc("cudf"), lc("bigquery")), getStatus("cudf")),
+    mkPath(curve(rc("cleaner"), lc("fastapi")), getStatus("cleaner")),
+
+    // Column 3 Warehouse/API → Column 4 Orchestrator
+    mkPath(curve(rc("bigquery"), lc("orchestrator")), getStatus("bigquery")),
+    mkPath(curve(rc("fastapi"), lc("orchestrator")), getStatus("fastapi")),
+
+    // Column 4 Orchestrator → Column 4b Smart Router
+    mkPath(curve(rc("orchestrator"), lc("router")), getStatus("orchestrator")),
+
+    // Column 4b Smart Router → Column 5 LLM Providers
+    mkPath(curve(rc("router"), lc("gemini")), getStatus("router")),
+    mkPath(curve(rc("router"), lc("nemotron")), getStatus("router")),
+    mkPath(curve(rc("router"), lc("grok")), getStatus("router")),
+
+    // Column 5 LLM Providers → Column 6 Output/Action
+    mkPath(curve(rc("gemini"), lc("supabase")), getStatus("gemini")),
+    mkPath(curve(rc("gemini"), lc("alerts")), getStatus("gemini")),
+    mkPath(curve(rc("nemotron"), lc("supabase")), getStatus("nemotron")),
+    mkPath(curve(rc("nemotron"), lc("alerts")), getStatus("nemotron")),
+    mkPath(curve(rc("grok"), lc("alerts")), getStatus("grok"))
+  ].join("\n");
+
+  const badge = (id) => {
+    const s = getStatus(id);
+    const conf = { error: ["#ef4444", "Error"], warning: ["#f59e0b", "Warning"], active: ["#3b82f6", "Active"], healthy: ["#10b981", "Healthy"] };
+    const [col, lbl] = conf[s] || conf.healthy;
+    return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:600;color:${col};">
+      <span style="width:5px;height:5px;border-radius:50%;background:${col};display:inline-block;${s==='active'?'animation:pulse 1.2s infinite;':''}"></span>${lbl}
+    </span>`;
+  };
+
+  const nd = (id) => {
+    const n = N[id];
+    const s = getStatus(id);
+    const sel = adminSelectedNodeId === id;
+    const bgMap = { error: "#fef2f2", warning: "#fffbeb", active: "#eff6ff", healthy: "#ffffff" };
+    const bdMap = { error: "#fca5a5", warning: "#fcd34d", active: "#bfdbfe", healthy: "#e2e8f0" };
+    const bg = bgMap[s] || "#ffffff";
+    const bd = sel ? "#2563eb" : (bdMap[s] || "#e2e8f0");
+    const shadow = sel ? "0 0 0 2px rgba(37,99,235,0.2),0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.05)";
+    const logoSvg = getNodeLogo(id);
+    return `<div data-admin-node="${id}" style="position:absolute;left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px;
+      background:${bg};border:1.5px solid ${bd};border-radius:8px;padding:6px 10px;cursor:pointer;box-sizing:border-box;
+      transition:all 0.18s cubic-bezier(.4,0,.2,1);box-shadow:${shadow};z-index:10;">
+      <div style="font-size:11px;font-weight:700;color:#1e293b;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;">
+        ${logoSvg}
+        <span>${n.label}</span>
+      </div>
+      <div style="font-size:9.5px;color:#94a3b8;margin:1px 0 3px 22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.sub}</div>
+      <div style="margin-left:22px;">${badge(id)}</div>
+    </div>`;
+  };
+
+  const W = 1408, H = 380;
+  return `
+    <div style="width:100%;height:100%;overflow:hidden;background:#f8fafc;background-image:radial-gradient(circle,#dde1e9 1px,transparent 1px);background-size:20px 20px;position:relative;">
+      <div class="n8n-inner" style="width:${W}px;height:${H}px;position:relative;transform-origin:top left;">
+        <svg style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;pointer-events:none;overflow:visible;">
+          ${paths}
+        </svg>
+        ${Object.keys(N).map(id => nd(id)).join("\n")}
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminDiagnosticsPanel() {
+  const getSelectedNodeData = () => {
+    const id = adminSelectedNodeId;
+    if (id === "all") return null;
+    
+    // Dynamic simulated errors
+    if (adminErrorSimulated && id === "gemini") {
+      return {
+        name: "Vertex AI (Gemini 2.5 Flash)",
+        status: "error",
+        description: "Primary LLM provider for task classification and context generation.",
+        error: "Rate Limit Exceeded (HTTP 429) - Vertex AI quota limits reached for region us-central1.",
+        code: `def call_gemini_flash(prompt):\n    client = vertexai.GenerativeModel("gemini-2.5-flash")\n    # Standard endpoint invocation without fallback limits\n    return client.generate_content(prompt)`,
+        fix: `def call_gemini_flash(prompt):\n    try:\n        client = vertexai.GenerativeModel("gemini-2.5-flash")\n        return client.generate_content(prompt)\n    except ResourceExhausted:\n        # NVIDIA Copilot: Fallback router to high-availability NVIDIA NIM Nemotron model\n        logger.warning("Gemini Rate Limit hit. Routing prompt to NVIDIA NIM.")\n        return call_nvidia_nim_nemotron(prompt)`
+      };
+    }
+    if (adminErrorSimulated && id === "router") {
+      return {
+        name: "Multi-LLM Smart Router",
+        status: "warning",
+        description: "Evaluates health profiles and automatically directs prompt workloads.",
+        error: "Smart Router detected failure rate spike (>90%) on main Gemini channel. Fallover delay occurring.",
+        code: `def route_prompt(prompt):\n    # Default to Gemini route without fallback verification\n    return "gemini-2.5-flash"`,
+        fix: `def route_prompt(prompt):\n    # NVIDIA Copilot: Route based on real-time endpoint status\n    if is_endpoint_down("gemini-2.5-flash"):\n        logger.info("Outage detected. Auto-routing to NVIDIA NIM Nemotron-70B.")\n        return "nvidia-nemotron-70b"\n    return "gemini-2.5-flash"`
+      };
+    }
+    
+    return adminArchitectureNodes[id];
+  };
+
+  const data = getSelectedNodeData();
+
+  if (!data) {
+    return `
+      <div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; color:#71717a;">
+        <span style="font-size:36px; margin-bottom:8px;">💡</span>
+        <h3 style="margin:0 0 4px 0; color:#18181b; font-weight:800; font-family:'Outfit';">NVIDIA NIM Diagnostics Copilot</h3>
+        <p style="margin:0; font-size:12.5px; max-width:440px;">Select any node component in the architecture canvas above to analyze its live status, inspect potential code blockers, and deploy NVIDIA AI suggested hotfixes.</p>
+      </div>
+    `;
+  }
+
+  const isHealthy = data.status === "healthy";
+  const stateColor = isHealthy ? "#10b981" : data.status === "warning" ? "#f59e0b" : "#ef4444";
+  const stateBadge = isHealthy ? "Healthy" : data.status === "warning" ? "Warning" : "Needs Fix";
+
+  return `
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; padding:20px; height:100%; overflow-y:auto; font-family:'Inter', sans-serif;">
+      <!-- Left Column: Diagnostic Details -->
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h3 style="margin:0; font-size:15px; font-weight:900; color:#0f172a; font-family:'Outfit';">${escapeHtml(data.name)}</h3>
+          <span style="font-size:11px; font-weight:900; color:#fff; background:${stateColor}; padding:3px 8px; border-radius:12px; text-transform:uppercase;">${stateBadge}</span>
+        </div>
+        <p style="margin:0; font-size:12px; color:#4b5563; line-height:1.5;">${escapeHtml(data.description)}</p>
+        
+        ${isHealthy ? `
+          <div style="background:#f0fdf4; border:1px solid #b9f6ca; border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-size:11.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:6px;">
+              <span>🟢</span> NVIDIA Diagnostics: Healthy
+            </div>
+            <ul style="margin:0; padding-left:16px; font-size:11px; color:#166534; display:grid; gap:4px;">
+              <li>All integration ports responding within SLA.</li>
+              <li>NVIDIA NIM smart route pipeline reports optimal telemetry latency.</li>
+              <li>Service credentials are validated and healthy.</li>
+            </ul>
+          </div>
+        ` : `
+          <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:6px;">
+            <div style="font-size:11.5px; font-weight:800; color:#b91c1c; display:flex; align-items:center; gap:6px;">
+              <span>🚨</span> Detected Code Blocker
+            </div>
+            <div style="font-size:11.5px; color:#7f1d1d; font-family:monospace; line-height:1.4;">
+              ${escapeHtml(data.error)}
+            </div>
+          </div>
+          
+          <button id="deployNvidiaFixBtn" data-node-id="${data.id}" style="margin-top:auto; background:#76b900; color:#fff; border:none; padding:10px; border-radius:6px; font-weight:800; font-size:12px; cursor:pointer; text-transform:uppercase; transition:background 0.15s; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#66a000'" onmouseout="this.style.background='#76b900'">
+            🟢 Deploy suggested fix via NVIDIA NIM
+          </button>
+        `}
+      </div>
+
+      <!-- Right Column: Code Editor & Suggestion -->
+      <div style="display:flex; flex-direction:column; gap:10px; min-height:0;">
+        ${isHealthy ? `
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#64748b;">
+            <span style="font-size:24px;">✔</span>
+            <div style="font-size:12px; font-weight:700; margin-top:4px;">Telemetry Code Clean</div>
+            <div style="font-size:10.5px;">No hotfix necessary. Code logic is fully compliant with NVIDIA NIM smart router pipelines.</div>
+          </div>
+        ` : `
+          <div style="display:grid; grid-template-rows: auto 1fr; flex:1; min-height:0; gap:6px;">
+            <div style="font-size:11px; font-weight:800; color:#4b5563; text-transform:uppercase;">NVIDIA NIM AI Diagnostic Fix</div>
+            
+            <div style="display:grid; grid-template-rows: 1fr 1.2fr; gap:8px; min-height:0;">
+              <!-- Failing Code Box -->
+              <div style="border:1px solid #fecaca; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; background:#fff1f1;">
+                <div style="background:#fee2e2; padding:3px 8px; font-size:10px; font-weight:800; color:#b91c1c; border-bottom:1px solid #fecaca;">FAILING CODE</div>
+                <pre style="margin:0; padding:8px; font-family:monospace; font-size:10px; color:#991b1b; overflow:auto; flex:1;">${escapeHtml(data.code)}</pre>
+              </div>
+
+              <!-- Suggested Fix Box -->
+              <div style="border:1px solid #bbf7d0; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; background:#f0fdf4;">
+                <div style="background:#dcfce7; padding:3px 8px; font-size:10px; font-weight:800; color:#15803d; border-bottom:1px solid #bbf7d0;">NVIDIA SUGGESTED HOTFIX</div>
+                <pre style="margin:0; padding:8px; font-family:monospace; font-size:10.5px; color:#166534; overflow:auto; flex:1; font-weight:600;">${escapeHtml(data.fix)}</pre>
+              </div>
+            </div>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminDiagnosticsPage() {
+  const tiers = [
+    {
+      id: "user", tier: "USER", label: "End Users",
+      color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe",
+      icon: `<svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`,
+      desc: "Engineers, Managers and Admins access the platform",
+      features: [
+        { name: "Login Page",          status: "ok",  detail: "Google OAuth + Supabase Auth working" },
+        { name: "Profile Switcher",    status: "ok",  detail: "Switch between Admin / Engineer / Manager" },
+        { name: "Sidebar Navigation",  status: "ok",  detail: "All nav items routing correctly" },
+        { name: "Settings Popover",    status: "ok",  detail: "Gear icon opens Settings + Sign out" }
+      ]
+    },
+    {
+      id: "engineer", tier: "ENGINEER", label: "Engineer Dashboard",
+      color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe",
+      icon: `<svg width="20" height="20" fill="none" stroke="#7c3aed" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+      desc: "Task prioritization, AI scans, execution briefs",
+      features: [
+        { name: "Autonomous Scan",  status: "ok", detail: "Gemini-powered task analysis" },
+        { name: "Priority Queue",   status: "ok", detail: "P1-P3 queue rendering correctly" },
+        { name: "Execution Brief",  status: "ok", detail: "PDF export functional" },
+        { name: "AI Chat",          status: "ok", detail: "Gemini chat dock live" },
+        { name: "Jira Integration", status: "ok", detail: "Add task modal active" }
+      ]
+    },
+    {
+      id: "manager", tier: "MANAGER", label: "Manager Dashboard",
+      color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4",
+      icon: `<svg width="20" height="20" fill="none" stroke="#0d9488" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`,
+      desc: "Team oversight, SLA tracking, standup generation",
+      features: [
+        { name: "Team Capacity",     status: "ok",   detail: "Agent assignment visible" },
+        { name: "Approve Handoff",   status: "ok",   detail: "Complete priority button working" },
+        { name: "Weekly Standup AI", status: "ok",   detail: "Gemini standup generator live" },
+        { name: "SLA Risk Board",    status: "ok",   detail: "P1 tasks flagged correctly" },
+        { name: "Dataset Insights",  status: "ok",   detail: "Database analytics ready" }
+      ]
+    },
+    {
+      id: "auth", tier: "AUTH", label: "Auth Layer",
+      color: "#ea580c", bg: "#fff7ed", border: "#fed7aa",
+      icon: `<svg width="20" height="20" fill="none" stroke="#ea580c" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
+      desc: "Google OAuth + Supabase Auth, session management",
+      features: [
+        { name: "Google OAuth",    status: "ok", detail: "OAuth2 flow verified" },
+        { name: "Supabase Session",status: "ok", detail: "JWT tokens refreshing" },
+        { name: "Email Allowlist", status: "ok", detail: "Only allowed emails can log in" },
+        { name: "RLS Policies",    status: "ok", detail: "Row-level security enforced" }
+      ]
+    },
+    {
+      id: "architecture", tier: "PIPELINE", label: "Full AI Pipeline",
+      color: "#0f766e", bg: "#f0fdfa", border: "#5eead4",
+      icon: `<svg width="20" height="20" fill="none" stroke="#0f766e" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`,
+      desc: "Data ingestion, orchestration, LLMs, outputs",
+      features: [
+        { name: "Trigger Layer",          status: "ok",    detail: "Jira / Slack / GitHub / Gmail webhooks" },
+        { name: "NVIDIA cuDF",            status: "ok",    detail: "GPU data processing online" },
+        { name: "BigQuery Warehouse",     status: "ok",    detail: "Schema synced" },
+        { name: "Orchestrator (ADK)",     status: "ok",    detail: "Multi-agent routing live" },
+        { name: "Gemini 2.5 Flash",       status: "ok",    detail: "Vertex AI connected" },
+        { name: "NVIDIA NIM",             status: "ok",    detail: "NIM endpoint healthy" },
+        { name: "Supabase Output",        status: "ok",    detail: "Write pipeline active" },
+        { name: "Alerts / Webhooks",      status: adminErrorSimulated ? "error" : "ok", detail: adminErrorSimulated ? "Slack webhook 403 — token expired" : "Connected and active" }
+      ]
+    }
+  ];
+
+  const currentTier = tiers.find(t => t.id === selectedDiagTierId) || tiers[0];
+  const ok = currentTier.features.filter(f=>f.status==='ok').length;
+  const warn = currentTier.features.filter(f=>f.status==='warn').length;
+  const err = currentTier.features.filter(f=>f.status==='error').length;
+
+  const statusBadgeClass = (s) => {
+    return s === 'ok' ? 'status-pill-ok' : s === 'warn' ? 'status-pill-warn' : 'status-pill-error';
+  };
+  const statusBadgeText = (s) => {
+    return s === 'ok' ? 'OK' : s === 'warn' ? 'Warning' : 'Error';
+  };
+
+  const card = (t) => {
+    const isSelected = t.id === selectedDiagTierId;
+    const borderCol = isSelected ? "#0c66e4" : t.border;
+    const shadow = isSelected ? "0 4px 12px rgba(12,102,228,0.15)" : "0 1px 4px rgba(0,0,0,0.06)";
+    return `
+      <div class="diag-journey-card" data-diag-node="${t.id}"
+        style="flex:1; min-width:0; background:${t.bg}; border:2px solid ${borderCol}; border-radius:10px; padding:12px 10px;
+        cursor:pointer; text-align:center; transition:all 0.18s ease; box-shadow:${shadow}; position:relative;">
+        <div style="display:flex; justify-content:center; margin-bottom:6px;">${t.icon}</div>
+        <div style="font-size:9px; font-weight:700; color:${t.color}; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px;">${t.tier}</div>
+        <div style="font-size:11.5px; font-weight:700; color:#172b4d; line-height:1.3; margin-bottom:4px;">${t.label}</div>
+        <div style="font-size:10px; color:#64748b; line-height:1.4;">${t.desc.slice(0, 42)}...</div>
+      </div>`;
+  };
+
+  const arrow = `<div style="display:flex; align-items:center; flex-shrink:0; padding-top:20px;">
+    <svg width="20" height="10" viewBox="0 0 28 14" fill="none">
+      <path d="M0 7H20M14 2L24 7L14 12" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>`;
+
+  return `
+    <div style="display:flex; flex-direction:column; height:100%; background:#fcfbf9; overflow:hidden; font-family:'Poppins', sans-serif;">
+      <!-- Header -->
+      <div style="padding:14px 20px 8px; flex-shrink:0; border-bottom:1px solid #ded5c8; background:#fff;">
+        <div style="font-size:14px; font-weight:800; color:#172b4d;">System Diagnostics & Journey Health Center</div>
+        <div style="font-size:11px; color:#65717d; margin-top:2px;">Inspect end-to-end integration tiers and execute live hotfixes.</div>
+      </div>
+
+      <!-- Split Layout Workspace -->
+      <div style="flex:1; display:flex; overflow:hidden;">
+        
+        <!-- Left Pane: Journey & Architecture Preview (65%) -->
+        <div style="flex:6.5; display:flex; flex-direction:column; gap:16px; padding:16px; overflow-y:auto; border-right:1px solid #ded5c8;">
+          
+          <!-- Horizontal Journey Flow -->
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${tiers.map((t, i) => [card(t), i < tiers.length - 1 ? arrow : ""].join("")).join("")}
+          </div>
+
+          <!-- Live Preview Panel -->
+          <div style="background:#fff; border:1px solid #ded5c8; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; flex:1; min-height:280px;">
+            <div style="padding:10px 16px; background:#fbfaf8; border-bottom:1px solid #ded5c8; display:flex; align-items:center; gap:8px;">
+              <svg width="14" height="14" fill="none" stroke="#44546f" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+              <strong style="font-size:12px; color:#172b4d;">Interactive Live Architecture Preview</strong>
+              <span style="font-size:10px; color:#65717d; margin-left:auto;">Interactive Node clicking enabled</span>
+            </div>
+            <div class="n8n-canvas-wrapper" id="diagCanvasHolder" style="flex:1; overflow:hidden; position:relative;">
+              ${renderFullArchitectureCanvas()}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Pane: Diagnostics Detail Sidebar (35%) -->
+        <div style="flex:3.5; background:#fff; padding:18px; display:flex; flex-direction:column; gap:16px; overflow-y:auto;">
+          
+          <!-- Selected Tier Header -->
+          <div style="display:flex; align-items:center; gap:10px; padding-bottom:12px; border-bottom:1.5px solid #f1f5f9;">
+            <div style="width:36px; height:36px; border-radius:8px; background:${currentTier.bg}; display:grid; place-items:center;">
+              ${currentTier.icon}
+            </div>
+            <div>
+              <div style="font-size:9px; font-weight:800; color:${currentTier.color}; text-transform:uppercase;">Tier Details</div>
+              <strong style="font-size:16px; color:#172b4d;">${currentTier.label}</strong>
+            </div>
+          </div>
+
+          <p style="font-size:12px; color:#65717d; margin:0; line-height:1.4;">${currentTier.desc}</p>
+
+          <!-- Check stats pills -->
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span class="status-pill-ok" style="font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:5px; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;">${ok} Passed</span>
+            ${warn > 0 ? `<span class="status-pill-warn" style="font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:5px; background:#fef9c3; color:#a16207; border:1px solid #fef08a;">${warn} Warning</span>` : ""}
+            ${err > 0 ? `<span class="status-pill-error" style="font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:5px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">${err} Failed</span>` : ""}
+          </div>
+
+          <!-- Features Checklist -->
+          <div style="display:grid; gap:8px;">
+            <strong style="font-size:11.5px; color:#65717d; text-transform:uppercase; letter-spacing:0.04em;">Component Checklist</strong>
+            ${currentTier.features.map(f => `
+              <div style="display:flex; align-items:flex-start; gap:8px; padding:10px; border-radius:8px; background:#f8fafc; border:1.5px solid #f1f5f9;">
+                <span style="font-size:13px; margin-top:2px;">
+                  ${f.status === 'ok' 
+                    ? '<svg width="14" height="14" fill="none" stroke="#22c55e" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' 
+                    : f.status === 'warn'
+                      ? '<svg width="14" height="14" fill="none" stroke="#f59e0b" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
+                      : '<svg width="14" height="14" fill="none" stroke="#ef4444" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'
+                  }
+                </span>
+                <div>
+                  <div style="font-size:12px; font-weight:700; color:#172b4d;">${f.name}</div>
+                  <div style="font-size:11px; color:#65717d; margin-top:1px;">${f.detail}</div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+
+          <!-- NVIDIA NIM Copilot Box -->
+          ${currentTier.id === "architecture" && adminErrorSimulated ? `
+            <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+              <div style="display:flex; align-items:center; gap:6px; color:#166534;">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                <strong style="font-size:12px;">NVIDIA Copilot Code Suggestion</strong>
+              </div>
+              <p style="font-size:11.5px; color:#166534; margin:0; line-height:1.4;">
+                <strong>slack_agent.py</strong>: Expired Slack Bot OAuth Token. Add bearer credentials to headers and fallback to logger trigger.
+              </p>
+              <pre style="margin:4px 0; background:#fcfcfc; padding:8px; border-radius:6px; border:1px solid #ded5c8; font-size:10px; font-family:monospace; overflow-x:auto; color:#1e293b;">
+headers = {
+    "Authorization": f"Bearer {token}",
+    "Content-Type": "application/json"
+}</pre>
+              <button class="primary" id="deployNvidiaDiagFixBtn" style="padding:8px 12px; border-radius:6px; justify-content:center; font-size:11.5px; font-weight:700; margin-top:4px;">
+                Deploy NVIDIA NIM Fix
+              </button>
+            </div>
+          ` : ""}
+
+        </div>
+
+      </div>
+    </div>
+  `;
+}function renderAdminDashboard(selected) {
+  const filteredLogs = adminSelectedNodeId === "all"
+    ? adminLogs
+    : adminLogs.filter(log => log.tag === adminSelectedNodeId);
+
+  const termH = parseInt(localStorage.getItem('taskpilot:adminTerminalHeight') || '240', 10);
+
+  // Node filter options
+  const nodeFilters = [
+    ["all","All Nodes"],["system","System"],["jira","Jira"],["slack","Slack"],
+    ["github","GitHub"],["outlook","Gmail/Outlook"],["servicenow","ServiceNow"],
+    ["meetings","Zoom Meetings"],["gcs","Google GCS"],["cudf","NVIDIA cuDF"],
+    ["cleaner","Data Cleaner"],["bigquery","BigQuery"],["fastapi","FastAPI"],
+    ["orchestrator","Orchestrator"],["router","Smart Router"],["gemini","Gemini"],
+    ["nemotron","NVIDIA NIM"],["grok","Grok xAI"],["supabase","Supabase"],["alerts","Alerts"]
+  ];
+
+  return `
+    <div class="admin-dashboard-container">
+
+      <!-- ── Upper: n8n Canvas ─────────────────────────────── -->
+      <div class="n8n-canvas-wrapper" id="adminCanvasWrapper">
+        ${renderFullArchitectureCanvas()}
+      </div>
+
+      <!-- ── Drag Resizer ──────────────────────────────────── -->
+      <div class="terminal-resizer" id="terminalResizer" title="Drag to resize"></div>
+
+      <!-- ── Lower: VS Code Terminal ──────────────────────── -->
+      <div class="admin-terminal-wrapper" id="adminTerminalWrapper" style="height:${termH}px;">
+        <div class="admin-terminal-header">
+          <div class="terminal-tabs">
+            <span class="terminal-tab">PROBLEMS</span>
+            <span class="terminal-tab">OUTPUT</span>
+            <span class="terminal-tab">DEBUG CONSOLE</span>
+            <span class="terminal-tab active">TERMINAL</span>
+          </div>
+          <div class="terminal-actions">
+            <select id="adminNodeFilter" style="font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;color:#374151;outline:none;height:22px;">
+              ${nodeFilters.map(([val, lbl]) =>
+                `<option value="${val}" ${adminSelectedNodeId === val ? "selected" : ""}>${lbl}</option>`
+              ).join("")}
+            </select>
+            <button class="terminal-action-btn btn-run" id="executePipelineBtn2" ${adminPipelineRunning ? "disabled" : ""}>
+              ${adminPipelineRunning ? "⏳ Running..." : "⚡ Run Pipeline"}
+            </button>
+            <button class="terminal-action-btn btn-error" id="simulateErrorBtn2">
+              ${adminErrorSimulated ? "✅ Clear Error" : "🔴 Simulate Error"}
+            </button>
+            <button class="terminal-action-btn btn-reset" id="resetAdminBtn2">🔄 Reset</button>
+          </div>
+        </div>
+
+        <div class="admin-log-console" id="adminLogConsole">
+          ${filteredLogs.length === 0
+            ? `<div style="color:#94a3b8;font-style:italic;padding:6px 0;">No logs for this filter.</div>`
+            : filteredLogs.map(log => `
+              <div class="admin-log-line tag-${log.tag}">
+                <span class="log-timestamp">[${log.time}]</span>
+                <span class="log-tag ${log.tag}">[${log.tag.toUpperCase()}]</span>
+                <span>${escapeHtml(log.text)}</span>
+              </div>`).join("")
+          }
+          <div style="display:flex;align-items:center;gap:6px;color:#10b981;margin-top:6px;padding-top:4px;border-top:1px dashed #e2e8f0;">
+            <span style="font-family:monospace;font-size:11px;">admin@taskpilot-core:~$</span>
+            <span class="terminal-cursor"></span>
           </div>
         </div>
       </div>
@@ -6565,12 +7917,158 @@ function renderExecutionPlan(selected, executionBrief) {
 
 // Page: Settings Dashboard
 function renderSettingsDashboard() {
-  // Render different settings based on role
-  if (activeProfile === "manager") {
-    return renderManagerSettings();
-  } else {
-    return renderEngineerSettings();
-  }
+  if (activeProfile === "admin")   return renderAdminSettings();
+  if (activeProfile === "manager") return renderManagerSettings();
+  return renderEngineerSettings();
+}
+
+
+// ─── Admin Settings Page ──────────────────────────────────────────────────────
+function renderAdminSettings() {
+  const activeTasks = state.prioritized.filter(t => !isTaskCompleted(t.id)).length;
+  const p1Count = state.prioritized.filter(t => !isTaskCompleted(t.id) && t.severity === "P1").length;
+  const engineers = [...new Set(state.prioritized.map(t => t.owner).filter(Boolean))];
+
+  return `
+    <section class="board" style="padding:18px;">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Admin Control Center</p>
+          <h2>System Settings</h2>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+
+        <!-- ── Profile Card ── -->
+        <div class="panel" style="background:#fff;display:grid;gap:14px;">
+          <h3 style="font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;margin:0;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Admin Profile
+          </h3>
+          <label class="api-label">
+            <span>Full Name</span>
+            <input type="text" id="settingsNameInput" value="${escapeHtml(settingsProfile.name)}">
+          </label>
+          <label class="api-label">
+            <span>Email</span>
+            <input type="email" id="settingsEmailInput" value="${escapeHtml(settingsProfile.email)}" disabled>
+          </label>
+          <label class="api-label">
+            <span>Role</span>
+            <input type="text" value="Administrator" disabled style="width:100%;padding:11px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;font-size:13px;color:#374151;">
+          </label>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button class="primary" id="saveSettingsBtn" ${settingsSaving ? "disabled" : ""}>
+              ${settingsSaving ? "Saving..." : "Save Profile"}
+            </button>
+            ${settingsMsg ? `<span style="font-size:12px;color:#059669;font-weight:600;">${settingsMsg}</span>` : ""}
+          </div>
+        </div>
+
+        <!-- ── System Stats ── -->
+        <div style="display:grid;gap:14px;">
+          <div class="panel" style="background:#fff;">
+            <h3 style="font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;margin:0 0 12px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              System Overview
+            </h3>
+            <div style="display:grid;gap:8px;">
+              <div style="display:flex;justify-content:space-between;font-size:13px;border-bottom:1px solid #f1f5f9;padding-bottom:6px;">
+                <span style="color:#64748b;">Active Tasks</span>
+                <strong style="color:#1e293b;">${activeTasks}</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;border-bottom:1px solid #f1f5f9;padding-bottom:6px;">
+                <span style="color:#64748b;">P1 Escalations</span>
+                <strong style="color:#dc2626;">${p1Count}</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;border-bottom:1px solid #f1f5f9;padding-bottom:6px;">
+                <span style="color:#64748b;">Registered Engineers</span>
+                <strong style="color:#1e293b;">${engineers.length}</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:#64748b;">Pipeline Status</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:${adminPipelineRunning ? '#6366f1' : '#059669'};">
+                  <span style="width:7px;height:7px;border-radius:50%;background:${adminPipelineRunning ? '#6366f1' : '#059669'};display:inline-block;"></span>
+                  ${adminPipelineRunning ? 'Running' : 'Idle'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Integration Status ── -->
+        <div class="panel" style="background:#fff;">
+          <h3 style="font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;margin:0 0 14px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Integration Health
+          </h3>
+          <div style="display:grid;gap:10px;">
+            ${[
+              ['Jira', true, 'Webhook active on Error-404'],
+              ['Slack', true, '#engineering channel connected'],
+              ['GitHub', true, 'PR & commit feed live'],
+              ['Gmail / Outlook', true, 'Inbox polling every 60s'],
+              ['Zoom', true, 'Meeting sync active'],
+              ['Supabase DB', true, 'Connection healthy'],
+              ['NVIDIA NIM', true, 'Endpoint responding'],
+              ['Gemini Vertex AI', !adminErrorSimulated, adminErrorSimulated ? 'Rate limit — 429' : 'API quota healthy'],
+            ].map(([name, ok, detail]) => `
+              <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;background:${ok ? '#f0fdf4' : '#fef2f2'};border:1px solid ${ok ? '#bbf7d0' : '#fecaca'};">
+                <span style="width:8px;height:8px;border-radius:50%;background:${ok ? '#22c55e' : '#ef4444'};flex-shrink:0;"></span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12px;font-weight:600;color:#1e293b;">${name}</div>
+                  <div style="font-size:10.5px;color:${ok ? '#166534' : '#991b1b'};">${detail}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- ── Admin Controls ── -->
+        <div style="display:grid;gap:14px;">
+          <div class="panel" style="background:#fff;">
+            <h3 style="font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;margin:0 0 14px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Pipeline Controls
+            </h3>
+            <div style="display:grid;gap:10px;">
+              <button id="executePipelineBtn3" class="primary" style="justify-content:center;" ${adminPipelineRunning ? 'disabled' : ''}>
+                ${adminPipelineRunning ? 'Pipeline Running...' : 'Execute Pipeline'}
+              </button>
+              <button id="simulateErrorBtn3" style="padding:9px 16px;border:1px solid ${adminErrorSimulated ? '#bbf7d0' : '#fecaca'};background:${adminErrorSimulated ? '#f0fdf4' : '#fef2f2'};color:${adminErrorSimulated ? '#166534' : '#991b1b'};border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+                ${adminErrorSimulated ? 'Clear Simulated Error' : 'Simulate LLM Failure'}
+              </button>
+              <button id="resetAdminBtn3" style="padding:9px 16px;border:1px solid #e2e8f0;background:#f8fafc;color:#374151;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+                Reset System Logs
+              </button>
+            </div>
+          </div>
+
+          <div class="panel" style="background:#fff;">
+            <h3 style="font-size:13px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;margin:0 0 12px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              Security
+            </h3>
+            <div style="display:grid;gap:8px;">
+              <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                <span style="color:#64748b;">Google OAuth</span>
+                <span style="color:#059669;font-weight:600;font-size:12px;">Active</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                <span style="color:#64748b;">Row-Level Security</span>
+                <span style="color:#059669;font-weight:600;font-size:12px;">Enforced</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
+                <span style="color:#64748b;">Email Allowlist</span>
+                <span style="color:#059669;font-weight:600;font-size:12px;">Enabled</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  `;
 }
 
 // ─── Engineer Settings Page ───────────────────────────────────────────────────
@@ -7099,6 +8597,227 @@ function assignRandomTasks() {
 
 // ─── Event Binding ────────────────────────────────────────────────────────────
 function bindEvents() {
+  // Admin Dashboard Event Listeners
+  if (activeProfile === "admin") {
+    // Drag Resizer logic for VS Code Terminal
+    const resizer = document.querySelector("#terminalResizer");
+    const terminal = document.querySelector(".admin-terminal-wrapper");
+    if (resizer && terminal) {
+      resizer.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const startY = e.clientY;
+        const startHeight = terminal.offsetHeight;
+        resizer.classList.add("resizing");
+
+        const onMouseMove = (moveEvent) => {
+          const dy = startY - moveEvent.clientY;
+          const newHeight = Math.max(120, Math.min(500, startHeight + dy));
+          terminal.style.height = `${newHeight}px`;
+          localStorage.setItem("taskpilot:adminTerminalHeight", newHeight);
+        };
+
+        const onMouseUp = () => {
+          resizer.classList.remove("resizing");
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+        };
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+    }
+    // 1. Node Filtering (canvas nodes)
+    document.querySelectorAll("[data-admin-node]").forEach(el => {
+      el.addEventListener("click", () => {
+        const nodeId = el.dataset.adminNode;
+        adminSelectedNodeId = nodeId;
+        activeNvidiaNodeId = nodeId;
+        render();
+      });
+    });
+
+    // 1b. Canvas scale-to-fit using ResizeObserver
+    const scaleCanvas = () => {
+      document.querySelectorAll(".n8n-canvas-wrapper").forEach(wrapper => {
+        const inner = wrapper.querySelector(".n8n-inner");
+        if (!inner) return;
+        const W = 1408;
+        const H = 380;
+        const sw = wrapper.clientWidth - 16;
+        // NVIDIA Copilot: scale strictly by width to fill the screen fully!
+        const s = Math.min(sw / W, 1);
+        inner.style.transform = `scale(${s})`;
+        inner.style.transformOrigin = "top left";
+        inner.style.marginLeft = "0px";
+        inner.style.marginTop  = "0px";
+      });
+    };
+    scaleCanvas();
+    document.querySelectorAll(".n8n-canvas-wrapper").forEach(wrapper => {
+      const _ro = new ResizeObserver(scaleCanvas);
+      _ro.observe(wrapper);
+    });
+    
+
+    // 1c. Diagnostics journey card modal — full inline logic
+    const DIAG_JOURNEY = [
+      {id:"user",tier:"User",label:"End Users",icon:"👤",color:"#2563eb",bg:"#eff6ff",desc:"Engineers, Managers and Admins access the platform",features:[{name:"Login Page",status:"ok",detail:"Google OAuth + Supabase Auth working"},{name:"Profile Switcher",status:"ok",detail:"Switch between Admin/Engineer/Manager"},{name:"Sidebar Navigation",status:"ok",detail:"All nav items routing correctly"},{name:"Settings Popover",status:"ok",detail:"Gear icon → Settings + Sign out"}]},
+      {id:"engineer",tier:"Engineer",label:"Engineer Dashboard",icon:"🛠️",color:"#7c3aed",bg:"#f5f3ff",desc:"Task prioritization, AI scans, execution briefs",features:[{name:"Run Autonomous Scan",status:"ok",detail:"Gemini-powered task analysis"},{name:"Today's Priorities",status:"ok",detail:"P1-P3 queue rendering correctly"},{name:"Execution Brief",status:"ok",detail:"PDF export works"},{name:"AI Companion Chat",status:"ok",detail:"Gemini chat dock functional"},{name:"Jira Integration",status:"ok",detail:"Add task modal live"}]},
+      {id:"manager",tier:"Manager",label:"Manager Dashboard",icon:"📊",color:"#0d9488",bg:"#f0fdfa",desc:"Team oversight, SLA tracking, weekly standup gen",features:[{name:"Team Capacity View",status:"ok",detail:"Agent assignment visible"},{name:"Approve Handoff",status:"ok",detail:"Complete priority button working"},{name:"Weekly Standup AI",status:"ok",detail:"Gemini standup generator live"},{name:"SLA Risk Board",status:"ok",detail:"P1 tasks flagged correctly"},{name:"Dataset Insights",status:"warn",detail:"Offline mode fallback active"}]},
+      {id:"auth",tier:"Auth",label:"Google Auth + Supabase",icon:"🔐",color:"#ea580c",bg:"#fff7ed",desc:"Authentication, session management, row-level security",features:[{name:"Google OAuth Login",status:"ok",detail:"OAuth2 flow verified"},{name:"Supabase Session",status:"ok",detail:"JWT tokens refreshing"},{name:"Email Allowlist",status:"ok",detail:"Only allowed emails can log in"},{name:"RLS Policies",status:"ok",detail:"Row-level security enforced"},{name:"Logout + Cleanup",status:"ok",detail:"Session cleared on sign out"}]},
+      {id:"architecture",tier:"Architecture",label:"Full AI Pipeline",icon:"🏗️",color:"#0f766e",bg:"#f0fdfa",desc:"Agents, LLMs, data ingestion, orchestration, outputs",features:[{name:"Jira/Slack/GitHub Triggers",status:"ok",detail:"All webhooks active"},{name:"NVIDIA cuDF Pipeline",status:"ok",detail:"GPU data processing online"},{name:"Google BigQuery Warehouse",status:"ok",detail:"Schema synced"},{name:"Orchestrator Agent (ADK)",status:"ok",detail:"Multi-agent routing live"},{name:"Gemini 2.5 Flash",status:"ok",detail:"Vertex AI connected"},{name:"NVIDIA NIM Nemotron",status:"ok",detail:"NIM endpoint healthy"},{name:"Supabase DB Output",status:"ok",detail:"Write pipeline active"},{name:"Alerts & Notifications",status:"error",detail:"Slack webhook 403 — token expired"}]}
+    ];
+    const _sIcon = s => s==='ok'
+      ? '<span style="display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:50%;background:#dcfce7;"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round"/></svg></span>'
+      : s==='warn'
+        ? '<span style="display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:50%;background:#fef9c3;font-size:10px;font-weight:700;color:#b45309;">!</span>'
+        : '<span style="display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:50%;background:#fee2e2;"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M2 2l5 5M7 2l-5 5" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/></svg></span>';
+    const _sColor = s => s==='ok'?'#059669':s==='warn'?'#d97706':'#dc2626';
+    const _escH = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    function openDiagModal(nodeId) {
+      const node = DIAG_JOURNEY.find(n => n.id === nodeId);
+      if (!node) return;
+      const mc = document.getElementById('diagModalContent');
+      const modal = document.getElementById('diagNodeModal');
+      if (!mc || !modal) return;
+      const ok = node.features.filter(f=>f.status==='ok').length;
+      const warn = node.features.filter(f=>f.status==='warn').length;
+      const err = node.features.filter(f=>f.status==='error').length;
+      mc.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div style="font-size:36px;">${node.icon}</div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:${node.color};text-transform:uppercase;">${node.tier}</div>
+            <div style="font-size:18px;font-weight:800;color:#1e293b;">${node.label}</div>
+            <div style="font-size:11px;color:#64748b;">${_escH(node.desc)}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;">${ok} OK</span>
+          ${warn>0?`<span style="background:#fef9c3;color:#a16207;border:1px solid #fef08a;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;">${warn} Warning</span>`:''}
+          ${err>0?`<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;">${err} Error</span>`:''}
+        </div>
+        <div>${node.features.map(f=>`
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f8fafc;">
+            <span style="font-size:14px;">${_sIcon(f.status)}</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#1e293b;">${_escH(f.name)}</div>
+              <div style="font-size:10.5px;color:${_sColor(f.status)};">${_escH(f.detail)}</div>
+            </div>
+          </div>`).join('')}
+        </div>`;
+      modal.style.display = 'flex';
+    }
+    document.querySelectorAll(".diag-journey-card").forEach(el => {
+      el.addEventListener("click", () => openDiagModal(el.dataset.diagNode));
+    });
+    document.getElementById("closeDiagModal")?.addEventListener("click", () => {
+      document.getElementById("diagNodeModal").style.display = "none";
+    });
+    // Click handler for user journey cards in Diagnostics
+    document.querySelectorAll(".diag-journey-card").forEach(el => {
+      el.addEventListener("click", () => {
+        selectedDiagTierId = el.dataset.diagNode;
+        render();
+      });
+    });
+
+    // Deploy NVIDIA NIM Fix button click handler
+    document.querySelector("#deployNvidiaDiagFixBtn")?.addEventListener("click", (e) => {
+      e.currentTarget.disabled = true;
+      e.currentTarget.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:8px;"></span>Deploying Fix via NVIDIA NIM...`;
+      
+      // Suggest code changes in terminal view summary
+      addAdminLog("nvidia", "[NVIDIA NIM] Analysis: Expired Slack Bot Token (Slack Webhook 403) detected.");
+      addAdminLog("nvidia", "[NVIDIA NIM] Code Suggestion for slack_agent.py:");
+      addAdminLog("nvidia", "    headers = {");
+      addAdminLog("nvidia", "        'Authorization': f'Bearer {token}',");
+      addAdminLog("nvidia", "        'Content-Type': 'application/json'");
+      addAdminLog("nvidia", "    }");
+      addAdminLog("nvidia", "[NVIDIA NIM] Deploying fix patch...");
+      
+      setTimeout(() => {
+        adminArchitectureNodes.alerts.status = "healthy";
+        adminArchitectureNodes.alerts.error = null;
+        adminArchitectureNodes.alerts.code = null;
+        adminArchitectureNodes.alerts.fix = null;
+        adminErrorSimulated = false; // clear simulated failure
+        
+        addAdminLog("system", "[SYSTEM] Hotfix deployed. Webhook Alerts restored to Healthy status.");
+        triggerLocalNotification("NVIDIA NIM Fix Deployed", "Slack webhook bot token updated successfully.");
+        render();
+      }, 2000);
+    });
+
+    document.getElementById("diagNodeModal")?.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.style.display = "none";
+    });
+
+    // 2. Log Filter select dropdown
+    const filterEl = document.querySelector("#adminNodeFilter");
+    if (filterEl) {
+      filterEl.addEventListener("change", (e) => {
+        adminSelectedNodeId = e.target.value;
+        render();
+      });
+    }
+
+    // 3. Execute Pipeline buttons
+    document.querySelector("#executePipelineBtn")?.addEventListener("click", () => {
+      runAdminPipeline();
+    });
+    document.querySelector("#executePipelineBtn2")?.addEventListener("click", () => {
+      runAdminPipeline();
+    });
+    document.querySelector("#executePipelineBtn3")?.addEventListener("click", () => {
+      runAdminPipeline();
+    });
+
+    // 4. Simulate LLM Error buttons
+    document.querySelector("#simulateErrorBtn")?.addEventListener("click", () => {
+      triggerAdminErrorSimulation();
+    });
+    document.querySelector("#simulateErrorBtn2")?.addEventListener("click", () => {
+      triggerAdminErrorSimulation();
+    });
+    document.querySelector("#simulateErrorBtn3")?.addEventListener("click", () => {
+      triggerAdminErrorSimulation();
+    });
+
+    // 5. Reset System buttons
+    document.querySelector("#resetAdminBtn")?.addEventListener("click", () => {
+      resetAdminSystem();
+    });
+    document.querySelector("#resetAdminBtn2")?.addEventListener("click", () => {
+      resetAdminSystem();
+    });
+    document.querySelector("#resetAdminBtn3")?.addEventListener("click", () => {
+      resetAdminSystem();
+    });
+
+    // 6. Deploy suggested fix via NVIDIA NIM
+    document.querySelector("#deployNvidiaFixBtn")?.addEventListener("click", (e) => {
+      const nodeId = e.currentTarget.dataset.nodeId;
+      if (nodeId && adminArchitectureNodes[nodeId]) {
+        e.currentTarget.disabled = true;
+        e.currentTarget.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:8px;"></span>Deploying Fix via NVIDIA NIM...`;
+        
+        setTimeout(() => {
+          adminArchitectureNodes[nodeId].status = "healthy";
+          adminArchitectureNodes[nodeId].error = null;
+          adminArchitectureNodes[nodeId].code = null;
+          adminArchitectureNodes[nodeId].fix = null;
+          
+          triggerLocalNotification(
+            "Hotfix Deployed", 
+            `NVIDIA NIM successfully deployed resolution patch to ${adminArchitectureNodes[nodeId].name}.`
+          );
+          
+          render();
+        }, 1500);
+      }
+    });
+  }
   // Theme Toggling
   const themeToggleBtn = document.querySelector("#themeToggleBtn");
   if (themeToggleBtn) {
@@ -7362,15 +9081,43 @@ function bindEvents() {
   if (panelSettingsBtn) {
     panelSettingsBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      activePage = "settings";
+      showSettingsMenu = !showSettingsMenu;
+      showStatusSelector = false; // Close status selector
       render();
     });
   }
 
-  // Close status selector menu when clicking anywhere else
+  // Settings menu button clicks
+  document.querySelector("#sidebarGoToSettingsBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showSettingsMenu = false;
+    activePage = "settings";
+    render();
+  });
+
+  document.querySelector("#sidebarSignOutBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showSettingsMenu = false;
+    authSession = null;
+    completedTaskIds = [];
+    workingTaskIds = [];
+    managerActivityFeed = [];
+    localStorage.removeItem("taskpilot:session");
+    render();
+  });
+
+  // Close menus when clicking anywhere else
   document.addEventListener("click", () => {
+    let needsRender = false;
     if (showStatusSelector) {
       showStatusSelector = false;
+      needsRender = true;
+    }
+    if (showSettingsMenu) {
+      showSettingsMenu = false;
+      needsRender = true;
+    }
+    if (needsRender) {
       render();
     }
   });
@@ -8536,7 +10283,7 @@ function bindEvents() {
       startRealtimeSync();
 
       // Fallback page if current page isn't in new profile's navigation
-      const currentNav = activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
+      const currentNav = getActiveNav();
       const isValidPage = currentNav.some(g => g.items.some(([id]) => id === activePage));
       if (!isValidPage) {
         activePage = "overview";
@@ -8568,7 +10315,7 @@ function bindEvents() {
     // Update topbar subtitle in real time without triggering full render (to prevent focus steal)
     const subtitleEl = document.querySelector(".topbar-subtitle");
     if (subtitleEl) {
-      subtitleEl.innerHTML = `Active Profile: <strong>${escapeHtml(name)}</strong> (${activeProfile === "manager" ? "Manager" : "Engineer"}) &middot; ${escapeHtml(authSession?.email || "")}`;
+      subtitleEl.innerHTML = `Active Profile: <strong>${escapeHtml(name)}</strong> (${getProfileLabel()}) &middot; ${escapeHtml(authSession?.email || "")}`;
     }
   });
 
@@ -8614,7 +10361,7 @@ function bindEvents() {
     completedTaskIds = getMyCompletedIds();
     workingTaskIds   = getMyWorkingIds();
     startRealtimeSync();
-    const currentNav = activeProfile === "manager" ? MANAGER_NAV : ENGINEER_NAV;
+    const currentNav = getActiveNav();
     const isValidPage = currentNav.some(g => g.items.some(([id]) => id === activePage));
     if (!isValidPage) {
       activePage = "overview";
@@ -10053,7 +11800,7 @@ function detectContext(selected) {
   return {
     app: { name: primarySource || "TaskPilot" },
     task: selected.canonicalTitle,
-    profile: demoProfiles[activeProfile].name,
+    profile: demoProfiles[activeProfile]?.name || "Admin",
     trust: teeSession.status
   };
 }
