@@ -3,16 +3,16 @@
  * Uses anon key (safe for frontend — RLS is enforced server-side).
  */
 
-const SUPABASE_URL  = "https://pfotrcjqnopvyihwqvhu.supabase.co";
-const SUPABASE_ANON = "sb_publishable_zcHEO26770jC8ZG5NdUx0w_lrdz8wuV";
+function getSupabaseUrl() { return (window.__TASKPILOT_CONFIG__?.supabaseUrl) || "https://pzovknqrllnifvsrjvts.supabase.co"; }
+function getSupabaseAnon() { return (window.__TASKPILOT_CONFIG__?.supabaseAnonKey) || ""; }
 
 // ─── Minimal REST helper (no npm package needed) ──────────────────────────────
 function sbFetch(path, opts = {}) {
-  return fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+  return fetch(`${getSupabaseUrl()}/rest/v1${path}`, {
     ...opts,
     headers: {
-      "apikey": SUPABASE_ANON,
-      "Authorization": `Bearer ${SUPABASE_ANON}`,
+      "apikey": getSupabaseAnon(),
+      "Authorization": `Bearer ${getSupabaseAnon()}`,
       "Content-Type": "application/json",
       "Prefer": opts.prefer || "return=representation",
       ...(opts.headers || {})
@@ -130,7 +130,7 @@ export async function saveAssignment(assignment) {
 
 // ─── Realtime subscription for completions (live dashboard) ──────────────────
 export function subscribeToCompletions(userEmail, onInsert, onDelete) {
-  const wsUrl = SUPABASE_URL.replace("https://", "wss://") + "/realtime/v1/websocket?apikey=" + SUPABASE_ANON + "&vsn=1.0.0";
+  const wsUrl = getSupabaseUrl().replace("https://", "wss://") + "/realtime/v1/websocket?apikey=" + getSupabaseAnon() + "&vsn=1.0.0";
   let ws;
   try {
     ws = new WebSocket(wsUrl);
@@ -178,7 +178,7 @@ export async function loadAllWorkingTasks() {
 
 // ─── Subscribe to ALL database completions & working changes (real-time) ──────
 export function subscribeToAllDatabaseChanges(onCompletionChange, onWorkingChange) {
-  const wsUrl = SUPABASE_URL.replace("https://", "wss://") + "/realtime/v1/websocket?apikey=" + SUPABASE_ANON + "&vsn=1.0.0";
+  const wsUrl = getSupabaseUrl().replace("https://", "wss://") + "/realtime/v1/websocket?apikey=" + getSupabaseAnon() + "&vsn=1.0.0";
   let ws;
   try {
     ws = new WebSocket(wsUrl);
@@ -218,4 +218,21 @@ export function subscribeToAllDatabaseChanges(onCompletionChange, onWorkingChang
     ws.onerror = () => {};
   } catch {}
   return { close: () => ws?.close() };
+}
+
+// ─── Log sign-in history of engineer or manager ───────────────────────────────
+export async function logUserLogin(userEmail, userName, role) {
+  try {
+    await sbFetch("/user_logins", {
+      method: "POST",
+      prefer: "resolution=ignore-duplicates",
+      body: JSON.stringify({
+        user_email: userEmail,
+        user_name: userName,
+        role: role
+      })
+    });
+  } catch (err) {
+    console.warn("[TaskPilot] Supabase logUserLogin failed:", err.message);
+  }
 }

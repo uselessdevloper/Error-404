@@ -218,7 +218,7 @@ const server = createServer(async (request, response) => {
       teeMode: env.TASKPILOT_TEE_MODE || "local-attested",
       supabaseConfigured: Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY),
       supabaseUrl: env.SUPABASE_URL || "",
-      supabaseAnonKey: env.SUPABASE_ANON_KEY ? "configured" : "",
+      supabaseAnonKey: env.SUPABASE_ANON_KEY || "",
       backendPort: env.TASKPILOT_PORT || "8787",
       llmModel: env.LLM_MODEL || "gemini-2.5-flash"
     });
