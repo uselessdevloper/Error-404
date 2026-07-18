@@ -1894,20 +1894,7 @@ h2 {
 
 /* ─── Role Themes ────────────────────────────────────────────────────────── */
 
-.role-manager .nav-group button span {
-  color: #18745f;
-  background: #eaf6f2;
-}
 
-.role-manager .nav-group button.active {
-  background: #fff;
-  color: #116854;
-}
-
-.role-manager .nav-group button.active span {
-  background: #18745f;
-  color: #fff;
-}
 
 .role-engineer .brand-mark {
   /* logo image used — no background override needed */
@@ -4296,15 +4283,7 @@ h2 {
   justify-content: center;
 }
 
-/* Manager active state overrides */
-.role-manager .nav-group button.active {
-  background: #e3f5f0 !important;
-  color: #18745f !important;
-}
 
-.role-manager .nav-group button.active::before {
-  background: #18745f !important;
-}
 
 /* ── Source tile card (All Sources overview) ────────────────────────────── */
 .src-tile {
