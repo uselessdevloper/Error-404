@@ -3,7 +3,6 @@ import { backendData } from "./generated/backendData.js";
 const referenceToday = "2026-06-21";
 const allowedOverdueSources = new Set(["jira", "github"]);
 const overdueCounts = { jira: 0, github: 0 };
-
 export const sources = backendData.sources.map(source => {
   const sourceId = source.id;
   const items = source.items.map(item => {

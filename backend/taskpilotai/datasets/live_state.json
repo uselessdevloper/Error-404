@@ -1,5 +1,9 @@
 {
-  "completedTaskIds": [],
+  "completedTaskIds": [
+    "task-14",
+    "task-269",
+    "task-1"
+  ],
   "workingTaskIds": [],
   "taskTimeLogs": {
     "task-1": {
@@ -7,7 +11,7 @@
       "severity": "P1",
       "source": "Jira Sprint Board + ServiceNow Defects + Outlook Emails + Slack Mentions",
       "startTime": "2026-06-22T12:56:00.605Z",
-      "endTime": "2026-06-22T13:26:00.605Z"
+      "endTime": "2026-07-19T13:11:06.183Z"
     },
     "task-171": {
       "title": "Customer escalation: API rate limit increase request",
@@ -22,9 +26,101 @@
       "source": "GitHub",
       "startTime": "2026-06-22T13:10:06.546Z",
       "endTime": "2026-06-22T13:40:06.546Z"
+    },
+    "task-269": {
+      "title": "Prepare quarterly engineering dependency review",
+      "severity": "P1",
+      "source": "Meeting Notes",
+      "startTime": "2026-07-19T12:03:59.855Z",
+      "endTime": "2026-07-19T12:07:21.231Z"
+    },
+    "task-14": {
+      "title": "Fix customer export job failures",
+      "severity": "P1",
+      "source": "Jira Sprint Board",
+      "startTime": "2026-07-19T12:04:05.821Z",
+      "endTime": "2026-07-19T12:07:21.719Z"
     }
   },
   "managerActivityFeed": [
+    {
+      "message": "✓ Utkarsh Sinha completed \"Fix CSV upload timeout for enterprise imports\" (P1)",
+      "color": "#22a06b",
+      "time": "06:41 PM",
+      "taskId": "task-1"
+    },
+    {
+      "message": "✓ Utkarsh Sinha completed \"Fix customer export job failures\" (P1)",
+      "color": "#22a06b",
+      "time": "05:37 PM",
+      "taskId": "task-14"
+    },
+    {
+      "message": "✓ Utkarsh Sinha completed \"Prepare quarterly engineering dependency review\" (P1)",
+      "color": "#22a06b",
+      "time": "05:37 PM",
+      "taskId": "task-269"
+    },
+    {
+      "message": "Reassigned \"Refactor notification preferences component\" from Utkarsh to Utkarsh",
+      "time": "5:27:24 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Adjusted severity of \"Refactor notification preferences component\" from P4 to P4",
+      "time": "5:27:24 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Adjusted severity of \"Refactor notification preferences component\" from P3 to P4",
+      "time": "5:27:23 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Reassigned \"API gateway rejecting valid requests intermittently\" from Utkarsh to Neha",
+      "time": "5:10:11 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Adjusted severity of \"API gateway rejecting valid requests intermittently\" from P4 to P4",
+      "time": "5:10:07 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Adjusted severity of \"API gateway rejecting valid requests intermittently\" from P1 to P4",
+      "time": "5:10:07 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Reassigned \"Urgent: API error rate increase detected\" from Utkarsh to Sanya",
+      "time": "5:10:03 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Adjusted severity of \"Urgent: API error rate increase detected\" from P3 to P4",
+      "time": "5:09:59 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Adjusted severity of \"Urgent: API error rate increase detected\" from P3 to P3",
+      "time": "5:09:58 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Adjusted severity of \"Urgent: API error rate increase detected\" from P2 to P3",
+      "time": "5:09:57 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Adjusted severity of \"Urgent: API error rate increase detected\" from P1 to P2",
+      "time": "5:09:56 PM",
+      "color": "#e67e22"
+    },
+    {
+      "message": "Reassigned \"Platform team blocked by API gateway errors\" from Utkarsh to Meera",
+      "time": "5:09:54 PM",
+      "color": "#0c66e4"
+    },
     {
       "message": "Reassigned \"Infrastructure auto-scaling not responding to load spikes\" from Sanya to Vikram (balanced: Sanya count 28, Vikram count 28)",
       "time": "7:15:12 PM",
@@ -97,6 +193,36 @@
     }
   ],
   "managerTaskPosts": [
+    {
+      "id": "DONE-task-1",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Completed by Utkarsh Sinha at 06:41 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-07-19T13:11:06.183Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-14",
+      "title": "Fix customer export job failures",
+      "description": "Completed by Utkarsh Sinha at 05:37 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-07-19T12:07:21.719Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-269",
+      "title": "Prepare quarterly engineering dependency review",
+      "description": "Completed by Utkarsh Sinha at 05:37 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Utkarsh Sinha",
+      "postedAt": "2026-07-19T12:07:21.231Z",
+      "type": "completion"
+    },
     {
       "id": "MGR-78107",
       "title": "Fix CSV upload timeout for enterprise imports",
@@ -231,6 +357,10 @@
     "MAIL-944": "Rohan",
     "INC-7880": "Vikram",
     "SLACK-75": "Vikram",
-    "SLACK-92": "Vikram"
+    "SLACK-92": "Vikram",
+    "SLACK-117": "Meera",
+    "MAIL-962": "Sanya",
+    "INC-7856": "Neha",
+    "JIRA-399": "Utkarsh"
   }
 }
