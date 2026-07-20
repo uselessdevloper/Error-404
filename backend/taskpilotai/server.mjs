@@ -1274,6 +1274,24 @@ Return ONLY valid JSON.`;
     return;
   }
 
+  if (url.pathname === "/" || url.pathname === "/health") {
+    response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({
+      status: "online",
+      service: "TaskPilot AI Multi-Agent Backend Server",
+      port: port,
+      timestamp: new Date().toISOString(),
+      activeAgents: ["jira", "email", "servicenow", "github", "slack", "notes"],
+      endpoints: {
+        stats: "/api/agent/stats",
+        prioritized: "/api/agent/prioritized",
+        scanStream: "/api/agent/scan-stream",
+        taskpilotState: "/api/taskpilot/state"
+      }
+    }, null, 2));
+    return;
+  }
+
   response.writeHead(404, { "content-type": "application/json" });
   response.end(JSON.stringify({ error: "Not found" }));
 });

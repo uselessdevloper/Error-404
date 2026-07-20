@@ -179,6 +179,7 @@ export function flattenSources(sources) {
       sourceId: source.id,
       sourceName: source.name,
       sourceColor: source.color,
+      type: item.type || source.type,
       rawText: `${item.title}. ${item.body}`
     }))
   );

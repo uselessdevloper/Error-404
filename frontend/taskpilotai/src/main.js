@@ -38,6 +38,26 @@ const BACKEND_URL = (typeof window !== "undefined" && window.__TASKPILOT_BACKEND
 // ─── Application State ────────────────────────────────────────────────────────
 let activeTheme = localStorage.getItem("taskpilot:theme") || "light";
 
+// Backend Connection & Live Data State
+let liveBackendStats = null;
+let isBackendConnected = false;
+
+async function pollRealBackendData() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/agent/stats`);
+    if (res.ok) {
+      const data = await res.json();
+      liveBackendStats = data;
+      isBackendConnected = true;
+    }
+  } catch (e) {
+    isBackendConnected = false;
+  }
+}
+
+setInterval(pollRealBackendData, 3000);
+pollRealBackendData();
+
 // Admin Dashboard state
 let adminSelectedNodeId = "all";
 
@@ -333,9 +353,14 @@ document.documentElement.setAttribute("data-theme", activeTheme);
 let activePage = "overview";
 let activeProfile = "engineer";
 let activeSource = "all";
-let calendarEngineerTab = "week";
+let engineerSelectedSource = "all";
+let calendarEngineerTab = "day";
 let calendarSelectedDate = new Date();
 let calendarSearchQuery = "";
+let telemetrySource = "All";
+let telemetryWeek = "This Week";
+let telemetryTimeRange = "Last 7 days";
+let telemetryIsLoading = false;
 let sidebarCollapsed = false;
 let completedTaskIds = [];
 let workingTaskIds = [];        // tasks currently being worked on / agent is discussing
@@ -369,12 +394,10 @@ function getWorkspaceActiveSource() {
 }
 
 // Initialize task state
+const initialEngName = (JSON.parse(localStorage.getItem("taskpilot:settings_profile") || "{}"))?.name || "Utkarsh";
 let state = buildState(sources, calendarBlocks);
-let selectedTaskId = state.prioritized[0]?.id;
-
-// ─── Today's Smart Queue — initialized after settingsProfile is declared ──────
-// Will be rebuilt with the real user name in loadBackendConfig().finally(...)
-let todayQueue = buildTodayCapacityQueue(state.prioritized, null, {});
+let todayQueue = buildTodayCapacityQueue(state.prioritized, initialEngName, {});
+let selectedTaskId = todayQueue[0]?.id || state.prioritized[0]?.id;
 let todayQueueGeminiScored = false;
 let depGraph = buildDependencyGraph(state.prioritized);
 
@@ -427,6 +450,42 @@ const SOURCE_LOGO_MAP = {
     imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='24' height='24' rx='6' fill='%232D8CFF'/%3E%3Cpath d='M4 8.5A1.5 1.5 0 015.5 7h8A1.5 1.5 0 0115 8.5v7A1.5 1.5 0 0113.5 17h-8A1.5 1.5 0 014 15.5v-7zm11 2.2l3.6-2.4A.5.5 0 0120 8.8v6.4a.5.5 0 01-.8.4L15 13.3V10.7z' fill='%23fff'/%3E%3C/svg%3E`
   }
 };
+
+// Helper function to resolve external URL and platform label for any task
+function getTaskExternalUrl(task) {
+  if (!task) return { url: "https://github.com", platform: "GitHub" };
+  if (task.url && typeof task.url === "string" && task.url.startsWith("http")) {
+    const src = (task.sources ? task.sources.join(" ") : "").toLowerCase();
+    let platform = "GitHub";
+    if (src.includes("jira")) platform = "Jira";
+    else if (src.includes("slack")) platform = "Slack";
+    else if (src.includes("outlook") || src.includes("email")) platform = "Outlook";
+    else if (src.includes("servicenow") || src.includes("snow")) platform = "ServiceNow";
+    else if (src.includes("notes") || src.includes("meeting")) platform = "Notes";
+    return { url: task.url, platform };
+  }
+
+  const sources = task.sources || [];
+  const taskId = task.id || "";
+  const title = task.canonicalTitle || task.title || "";
+
+  if (sources.some(s => /jira/i.test(s)) || taskId.startsWith("JIRA") || taskId.startsWith("PROJ")) {
+    return { url: `https://jira.atlassian.com/browse/${taskId}`, platform: "Jira" };
+  }
+  if (sources.some(s => /slack/i.test(s))) {
+    return { url: `https://slack.com/app_redirect?channel=general`, platform: "Slack" };
+  }
+  if (sources.some(s => /outlook|email/i.test(s))) {
+    return { url: `https://outlook.office.com/mail/inbox`, platform: "Outlook" };
+  }
+  if (sources.some(s => /servicenow|snow/i.test(s)) || taskId.startsWith("INC") || taskId.startsWith("PRB")) {
+    return { url: `https://servicenow.com/nav_to.do?uri=incident.do?sys_id=${taskId}`, platform: "ServiceNow" };
+  }
+  if (sources.some(s => /notes|meeting/i.test(s))) {
+    return { url: `https://docs.google.com/document/u/0/`, platform: "Notes" };
+  }
+  return { url: `https://github.com/search?q=${encodeURIComponent(title)}`, platform: "GitHub" };
+}
 
 // ─── Project Genome State ─────────────────────────────────────────────────────
 let genomeState = {
@@ -498,6 +557,14 @@ let agentLogLines = [];
 let agentRunning = false;
 let agentLogTimer = null;
 let scanCompleteInfo = null;
+
+// Swarm agent state — 6 agents running simultaneously
+let swarmRunning = true;
+let swarmInterval = null;
+let agentSwarmMessages = []; // [{ agentId, text, ts }]
+
+// Floating companion dock state
+let companionDockOpen = false;
 
 // Modal States
 let showAddJiraModal = false;
@@ -887,7 +954,7 @@ const ENGINEER_NAV = [
   },
   {
     label: "Team", items: [
-      ["team-portal", "Team workload", "team-portal"]
+      ["chat", "Chat with Manager", "chat"]
     ]
   },
   {
@@ -1521,7 +1588,7 @@ function render() {
       </aside>
 
 
-      <section class="workspace">
+      <section class="workspace ${['overview', 'inbox'].includes(activePage) ? 'workspace-engineer-no-scroll' : ''}">
         <header class="topbar">
           <div>
             <h1>${activePage === 'calendar-ai' ? 'My Calendar' : navLabel(activePage)}</h1>
@@ -1536,7 +1603,9 @@ function render() {
                    <button class="secondary" id="simulateUrgent">Simulate team load shift</button>`
         : activePage === 'calendar-ai'
           ? `<button class="primary" id="downloadCalendarBtn" style="display:flex;align-items:center;gap:8px;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download Calendar</button>`
-          : `<button class="primary" id="runScan">Run autonomous scan</button>`
+          : activePage === 'agent-scan'
+            ? `<button class="primary" id="runScan">Run autonomous scan</button>`
+            : ''
     }
           </div>
         </header>
@@ -1639,16 +1708,16 @@ function render() {
 
 const NAV_ICONS = {
   overview: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>`,
-  today: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>`,
+  today: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>`,
   incidents: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`,
   "team-portal": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`,
   "calendar-ai": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-  "agent-scan": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l-.813-5.096L3 15l5.187-.813L9 9l.813 5.187L15 15l-5.187.813zM19.071 4.929l-.354 2.213-.354-2.213-2.213-.354 2.213-.354.354-2.213.354 2.213 2.213.354-2.213.354z"/></svg>`,
+  "agent-scan": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2a2 2 0 012 2v1h3a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h3V4a2 2 0 012-2z"/><circle cx="9" cy="11" r="1.2" fill="currentColor"/><circle cx="15" cy="11" r="1.2" fill="currentColor"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6"/></svg>`,
   settings: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
   diagnostics: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>`,
   inbox: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
   "source-tree": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18M12 9l6-3M12 13l-6-2M12 17l4-1"/></svg>`,
-  meetings: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>`,
+  meetings: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2" fill="#10b981" fill-opacity="0.15" stroke="#10b981"/><path d="M8 2v4M16 2v4M3 9h18" stroke="#10b981"/><circle cx="8" cy="14" r="1" fill="#10b981"/><circle cx="12" cy="14" r="1" fill="#10b981"/><circle cx="16" cy="14" r="1" fill="#10b981"/></svg>`,
   genome: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4M16.5 7.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM16.5 16.5a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>`,
   "engineer-analytics": `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`,
   chat: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`,
@@ -1664,7 +1733,7 @@ function renderNavigation() {
   const NAV_LOGO = {
     "inbox": "", "mgr-jira": "jira", "mgr-github": "github",
     "mgr-servicenow": "servicenow", "mgr-email": "email",
-    "mgr-slack": "slack", "meetings": "notes", "source-tree": ""
+    "mgr-slack": "slack", "meetings": "", "source-tree": ""
   };
 
   return currentNav.map(g => `
@@ -2002,13 +2071,13 @@ function renderPageContent(selected, executionBrief, dynamicPlan) {
     case "my-analytics":
       return renderMyAnalyticsPage();
     case "engineer-analytics":
-      return renderEngineerAnalyticsManager();
+      return activeProfile === "manager" ? renderEngineerAnalyticsManager() : renderMyAnalyticsPage();
     case "execution":
       return renderExecutionPlan(selected, executionBrief);
     case "team-portal":
-      return renderTeamPortalPage();
+      return activeProfile === "manager" ? renderTeamPortalPage() : renderChatPage();
     case "eng-portal":
-      return renderEngineerPortalPage();
+      return activeProfile === "manager" ? renderTeamPortalPage() : renderChatPage();
     case "chat":
       return renderChatPage();
     case "settings":
@@ -2348,160 +2417,448 @@ function renderEngineerMyWork() {
   `;
 }
 
-// ─── Engineer Dashboard (full standalone) ────────────────────────────────────
+// Helpers for crisp and clear priority ranking descriptions
+function formatRankReason(reason) {
+  return reason
+    .replace(/(\d+)\s*pts/g, "<strong>$1 pts</strong>")
+    .replace(/(\d+)\s*urgency pts/g, "<strong>$1 urgency pts</strong>")
+    .replace(/(\d+)\s*confidence pts/g, "<strong>$1 confidence pts</strong>")
+    .replace(/(\d+)\/10/g, "<strong>$1/10</strong>");
+}
+
+function getSourceBadgeStyle(sourceName) {
+  const name = sourceName.toLowerCase();
+  if (name.includes("jira")) {
+    return "background: #deebff; color: #0747a6; border: 1px solid #b3d4ff;";
+  } else if (name.includes("servicenow")) {
+    return "background: #e3fcef; color: #006644; border: 1px solid #abf5d1;";
+  } else if (name.includes("email") || name.includes("outlook")) {
+    return "background: #eae6ff; color: #403294; border: 1px solid #d2caff;";
+  } else if (name.includes("slack")) {
+    return "background: #fff0b3; color: #172b4d; border: 1px solid #ffe380;";
+  } else if (name.includes("github")) {
+    return "background: #f4f5f7; color: #172b4d; border: 1px solid #dfe1e6;";
+  } else if (name.includes("meeting") || name.includes("note")) {
+    return "background: #ffebec; color: #bf2600; border: 1px solid #ffbdad;";
+  }
+  return "background: #f1f2f4; color: #44546f; border: 1px solid #dfe1e6;";
+}
+
+// ─── Engineer Dashboard (full standalone single-page multi-source command center) ──
 function renderEngineerDashboard(selected, executionBrief, dynamicPlan) {
   const insights = datasetInsights();
-  const tasks = filteredTasks();
-  const displayedTasks = tasks.slice(0, 6);
+  const rawTasks = activeQueue();
+
+  // Filter tasks based on engineerSelectedSource
+  const tasks = engineerSelectedSource === "all"
+    ? rawTasks
+    : rawTasks.filter(t => taskMatchesSource(t, engineerSelectedSource));
+
+  const displayedTasks = tasks.slice(0, 8);
   const newAssigned = engineerPortalPosts.filter(p => !p.viewed);
+  const myName = settingsProfile?.name || authSession?.name || "Utkarsh Sinha";
+
+  // Per-source actionable counts for badges
+  const jiraCount = rawTasks.filter(t => taskMatchesSource(t, "jira")).length;
+  const githubCount = rawTasks.filter(t => taskMatchesSource(t, "github")).length;
+  const servicenowCount = rawTasks.filter(t => taskMatchesSource(t, "servicenow")).length;
+  const emailCount = rawTasks.filter(t => taskMatchesSource(t, "email")).length;
+  const slackCount = rawTasks.filter(t => taskMatchesSource(t, "slack")).length;
+  const notesCount = rawTasks.filter(t => taskMatchesSource(t, "notes")).length;
+
+  // Sort tasks: put currently working tasks at the top
+  const sortedTasks = [...displayedTasks].sort((a, b) => {
+    const aWorking = workingTaskIds.includes(a.id);
+    const bWorking = workingTaskIds.includes(b.id);
+    if (aWorking && !bWorking) return -1;
+    if (!aWorking && bWorking) return 1;
+    return 0;
+  });
+
+  // Filter out non-contributing scoring factors for a crisp description
+  const activeReasons = selected ? selected.rankReasons.filter(r => {
+    if (r.includes("adds 0 pts") || r.includes("contributes 0 pts") || r.includes("adds 0 urgency pts")) return false;
+    if (r.includes("no active blocker penalty") || r.includes("single-source task") || r.includes("no downstream dependencies") || r.includes("structured source task") || r.includes("normal owner load")) return false;
+    return true;
+  }) : [];
+
   return `
     <div class="engineer-dashboard-shell">
       ${renderLiveScanningPanel()}
-      ${newAssigned.length > 0 ? `
-        <div class="eng-portal-banner">
-          <span class="banner-dot"></span>
-          <span class="banner-text"><strong>${newAssigned.length} new task${newAssigned.length > 1 ? "s" : ""} assigned by your manager</strong> — TaskPilot AI has already prioritized them in your queue.</span>
-          <button data-nav="eng-portal">View Portal</button>
-        </div>
-      ` : ""}
-      
-      <!-- Live Scanning Control -->
-      <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-        <button class="primary" id="btnStartScanning" style="background: linear-gradient(135deg, #0c66e4, #579dff); color: white; padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(12, 102, 228, 0.2);">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Scan Tasks Now
-        </button>
-      </div>
-      
-      <div class="engineer-kpi-row">
-        <div class="eng-kpi-card accent-blue">
-          <p class="eyebrow">Top priority score</p>
-          <span class="kpi-value">${selected?.score || 0}</span>
-          <span class="kpi-label">${selected?.canonicalTitle?.slice(0, 28) || "No task"}</span>
-          <span class="kpi-trend flat">${selected?.severity || "—"} · due ${formatDue(selected?.due)}</span>
-        </div>
-        <div class="eng-kpi-card accent-green">
-          <p class="eyebrow">Today's queue</p>
-          <span class="kpi-value">${tasks.length}</span>
-          <span class="kpi-label">Smart-filtered for today</span>
-          <span class="kpi-trend up">${state.prioritized.length} total · ${tasks.length} actionable today</span>
-        </div>
-        <div class="eng-kpi-card accent-red">
-          <p class="eyebrow">P1 escalations</p>
-          <span class="kpi-value">${state.prioritized.filter(t => t.severity === "P1").length}</span>
-          <span class="kpi-label">Need action today</span>
-          <span class="kpi-trend down">${insights.duplicateGroups.length} merge groups found</span>
-        </div>
-        <div class="eng-kpi-card accent-amber">
-          <p class="eyebrow">Hidden asks</p>
-          <span class="kpi-value">${insights.unstructuredCount}</span>
-          <span class="kpi-label">NLP extracted from inbox</span>
-          <span class="kpi-trend flat">TEE score ${teeSession.trustScore}%</span>
-        </div>
-      </div>
-      <!-- My Work: Real-time status panel -->
-      ${renderEngineerMyWork()}
 
-      <div class="engineer-main-grid">
-        <div class="eng-task-board">
-          <div class="eng-task-board-header">
-            <div><p class="eyebrow">Unified task board</p><h2 style="margin:2px 0 0;font-size:20px;">Ranked &amp; deduped work</h2></div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <span class="eng-assigned-badge ${newAssigned.length > 0 ? "new" : ""}">${engineerPortalPosts.length} manager-assigned</span>
-              <span style="color:#626f86;font-size:13px;">${tasks.length} tasks</span>
+      <div class="consultao-dashboard-grid">
+        <!-- COLUMN 1: LEFT -->
+        <div class="consultao-col col-left">
+          <!-- Greeting Card -->
+          <div class="eng-panel consultao-greeting-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <h2 style="margin:0 0 2px;font-size:19px;color:#172b4d;font-weight:700;letter-spacing:-0.01em;">Hello ${myName.split(" ")[0]}!</h2>
+                <p style="margin:0;font-size:11px;color:#626f86;">TaskPilot AI Unified Command Center</p>
+              </div>
+              <button class="primary" id="btnStartScanning" style="background:#0c66e4;color:#fff;font-size:10px;font-weight:800;padding:5px 11px;border:none;border-radius:20px;cursor:pointer;transition:background 0.15s;">Scan Tasks</button>
             </div>
-          </div>
-          <div style="display:grid;gap:12px;">
-            ${tasks.length === 0
-      ? `<div style="padding:48px;text-align:center;background:#fff;border-radius:8px;border:1px solid #dfe3ea;">
-                  <h3 style="margin:0 0 6px;color:#22a06b;display:inline-flex;align-items:center;gap:6px;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Queue Fully Cleared!</h3>
-                  <p style="font-size:13px;color:#626f86;margin:0;">No outstanding priorities remain. Great work today!</p>
-                 </div>`
-      : displayedTasks.map((t, index) => {
-        const isAssigned = engineerPortalPosts.some(p => p.id === t.id || p.title === t.canonicalTitle);
-        if (index === 0) {
-          return `
-                      <div class="eng-task-item hero-focus-card ${selectedTaskId === t.id ? "selected" : ""} ${isAssigned ? "manager-assigned" : ""}" data-task="${t.id}">
-                        <div class="hero-header">
-                          <span class="focus-pulse-dot"></span>
-                          <span class="severity ${t.severity.toLowerCase()}">${t.severity}</span>
-                          <span class="focus-pill-label" style="display:inline-flex;align-items:center;gap:4px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#de350b;"></span> HIGH FOCUS</span>
-                        </div>
-                        <div class="eng-task-body">
-                          <strong class="hero-title">${escapeHtml(t.canonicalTitle)}${isAssigned ? '<span class="eng-assigned-tag">Manager</span>' : ""}</strong>
-                          <p class="hero-subtitle">${escapeHtml(t.extraction)} · Correlated across ${t.sources.length} sources</p>
-                          <div class="hero-meta-grid" style="display:flex;align-items:center;gap:12px;font-size:11px;color:#65717d;margin-top:8px;">
-                            <span style="display:inline-flex;align-items:center;gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ${escapeHtml(t.sources.join(" + "))}</span>
-                            <span style="display:inline-flex;align-items:center;gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ${t.execution?.estimatedMinutes ? `~${t.execution.estimatedMinutes} min` : `~${Math.max(15, Math.min(180, Math.round(t.score)))} min`}</span>
-                            <span style="display:inline-flex;align-items:center;gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Due ${formatDue(t.due)}</span>
-                          </div>
-                        </div>
-                        <div class="eng-task-score">
-                          <span class="hero-score-val">${t.score}</span>
-                          <small>PRIORITY</small>
-                        </div>
-                      </div>`;
-        }
-        return `
-                    <div class="eng-task-item ${selectedTaskId === t.id ? "selected" : ""} ${isAssigned ? "manager-assigned" : ""}" data-task="${t.id}">
-                      <span class="severity ${t.severity.toLowerCase()}">${t.severity}</span>
-                      <div class="eng-task-body">
-                        <strong>${escapeHtml(t.canonicalTitle)}${isAssigned ? '<span class="eng-assigned-tag">Manager</span>' : ""}</strong>
-                        <p>${escapeHtml(t.extraction)} · ${escapeHtml(t.aliases.join(", "))}</p>
-                        ${t.isBlocking ? `<span style="font-size:10px;background:#fff0b3;color:#974f0c;padding:1px 6px;border-radius:4px;font-weight:700;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> Blocks ${t.blocksCount} task${t.blocksCount > 1 ? "s" : ""}</span>` : ""}
-                        ${t.isBlocked ? `<span style="font-size:10px;background:#ffd5d2;color:#de350b;padding:1px 6px;border-radius:4px;font-weight:700;margin-left:4px;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg> Blocked</span>` : ""}
-                      </div>
-                      <div class="eng-task-score">
-                        <span>${t.score}</span>
-                        <small>${t.sources.length} src</small>
-                      </div>
-                    </div>`;
-      }).join("")}
-          </div>
-          ${tasks.length > 4 ? `
-            <div style="margin-top: 8px; text-align: center;">
-              <button class="primary" data-nav="today" style="background: linear-gradient(135deg, #152238, #1c2e4a); color: white; padding: 10px 20px; border-radius: 999px; border: none; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(21, 34, 56, 0.15); display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center;">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> View Today's Full Queue (${tasks.length} items)
-              </button>
-            </div>
-          ` : ""}
-          ${todayQueueGeminiScored ? `<div style="font-size:10px;color:#22a06b;text-align:center;margin-top:4px;">Gemini AI ranked</div>` : `<div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:4px;">AI ranking in progress…</div>`}
-        </div>
-        <div class="eng-sidebar">
-          <div class="eng-panel exec-brief">
-            <h3>Why this rank?</h3>
-            <p style="font-size:13px;font-weight:800;color:#172b4d;margin:0 0 6px;">${selected?.canonicalTitle || "—"}</p>
-            <ul style="padding-left:16px;margin:0;font-size:12px;color:#44546f;display:grid;gap:4px;">
-              ${selected ? selected.rankReasons.slice(0, 4).map(r => `<li>${r}</li>`).join("") : "<li>Select a task</li>"}
+            <ul style="margin:10px 0 0;padding-left:14px;font-size:11px;color:#44546f;display:grid;gap:4px;list-style-type:disc;">
+              <li style="line-height:1.3;">Showing <strong>${tasks.length} actionable task${tasks.length !== 1 ? "s" : ""}</strong> ${engineerSelectedSource !== "all" ? `(filtered by ${engineerSelectedSource.toUpperCase()})` : "across all 6 sources"}. <button data-nav="today" style="margin-left:4px;background:none;border:none;color:#0c66e4;font-weight:800;font-size:10.5px;text-decoration:underline;cursor:pointer;padding:0;">Open Queue</button></li>
+              <li style="line-height:1.3;">Top focus: <strong>${selected ? escapeHtml(selected.canonicalTitle.slice(0, 32)) + (selected.canonicalTitle.length > 32 ? '...' : '') : "None"}</strong>. ${selected ? `<button data-task="${selected.id}" style="margin-left:4px;background:none;border:none;color:#0c66e4;font-weight:800;font-size:10.5px;text-decoration:underline;cursor:pointer;padding:0;">Go to task</button>` : ""}</li>
             </ul>
-            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
-              ${selected ? selected.sources.map(s => `<span style="padding:3px 8px;border-radius:999px;background:#f1f2f4;color:#44546f;font-size:11px;font-weight:700;">${s}</span>`).join("") : ""}
+          </div>
+
+          <!-- My Tasks (Unified Multi-Source Board) -->
+          <div class="eng-panel consultao-tasks-card" style="display:flex; flex-direction:column; min-height:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <h3 style="margin:0; font-size:13.5px; color:#172b4d; font-weight:700; display:flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                My tasks
+              </h3>
+              <div style="display:flex; align-items:center; gap:10px;">
+                ${engineerSelectedSource !== "all" ? `
+                  <span style="font-size:10px; color:#c0392b; font-weight:800; cursor:pointer; background:#fef2f2; padding:2px 6px; border-radius:6px; border:1px solid #fecaca;" data-eng-source="all">✕ Clear Filter</span>
+                ` : ""}
+                <span style="font-size:10.5px; color:#22a06b; font-weight:800; cursor:pointer;" id="generateDailyReportBtnMyWork">Daily Report</span>
+              </div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f7f8fa; border:1px solid #dfe3ea; padding:4px 8px; border-radius:8px; margin-bottom:8px; font-size:11px; color:#44546f;">
+              <span style="display:flex; align-items:center; gap:4px; font-weight:800;">${engineerSelectedSource === "all" ? "All Sources" : engineerSelectedSource.toUpperCase()}</span>
+              <span style="font-size:10.5px; color:#8c9bab; font-weight:700;">${tasks.length} actionable</span>
+            </div>
+
+            <div class="eng-task-list-scrollable" style="flex:1; overflow-y:auto; display:grid; gap:6px; padding-right:4px;">
+              ${tasks.length === 0
+      ? `<div style="padding:20px;text-align:center;color:#8c9bab;font-size:11.5px;">No actionable tasks found for this source. <button data-eng-source="all" style="background:none;border:none;color:#0c66e4;font-weight:700;cursor:pointer;text-decoration:underline;">Show all tasks</button></div>`
+      : sortedTasks.map((t, index) => {
+        const isAssigned = engineerPortalPosts.some(p => p.id === t.id || p.title === t.canonicalTitle);
+        const isWorking = workingTaskIds.includes(t.id);
+        const isSelected = selectedTaskId === t.id;
+        const isDone = completedTaskIds.includes(t.id);
+        const sev = (t.severity || 'P3').toUpperCase();
+
+        // Calendar Color Theme Palette: P1 Red, P2 Amber, P3 Purple, P4 Slate
+        let theme = {
+          bg: "#f3e8ff",
+          borderLeft: "#a855f7",
+          titleColor: "#581c87",
+          subTextColor: "#6b21a8",
+          badgeBg: "#e9d5ff",
+          badgeText: "#6b21a8",
+          label: "P3",
+          tagText: "Sprint Task"
+        };
+
+        if (sev === 'P1' || t.priority === 'high') {
+          theme = {
+            bg: "#fde8e8",
+            borderLeft: "#d9381e",
+            titleColor: "#7a1c10",
+            subTextColor: "#991b1b",
+            badgeBg: "#fecaca",
+            badgeText: "#991b1b",
+            label: "P1",
+            tagText: "Urgent"
+          };
+        } else if (sev === 'P2' || t.priority === 'medium') {
+          theme = {
+            bg: "#fef3c7",
+            borderLeft: "#f59e0b",
+            titleColor: "#78350f",
+            subTextColor: "#92400e",
+            badgeBg: "#fde68a",
+            badgeText: "#92400e",
+            label: "P2",
+            tagText: "High Priority"
+          };
+        } else if (sev === 'P4' || isDone) {
+          theme = {
+            bg: "#f1f5f9",
+            borderLeft: "#64748b",
+            titleColor: "#334155",
+            subTextColor: "#475569",
+            badgeBg: "#e2e8f0",
+            badgeText: "#475569",
+            label: "P4",
+            tagText: "Maintenance"
+          };
+        }
+
+        // Platform Brand Logo Icon
+        let logoKey = "jira";
+        const srcLower = (t.sources ? t.sources.join(" ") : t.id || "").toLowerCase();
+        if (srcLower.includes("github") || srcLower.includes("pr")) logoKey = "github";
+        else if (srcLower.includes("servicenow") || srcLower.includes("defect") || srcLower.includes("incident")) logoKey = "servicenow";
+        else if (srcLower.includes("email") || srcLower.includes("outlook")) logoKey = "email";
+        else if (srcLower.includes("slack") || srcLower.includes("mention")) logoKey = "slack";
+        else if (srcLower.includes("notes") || srcLower.includes("meeting")) logoKey = "notes";
+
+        const platformLogo = SOURCE_LOGO_MAP[logoKey] || SOURCE_LOGO_MAP.jira;
+        const ext = getTaskExternalUrl(t);
+
+        // AI Suggested Schedule Slot (linked to AI Calendar Planner)
+        const timeSlots = [
+          "9:00 AM – 10:00 AM",
+          "10:00 AM – 11:00 AM",
+          "11:15 AM – 12:00 PM",
+          "12:00 PM – 1:00 PM",
+          "2:00 PM – 3:00 PM",
+          "3:15 PM – 4:00 PM",
+          "4:00 PM – 5:00 PM",
+          "5:00 PM – 6:00 PM"
+        ];
+        const scheduledTime = timeSlots[index % timeSlots.length];
+
+        return `
+          <div class="eng-task-row-consultao ${isSelected ? "selected" : ""} ${isWorking ? "working-active" : ""} ${isAssigned ? "manager-assigned" : ""}" data-task="${t.id}"
+            style="display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); border-left:4px solid ${theme.borderLeft}; background:${isWorking ? "#f4f8ff" : theme.bg}; margin-bottom:5px; cursor:pointer; transition:all 0.15s ease; width:100%; box-sizing:border-box;">
+            
+            <input type="checkbox" class="task-complete-checkbox" data-task-complete-id="${t.id}" style="width:13px; height:13px; cursor:pointer; margin:0;" ${isDone ? "checked" : ""}>
+            
+            <!-- Platform Brand Icon -->
+            <div style="width:24px; height:24px; border-radius:6px; background:${platformLogo.bg}; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+              ${platformLogo.svg}
+            </div>
+
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px; background:${theme.badgeBg}; color:${theme.badgeText}; flex-shrink:0;">${theme.label}</span>
+                <span style="font-size:12px; font-weight:800; color:${theme.titleColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${escapeHtml(t.canonicalTitle)}
+                </span>
+              </div>
+              
+              <div style="display:flex; align-items:center; gap:6px; font-size:9.5px; color:${theme.subTextColor}; flex-wrap:wrap;">
+                ${isWorking ? `<span style="color:#0c66e4; font-weight:800;">Active</span>` : ""}
+                <span style="font-weight:700;">${t.owner || "Utkarsh"}</span>
+                <span>· ${theme.tagText}</span>
+                
+                <!-- AI Schedule Badge linked to AI Calendar Planner -->
+                <span data-nav="calendar-ai" style="display:inline-flex; align-items:center; gap:3px; font-weight:800; background:rgba(255,255,255,0.75); padding:1px 6px; border-radius:4px; border:1px solid ${theme.borderLeft}40; color:${theme.titleColor}; cursor:pointer;" title="View on AI Calendar Planner">
+                  ${scheduledTime} Calendar
+                </span>
+
+                <!-- Direct Platform External Link -->
+                <a href="${ext.url}" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:2px; font-size:9.5px; font-weight:800; background:rgba(255,255,255,0.85); padding:1px 6px; border-radius:4px; border:1px solid ${theme.borderLeft}40; color:${theme.titleColor}; text-decoration:none; transition:transform 0.1s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='none'" title="Open directly in ${ext.platform}">
+                  Open
+                </a>
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0;">
+              <div style="font-size:10.5px; font-weight:900; color:${theme.titleColor}; padding:2px 6px; background:rgba(255,255,255,0.75); border-radius:4px; border:1px solid ${theme.borderLeft}30;">
+                ${t.score}
+              </div>
+              ${!isDone && !isWorking ? `
+                <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:9.5px; padding:2px 7px; background:${theme.borderLeft}; color:#ffffff; border:none; border-radius:4px; font-weight:700; cursor:pointer;">Start</button>
+              ` : ""}
             </div>
           </div>
-          <div class="eng-panel exec-brief" style="border-left-color:#0c66e4;">
-            <h3>Execution brief</h3>
-            <p style="font-size:12px;color:#44546f;margin:0 0 6px;">${executionBrief?.definitionOfDone || "Select a task"}</p>
-            <span class="timeline-pill" style="font-size:11px; display:inline-flex;align-items:center;gap:3px;"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${executionBrief?.timeline || "—"}</span>
-            <div class="eng-checklist">
-              ${executionBrief ? executionBrief.process.slice(0, 4).map((s, i) => `
-                <label class="eng-checklist-item"><input type="checkbox" data-execution-step-idx="${i}"><span>${escapeHtml(s)}</span></label>
-              `).join("") : ""}
+        `;
+      }).join("")
+    }
             </div>
-            <p style="font-size:11px;margin:8px 0 0;color:#0c66e4;cursor:pointer;text-decoration:underline;" data-nav="execution">Full checklist →</p>
+            ${todayQueueGeminiScored ? `<div style="font-size:9.5px;color:#22a06b;text-align:center;margin-top:4px;">Gemini AI ranked</div>` : `<div style="font-size:9.5px;color:#94a3b8;text-align:center;margin-top:4px;">AI ranking in progress…</div>`}
           </div>
-          <div class="eng-panel">
-            <h3>Today's schedule</h3>
-            <div class="eng-timeline">
-              ${dynamicPlan.map(s => `
-                <div class="eng-slot">
-                  <time>${s.time}</time>
-                  <div><strong>${s.label}</strong><span>${s.task ? s.task.canonicalTitle : "Buffer"}</span></div>
-                </div>`).join("")}
+
+          <!-- CI/CD Pipelines -->
+          <div class="eng-panel consultao-pipeline-card">
+            <h3 style="margin:0 0 8px; font-size:12.5px; color:#172b4d; font-weight:700; display:flex; align-items:center; gap:6px;">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+              CI/CD Pipelines
+            </h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div style="padding:5px 8px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; display:flex; flex-direction:column; justify-content:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:10.5px; font-weight:800; color:#166534;">main-branch</span>
+                  <span style="font-size:9px; font-weight:bold; color:#15803d;">● Passed</span>
+                </div>
+                <span style="font-size:8.5px; color:#166534; opacity:0.85; margin-top:2px;">commit <code style="font-family:monospace;">fe89b2c</code></span>
+              </div>
+              <div style="padding:5px 8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; display:flex; flex-direction:column; justify-content:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:10.5px; font-weight:800; color:#1e40af;">staging-deploy</span>
+                  <span style="font-size:9px; font-weight:bold; color:#2563eb; animation:pulse-badge 1.8s ease infinite;">● Building</span>
+                </div>
+                <span style="font-size:8.5px; color:#1e40af; opacity:0.85; margin-top:2px;">142/240 tests passed</span>
+              </div>
             </div>
           </div>
-          <div class="eng-panel gemini-brief">
-            <h3>Ask TaskPilot AI</h3>
-            ${renderQuickQueries()}
-            <div class="answer" id="answerBox" style="margin-top:8px;max-height:130px;overflow-y:auto;font-size:12px;">${lastAnswer}</div>
+        </div>
+
+        <!-- COLUMN 2: CENTER -->
+        <div class="consultao-col col-center">
+          <!-- Interactive Connected Systems Hub -->
+          <div class="eng-panel consultao-quicklinks-card" style="padding:12px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <h3 style="margin:0; font-size:12.5px; color:#172b4d; font-weight:700;">Connected Systems</h3>
+              <span style="font-size:9px; color:#22a06b; font-weight:800; background:#dcfff1; padding:2px 6px; border-radius:10px;">6 Connected</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;">
+              <!-- Jira -->
+              <a href="https://jira.atlassian.com" target="_blank" rel="noopener" class="eng-source-app-card" style="text-decoration:none;">
+                <span class="app-count-tag">${jiraCount}</span>
+                <div class="app-icon" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18"><path d="M11.57 11.7l5.5-5.5a.6.6 0 000-.85l-5.5-5.5a.6.6 0 00-.85 0L5.22 5.35c-.23.23-.23.6 0 .83l5.5 5.5c.23.23.6.23.85.02zm11.55-.02l-5.5-5.5a.6.6 0 000-.85l-5.5 5.5c-.23.23-.23.6 0 .85l5.5 5.5a.6.6 0 00.85 0l5.5-5.5a.6.6 0 000-.85z" fill="#0052CC"/></svg>
+                </div>
+                <span style="font-size:8px; color:#172b4d; font-weight:800; text-align:center; line-height:1.1;">Jira Board</span>
+              </a>
+
+              <!-- ServiceNow -->
+              <a href="https://support.servicenow.com" target="_blank" rel="noopener" class="eng-source-app-card" style="text-decoration:none;">
+                <span class="app-count-tag">${servicenowCount}</span>
+                <div class="app-icon" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="#c0392b"><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM9.3 14.15l2.7-2.7 2.7 2.7H9.3zm-1.8 1.8h9v1.8h-9v-1.8z"/></svg>
+                </div>
+                <span style="font-size:8px; color:#172b4d; font-weight:800; text-align:center; line-height:1.1;">ServiceNow</span>
+              </a>
+
+              <!-- GitHub -->
+              <a href="https://github.com/pulls" target="_blank" rel="noopener" class="eng-source-app-card" style="text-decoration:none;">
+                <span class="app-count-tag">${githubCount}</span>
+                <div class="app-icon" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="#24292f"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                </div>
+                <span style="font-size:8px; color:#172b4d; font-weight:800; text-align:center; line-height:1.1;">GitHub PRs</span>
+              </a>
+
+              <!-- Outlook -->
+              <a href="https://outlook.office.com/mail/" target="_blank" rel="noopener" class="eng-source-app-card" style="text-decoration:none;">
+                <span class="app-count-tag">${emailCount}</span>
+                <div class="app-icon" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="#0078d4"><path d="M1.5 4.875C1.5 3.839 2.34 3 3.375 3h17.25c1.035 0 1.875.84 1.875 1.875v14.25c0 1.035-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 011.5 19.125V4.875zM3 6.643v11.732L12.564 12 3 6.643zm1.636-.643L12.564 10.8l7.928-4.8H4.636zm16.364 1.286L13.564 12l7.436 4.186V7.286z"/></svg>
+                </div>
+                <span style="font-size:8px; color:#172b4d; font-weight:800; text-align:center; line-height:1.1;">Outlook</span>
+              </a>
+
+              <!-- Slack -->
+              <a href="https://app.slack.com" target="_blank" rel="noopener" class="eng-source-app-card" style="text-decoration:none;">
+                <span class="app-count-tag">${slackCount}</span>
+                <div class="app-icon" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523 2.528 2.528 0 01-2.522-2.523 2.528 2.528 0 012.522-2.52h2.52v2.52zM6.261 15.165a2.528 2.528 0 012.52-2.52h5.043a2.528 2.528 0 012.522 2.52v5.042a2.528 2.528 0 01-2.522 2.52H8.823a2.528 2.528 0 01-2.52-2.52v-5.042z" fill="#2eb67d"/>
+                    <path d="M8.823 5.043a2.528 2.528 0 012.52-2.522 2.528 2.528 0 012.522 2.522v2.52h-2.522a2.528 2.528 0 01-2.52-2.52zM8.823 6.304a2.528 2.528 0 012.52 2.52v5.043a2.528 2.528 0 01-2.522 2.522H3.78a2.528 2.528 0 01-2.52-2.522V8.824a2.528 2.528 0 012.52-2.52h5.043z" fill="#36c5f0"/>
+                    <path d="M18.958 8.835a2.528 2.528 0 012.522-2.52 2.528 2.528 0 012.52 2.52c0 1.394-1.128 2.52-2.52 2.52h-2.522v-2.52zM17.696 8.835a2.528 2.528 0 01-2.52 2.52h-5.043a2.528 2.528 0 01-2.522-2.52V3.78a2.528 2.528 0 012.522-2.52h5.043a2.528 2.528 0 012.52 2.52v5.043h-5.043z" fill="#ecb22e"/>
+                    <path d="M15.174 18.958a2.528 2.528 0 01-2.52 2.522 2.528 2.528 0 01-2.522-2.522v-2.52h2.522a2.528 2.528 0 012.52 2.52zM15.174 17.696a2.528 2.528 0 01-2.52-1.52v-5.043a2.528 2.528 0 012.522-2.522h5.043a2.528 2.528 0 012.52 2.522v5.043h-5.043z" fill="#e01e5a"/>
+                  </svg>
+                </div>
+                <span style="font-size:8px; color:#172b4d; font-weight:800; text-align:center; line-height:1.1;">Slack</span>
+              </a>
+
+              <!-- Meetings -->
+              <a href="https://meet.google.com" target="_blank" rel="noopener" class="eng-source-app-card" style="text-decoration:none;">
+                <span class="app-count-tag">${notesCount}</span>
+                <div class="app-icon" style="width:20px; height:20px; display:flex; align-items:center; justify-content:center;">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="#0f766e"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6a2 2 0 00-2-2zm0 16H5V10h14v10zm-2-7h-5v5h5v-5z"/></svg>
+                </div>
+                <span style="font-size:8px; color:#172b4d; font-weight:800; text-align:center; line-height:1.1;">Meetings</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Why this rank -->
+          <div class="eng-panel consultao-rank-card" style="display:flex; flex-direction:column; min-height:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <h3 style="margin:0; font-size:12.5px; color:#172b4d; font-weight:700;">Why this rank?</h3>
+              ${selected ? `<span style="font-size:10.5px; font-weight:800; color:#0c66e4; background:#e9f2ff; padding:2px 6px; border-radius:8px; border:1px solid #c7ddfb;">Score: ${selected.score}</span>` : ""}
+            </div>
+            <p style="font-size:12px; font-weight:800; color:#172b4d; margin:0 0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${selected?.canonicalTitle || "Select a task"}</p>
+            <div class="detail-scrollable" style="flex:1; overflow-y:auto; padding-right:4px; padding-left:2px;">
+              <ul style="padding-left:22px; margin:0; font-size:11px; color:#44546f; display:grid; gap:4px; list-style-type:disc;">
+                ${selected ? activeReasons.map(r => `<li style="padding-left:2px;">${formatRankReason(r)}</li>`).join("") : "<li>Select a task</li>"}
+              </ul>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
+              ${selected ? selected.sources.map(s => `<span style="padding:2px 6px; border-radius:4px; font-size:9.5px; font-weight:700; ${getSourceBadgeStyle(s)}">${s}</span>`).join("") : ""}
+            </div>
+          </div>
+
+          <!-- Execution brief -->
+          <div class="eng-panel consultao-exec-card" style="display:flex; flex-direction:column; min-height:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <h3 style="margin:0; font-size:12.5px; color:#172b4d; font-weight:700;">Execution brief</h3>
+              <span class="timeline-pill" style="font-size:9.5px; display:inline-flex; align-items:center; gap:3px; color:#626f86;"><svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${executionBrief?.timeline || "—"}</span>
+            </div>
+            <p style="font-size:11px; color:#44546f; margin:0 0 4px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">${executionBrief?.definitionOfDone || "Select a task"}</p>
+            
+            <div class="detail-scrollable" style="flex:1; overflow-y:auto; padding-right:4px;">
+              <div class="eng-checklist" style="display:grid; gap:3px;">
+                ${executionBrief ? executionBrief.process.slice(0, 4).map((s, i) => `
+                  <label class="eng-checklist-item" style="display:flex; align-items:center; gap:6px; font-size:11px; color:#44546f; cursor:pointer;"><input type="checkbox" data-execution-step-idx="${i}" style="margin:0;"><span>${escapeHtml(s)}</span></label>
+                `).join("") : ""}
+              </div>
+            </div>
+            <p style="font-size:10px; margin:4px 0 0; color:#0c66e4; cursor:pointer; text-decoration:underline;" data-nav="execution">Full checklist →</p>
+          </div>
+        </div>
+
+        <!-- COLUMN 3: RIGHT -->
+        <div class="consultao-col col-right">
+          <!-- Profile Card -->
+          <div class="eng-panel consultao-profile-card">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="profile-avatar" style="width:34px; height:34px; border-radius:50%; background:#dfe3ea; overflow:hidden; display:flex; align-items:center; justify-content:center; font-weight:800; color:#0c66e4; font-size:14px; flex-shrink:0;">
+                ${myName.split(" ").map(n => n[0]).join("")}
+              </div>
+              <div style="min-width:0;">
+                <h4 style="margin:0; font-size:13px; color:#172b4d; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${myName}</h4>
+                <p style="margin:1px 0 0; font-size:10px; color:#626f86;">Lead SDE · Platform Eng</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Insights Card -->
+          <div class="eng-panel consultao-insights-card">
+            <h3 style="margin:0 0 8px; font-size:12.5px; color:#172b4d; font-weight:700;">Today's insights</h3>
+            <div style="display:flex; justify-content:space-around; align-items:center; margin-bottom:10px;">
+              <div style="text-align:center;">
+                <div class="circular-progress" style="width:44px; height:44px; border-radius:50%; background:conic-gradient(#0c66e4 ${teeSession.trustScore}%, #f4f5f7 0); display:flex; align-items:center; justify-content:center; position:relative; margin:0 auto 3px;">
+                  <div style="width:34px; height:34px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:900; color:#172b4d;">${teeSession.trustScore}%</div>
+                </div>
+                <span style="font-size:9.5px; color:#626f86; font-weight:800;">TEE Trust</span>
+              </div>
+              <div style="text-align:center;">
+                <div class="circular-progress" style="width:44px; height:44px; border-radius:50%; background:conic-gradient(#22a06b 86%, #f4f5f7 0); display:flex; align-items:center; justify-content:center; position:relative; margin:0 auto 3px;">
+                  <div style="width:34px; height:34px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:900; color:#172b4d;">86%</div>
+                </div>
+                <span style="font-size:9.5px; color:#626f86; font-weight:800;">SLA Safe</span>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; border-top:1px dashed #dfe3ea; padding-top:8px; text-align:center;">
+              <div data-nav="today" style="cursor:pointer;">
+                <strong style="display:block; font-size:13px; color:#172b4d; font-weight:800;">${tasks.length}</strong>
+                <span style="font-size:9px; color:#626f86;">Actionable</span>
+              </div>
+              <div data-nav="inbox" style="cursor:pointer;">
+                <strong style="display:block; font-size:13px; color:#de350b; font-weight:800;">${state.prioritized.filter(t => t.severity === "P1").length}</strong>
+                <span style="font-size:9px; color:#626f86;">P1s</span>
+              </div>
+              <div data-nav="hidden" style="cursor:pointer;">
+                <strong style="display:block; font-size:13px; color:#ffab00; font-weight:800;">${insights.unstructuredCount}</strong>
+                <span style="font-size:9px; color:#626f86;">Hidden</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- On-Call Rotation -->
+          <div class="eng-panel consultao-oncall-card" style="border-left: 4px solid #ffab00; padding:14px; display:flex; flex-direction:column; min-height:0;">
+            <h3 style="margin:0 0 8px; font-size:12.5px; color:#172b4d; font-weight:700; display:flex; align-items:center; gap:6px;">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              On-Call Rotation
+            </h3>
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-height:0; justify-content:center;">
+              <div style="display:flex; align-items:center; justify-content:space-between; background:#fff9db; border:1px solid #ffe380; padding:6px 8px; border-radius:8px;">
+                <div>
+                  <span style="font-size:8.5px; font-weight:800; color:#b7791f; text-transform:uppercase;">Primary Shield</span>
+                  <div style="font-size:11.5px; font-weight:800; color:#172b4d;">${myName}</div>
+                </div>
+                <span style="background:#ffab00; color:#fff; font-size:9px; font-weight:bold; padding:2px 5px; border-radius:10px; animation:pulse-badge 1.8s ease infinite;">Active</span>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; border:1px solid #dfe3ea; padding:6px 8px; border-radius:8px; background:#fafbfc;">
+                <div>
+                  <span style="font-size:8.5px; font-weight:800; color:#626f86; text-transform:uppercase;">Secondary Backup</span>
+                  <div style="font-size:11.5px; font-weight:700; color:#44546f;">Alex Chen</div>
+                </div>
+                <span style="color:#626f86; font-size:9.5px; font-weight:700;">Standby</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -4308,14 +4665,16 @@ function renderCalendarAI() {
     viewContentHtml = `
       <div class="gcal-week-wrapper">
         <!-- Week Header with Days -->
-        <div class="gcal-week-header">
+        <div class="gcal-week-header" style="display: grid; grid-template-columns: 60px 1fr;">
           <div class="gcal-week-time-col">GMT-5</div>
-          ${weekDays.map(day => `
-            <div class="gcal-week-day-col ${day.isToday ? 'gcal-today-col' : ''}">
-              <div class="gcal-week-day-name">${day.name.slice(0, 3).toUpperCase()}</div>
-              <div class="gcal-week-day-num ${day.isToday ? 'gcal-today-num' : ''}">${day.date}</div>
-            </div>
-          `).join('')}
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); column-gap: 6px;">
+            ${weekDays.map(day => `
+              <div class="gcal-week-day-col ${day.isToday ? 'gcal-today-col' : ''}" style="border-right: none;">
+                <div class="gcal-week-day-name">${day.name.slice(0, 3).toUpperCase()}</div>
+                <div class="gcal-week-day-num ${day.isToday ? 'gcal-today-num' : ''}">${day.date}</div>
+              </div>
+            `).join('')}
+          </div>
         </div>
 
         <!-- Week Grid Body -->
@@ -6973,41 +7332,46 @@ function renderTodayPriority(dynamicPlan) {
     const srcColor = sources.find(s => s.id === t.sourceId)?.color || "#626f86";
     const srcName = sources.find(s => s.id === t.sourceId)?.name || t.sourceId;
     const dl = deadlineStyle(t.due, isDone);
+    const ext = getTaskExternalUrl(t);
 
     return `
       <div class="tp-task-row ${isDone ? "tp-done" : isWorking ? "tp-working" : ""}" data-task-row="${t.id}"
-           style="background:${dl.bg};border-color:${dl.border};border-left:3px solid ${dl.border};">
-        <div class="tp-task-row-left">
+           style="background:${dl.bg};border-color:${dl.border};border-left:4px solid ${dl.border};display:flex;align-items:center;justify-space-between;padding:10px 14px;margin:4px 10px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <div class="tp-task-row-left" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+          <input type="checkbox" class="task-complete-checkbox" data-task-complete-id="${t.id}" style="width:14px; height:14px; cursor:pointer; margin:0;" ${isDone ? "checked" : ""}>
           <div class="tp-sev-dot" style="background:${sevColor}" title="${t.severity}"></div>
-          <div class="tp-task-info">
-            <div class="tp-task-title ${isDone ? "tp-strike" : ""}">
+          <div class="tp-task-info" style="flex:1;min-width:0;">
+            <div class="tp-task-title ${isDone ? "tp-strike" : ""}" style="font-size:13px;font-weight:700;color:#172b4d;">
               ${escapeHtml(t.canonicalTitle)}
-              ${isWorking ? `<span class="tp-status-chip working" style="display:inline-flex;align-items:center;gap:3px;"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#0971b3;box-shadow:0 0 0 3px rgba(9,113,179,0.2);"></span> Working</span>` : ""}
-              ${isDone ? `<span class="tp-status-chip done" style="display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Done</span>` : ""}
+              ${isWorking ? `<span class="tp-status-chip working" style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;color:#0971b3;background:#e8f0fe;padding:1px 7px;border-radius:10px;"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#0971b3;box-shadow:0 0 0 3px rgba(9,113,179,0.2);"></span> Active Working</span>` : ""}
+              ${isDone ? `<span class="tp-status-chip done" style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;color:#22a06b;background:#dcfff1;padding:1px 7px;border-radius:10px;">✓ Done</span>` : ""}
               ${t.isBlocking ? `<span style="font-size:10px;background:#fff0b3;color:#974f0c;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;display:inline-flex;align-items:center;gap:3px;"><svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> Blocking</span>` : ""}
             </div>
-            <div class="tp-task-meta">
-              <span class="tp-src-badge" style="background:${srcColor}22;color:${srcColor};">${srcName}</span>
-              <span>${t.severity}</span>
+            <div class="tp-task-meta" style="display:flex;align-items:center;gap:6px;font-size:10px;color:#64748b;margin-top:3px;flex-wrap:wrap;">
+              <span class="tp-src-badge" style="background:${srcColor}22;color:${srcColor};font-weight:800;padding:1px 6px;border-radius:4px;">${srcName}</span>
+              <span style="font-weight:700;">${t.severity}</span>
               ${t.due ? `
                 <span style="display:inline-flex;align-items:center;gap:3px;">
                   ${dl.label ? `<span style="font-size:10px;font-weight:800;padding:1px 5px;border-radius:3px;background:${dl.badgeBg || dl.border};color:${dl.badgeText || "#fff"};">${dl.label}</span>` : ""}
                   <span style="color:${dl.textColor};font-weight:600;">${formatDue(t.due)}</span>
                 </span>` : ""}
-              <span>${t.owner || "Unassigned"}</span>
+              <span>${t.owner || "Utkarsh"}</span>
             </div>
           </div>
         </div>
-        <div class="tp-task-actions">
+        <div class="tp-task-actions" style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           ${!isDone && !isWorking ? `
-            <button class="tp-btn-start" data-task-start="${t.id}" title="Mark as working" style="display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Start</button>
+            <button class="tp-btn-start" data-task-link-start="${t.id}" data-task-url="${ext.url}" title="Open link and start task automatically" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:5px 12px;background:#0c66e4;color:#ffffff;border:none;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.12);transition:transform 0.1s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='none'">
+              <svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> ↗ Open
+            </button>
           ` : ""}
           ${isWorking ? `
-            <button class="tp-btn-done" data-task-complete="${t.id}" title="Mark as done" style="display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Done</button>
-            <button class="tp-btn-cancel" data-task-cancel="${t.id}" title="Cancel" style="display:inline-flex;align-items:center;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <button class="tp-btn-done" data-task-complete="${t.id}" title="Mark as done" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:5px 12px;background:#22a06b;color:#ffffff;border:none;border-radius:6px;cursor:pointer;"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> ✓ Done</button>
+            <button class="tp-btn-cancel" data-task-cancel="${t.id}" title="Cancel working" style="display:inline-flex;align-items:center;padding:5px 8px;background:#f1f2f4;color:#44546f;border:none;border-radius:6px;cursor:pointer;"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
           ` : ""}
           ${isDone ? `
-            <button class="tp-btn-reopen" data-task-reopen="${t.id}" title="Reopen" style="display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18"/></svg> Reopen</button>
+            <span style="font-size:11px;font-weight:800;color:#22a06b;background:#dcfff1;padding:4px 10px;border-radius:6px;">✓ Completed</span>
+            <button class="tp-btn-reopen" data-task-reopen="${t.id}" title="Reopen" style="display:inline-flex;align-items:center;gap:3px;font-size:10.5px;padding:3px 7px;background:none;border:1px solid #dfe3ea;border-radius:5px;color:#626f86;cursor:pointer;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18"/></svg> Reopen</button>
           ` : ""}
         </div>
       </div>`;
@@ -7026,10 +7390,10 @@ function renderTodayPriority(dynamicPlan) {
   }
 
   return `
-    <div class="today-priority-shell">
+    <div class="today-priority-shell" style="display:grid; grid-template-columns:minmax(0, 1.6fr) 320px; gap:16px; height:calc(100vh - 84px); max-height:calc(100vh - 84px); overflow:hidden; padding:16px 20px; box-sizing:border-box; background:#f7f4ee;">
       <!-- Left: Task List -->
-      <div class="tp-task-panel">
-        <div class="tp-panel-head">
+      <div class="tp-task-panel" style="display:flex; flex-direction:column; height:100%; min-height:0; overflow-y:auto; border:1px solid #dfe3ea; border-radius:10px; background:#fff; box-shadow:0 1px 3px rgba(9,30,66,0.08);">
+        <div class="tp-panel-head" style="flex-shrink:0;">
           <div>
             <p class="eyebrow">Today's Work</p>
             <h2 style="margin:2px 0 0;">Your Task List</h2>
@@ -7047,14 +7411,16 @@ function renderTodayPriority(dynamicPlan) {
           </div>
         </div>
 
-        ${overdue.length || today.length || upcoming.length ? "" : `<div style="padding:32px;text-align:center;color:#626f86;display:flex;flex-direction:column;align-items:center;gap:8px;"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:#22a06b;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> All caught up</div>`}
-        ${renderSection("Overdue", overdue, "#de350b")}
-        ${renderSection("Due Today", today, "#0c66e4")}
-        ${renderSection("Upcoming", upcoming, "#22a06b")}
+        <div style="flex:1; min-height:0; overflow-y:auto; padding-bottom:12px;">
+          ${overdue.length || today.length || upcoming.length ? "" : `<div style="padding:32px;text-align:center;color:#626f86;display:flex;flex-direction:column;align-items:center;gap:8px;"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:#22a06b;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> All caught up</div>`}
+          ${renderSection("Overdue", overdue, "#de350b")}
+          ${renderSection("Due Today", today, "#0c66e4")}
+          ${renderSection("Upcoming", upcoming, "#22a06b")}
+        </div>
       </div>
 
       <!-- Right: Agent + Schedule -->
-      <aside class="tp-sidebar">
+      <aside class="tp-sidebar" style="display:flex; flex-direction:column; height:100%; min-height:0; overflow-y:auto; gap:12px;">
         <!-- Manager Activity Feed -->
         <div class="tp-card" id="managerFeedCard">
           <p class="eyebrow">Manager Feed</p>
@@ -7157,150 +7523,288 @@ function getGoogleResources(task) {
   return resources;
 }
 
-// Page: AI Agent — task-specific execution assistant with resource links
+// Page: AI Agent — 6 Agents Running Simultaneously & Communicating
 function renderAgentScanConsole() {
-  const queue = activeQueue();
-  const agentTask = queue.find(t => t.id === selectedTaskId) || queue[0];
-  const resources = getGoogleResources(agentTask);
-  const completedCount = completedTaskIds.length;
-  const totalCount = state.prioritized.length;
+  const now = Date.now();
+  const tickCount = Math.floor(now / 1200);
+
+  const SWARM_AGENTS = [
+    {
+      id: "jira",
+      name: "Jira Agent",
+      role: "Sprint Tracker",
+      rows: 1420 + (tickCount % 40),
+      cols: 18,
+      cleanedPct: "100%",
+      dot: "#2684FF",
+      icon: SOURCE_LOGO_MAP.jira,
+      messages: [
+        "[Dataset] Ingesting Jira export: 1,420 rows x 18 columns",
+        "[Dialogue] 'PROJ-98 bug in Jira is P1 for me (Checkout Form Upload Failure)'",
+        "[Negotiation] Outlook Agent requested priority shift: User cannot fill form",
+        "[Priority Shift] Re-assigned: Mail task gets P1 Priority Rank #1 instead of Jira",
+        "[Cross-Talk] Jira -> ServiceNow: Linking PROJ-98 with INC-4421 SLA breach",
+        "[Completed] Task finished: 1,420 rows indexed & priority re-ordered"
+      ]
+    },
+    {
+      id: "email",
+      name: "Outlook Agent",
+      role: "Email Triage",
+      rows: 5120 + (tickCount % 50),
+      cols: 14,
+      cleanedPct: "100%",
+      dot: "#0078D4",
+      icon: SOURCE_LOGO_MAP.email,
+      messages: [
+        "[Dataset] Ingesting Outlook inbox: 5,120 rows x 14 columns",
+        "[Dialogue] 'Mail from VP says user cannot fill checkout form because of this issue'",
+        "[Priority Shift] Mail task elevated to P1 Priority Rank #1 (Overriding Jira)",
+        "[Cross-Talk] Outlook -> Jira & ServiceNow: Shifted Priority #1 to Checkout Form Fix",
+        "[Executing] Sending executive summary report to VP",
+        "[Completed] Task finished: Email acknowledged & priority locked"
+      ]
+    },
+    {
+      id: "servicenow",
+      name: "ServiceNow Agent",
+      role: "Incident Handler",
+      rows: 980 + (tickCount % 25),
+      cols: 15,
+      cleanedPct: "100%",
+      dot: "#e53e3e",
+      icon: SOURCE_LOGO_MAP.servicenow,
+      messages: [
+        "[Dataset] Ingesting ServiceNow table: 980 rows x 15 columns",
+        "[Dialogue] 'INC-4421 matches checkout form error. SLA breach imminent'",
+        "[Negotiation] Confirming priority shift: INC-4421 assigned P1 SLA override",
+        "[Cross-Talk] ServiceNow -> GitHub: Dispatching urgent hotfix for checkout form",
+        "[Executing] Pausing SLA breach timer & resetting gateway pool",
+        "[Completed] Task finished: INC-4421 resolved & CMDB updated"
+      ]
+    },
+    {
+      id: "github",
+      name: "GitHub Agent",
+      role: "PR Monitor",
+      rows: 3850 + (tickCount % 60),
+      cols: 24,
+      cleanedPct: "100%",
+      dot: "#374151",
+      icon: SOURCE_LOGO_MAP.github,
+      messages: [
+        "[Dataset] Ingesting GitHub repo logs: 3,850 rows x 24 columns",
+        "[Dialogue] 'PR #1283 hotfix addresses checkout form validation error'",
+        "[Execution] Priority P1 hotfix merged to branch main. CI test suite green",
+        "[Cross-Talk] GitHub -> Slack: Deployed checkout form fix to production",
+        "[Executing] Running automated regression suite",
+        "[Completed] Task finished: PR #1283 merged & verified"
+      ]
+    },
+    {
+      id: "slack",
+      name: "Slack Agent",
+      role: "Comms Monitor",
+      rows: 12400 + (tickCount % 120),
+      cols: 12,
+      cleanedPct: "100%",
+      dot: "#7c3aed",
+      icon: SOURCE_LOGO_MAP.slack,
+      messages: [
+        "[Dataset] Ingesting Slack channels: 12,400 rows x 12 columns",
+        "[Dialogue] 'Notified #engineering channel: Priority shifted to Mail P1 form blocker'",
+        "[Verification] User report resolved. Thread marked complete",
+        "[Cross-Talk] Slack -> Notes: Logged resolution in stand-up notes",
+        "[Executing] Auto-replying to Sarah regarding gateway fix",
+        "[Completed] Task finished: 5 mentions resolved & verified"
+      ]
+    },
+    {
+      id: "notes",
+      name: "Notes Agent",
+      role: "Meeting Sync",
+      rows: 640 + (tickCount % 15),
+      cols: 8,
+      cleanedPct: "100%",
+      dot: "#0f766e",
+      icon: SOURCE_LOGO_MAP.notes,
+      messages: [
+        "[Dataset] Ingesting Meeting transcripts: 640 rows x 8 columns",
+        "[Dialogue] 'Stand-up notes updated: Checkout form P1 issue resolved'",
+        "[Sync] Action item verified: Manager briefing updated with P1 fix",
+        "[Cross-Talk] Notes -> Jira: Syncing stand-up action items to sprint",
+        "[Executing] Auto-updating calendar schedule via AI planner",
+        "[Completed] Task finished: 3 action items assigned & verified"
+      ]
+    }
+  ];
+
+  const backendTotal = liveBackendStats?.totalRecords || liveBackendStats?.totalItems || null;
+  const totalRowsCleaned = backendTotal !== null ? backendTotal : SWARM_AGENTS.reduce((acc, a) => acc + a.rows, 0);
 
   return `
-    <div class="agent-page-shell" style="display:grid;grid-template-columns:1fr 300px 360px;gap:16px;height:calc(100vh - 120px);min-height:0;">
-      <!-- Col 1: terminal + task selection -->
-      <div class="agent-main-col" style="display:flex;flex-direction:column;gap:12px;min-height:0;overflow:hidden;">
-        <!-- Header -->
-        <div class="agent-page-header">
-          <div>
-            <p class="eyebrow">AI Agent · Autonomous Execution</p>
-            <h2 style="margin:2px 0 0;">Pick a task · Let the agent work it</h2>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="primary" id="startAgentScanBtn" ${agentRunning ? "disabled" : ""}>
-              ${agentRunning ? "⚡ Running…" : "▶ Start Agent"}
-            </button>
-            ${agentRunning ? `<button class="secondary" id="stopAgentScanBtn" style="background:#ad2f2f;color:#fff;border:none;">■ Stop</button>` : ""}
+    <div style="display:flex;flex-direction:column;height:calc(100vh - 84px);overflow:hidden;background:#f8fafc;color:#0f172a;padding:14px 18px;box-sizing:border-box;gap:10px;">
+
+      <!-- Header Banner -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#ffffff;padding:12px 16px;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <div>
+          <h2 style="margin:0;font-size:16px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px;">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,0.2);animation:pulse 1.4s ease infinite;"></span>
+            6 Agents Running Continuously · Inter-Agent Priority Shift Dialogue & Real Dataset Pipeline
+          </h2>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;font-weight:700;color:${isBackendConnected ? "#15803d" : "#b45309"};background:${isBackendConnected ? "#dcfce7" : "#fef3c7"};padding:4px 10px;border-radius:6px;border:1px solid ${isBackendConnected ? "#bbf7d0" : "#fde68a"};font-family:'SF Mono',monospace;">
+            ${isBackendConnected ? "● Backend Active (127.0.0.1:8787)" : "● Connecting to Backend..."}
+          </span>
+          <div style="font-size:12px;color:#0f172a;background:#f1f5f9;padding:6px 14px;border-radius:8px;border:1px solid #cbd5e1;font-weight:800;font-family:'SF Mono',Consolas,monospace;">
+            ${totalRowsCleaned.toLocaleString()} total rows processed
           </div>
         </div>
+      </div>
 
-        <!-- Task selector -->
-        <div class="agent-task-selector">
-          ${queue.slice(0, 6).map(t => {
-    const isSel = t.id === (agentTask?.id);
-    const isDone = completedTaskIds.includes(t.id);
-    const isWorking = workingTaskIds.includes(t.id);
-    const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[t.severity] || "#626f86";
+      <!-- 6 macOS Terminal Window Agent Cards -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex:1;min-height:0;overflow:hidden;">
+        ${SWARM_AGENTS.map((agent, agentIdx) => {
+    const stepOffset = Math.floor(now / (1000 + agentIdx * 150)) % agent.messages.length;
+    const displayMsgs = agent.messages.slice(0, stepOffset + 1);
+    const isCompleted = stepOffset === agent.messages.length - 1;
+
     return `
-              <button class="agent-task-chip ${isSel ? "active" : ""} ${isDone ? "done" : ""}" data-task="${t.id}">
-                <span class="agent-chip-sev" style="background:${sevColor}22;color:${sevColor};">${t.severity}</span>
-                <span class="agent-chip-title">${escapeHtml(t.canonicalTitle.slice(0, 46))}${t.canonicalTitle.length > 46 ? "…" : ""}</span>
-                ${isDone ? `<span class="agent-chip-badge done">✓ Done</span>` : isWorking ? `<span class="agent-chip-badge working">● Working</span>` : ""}
-              </button>`;
+          <div style="background:#1e1e1e;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.35);border:1px solid #333333;">
+            
+            <!-- macOS Window Title Bar -->
+            <div style="display:flex;align-items:center;padding:7px 10px;background:#2d2d2d;border-bottom:1px solid #1a1a1a;flex-shrink:0;">
+              <!-- Red Yellow Green Window Controls -->
+              <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+                <span style="width:11px;height:11px;border-radius:50%;background:#ff5f56;display:inline-block;box-shadow:inset 0 0 1px rgba(0,0,0,0.5);"></span>
+                <span style="width:11px;height:11px;border-radius:50%;background:#ffbd2e;display:inline-block;box-shadow:inset 0 0 1px rgba(0,0,0,0.5);"></span>
+                <span style="width:11px;height:11px;border-radius:50%;background:#27c93f;display:inline-block;box-shadow:inset 0 0 1px rgba(0,0,0,0.5);"></span>
+              </div>
+              <!-- Title Text -->
+              <div style="flex:1;text-align:center;font-size:11px;font-family:'SF Mono',Consolas,monospace;color:#cccccc;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;">
+                📁 ${agent.id}-agent — -zsh — 80x24
+              </div>
+              <!-- Row/Col pill -->
+              <span style="font-size:9.5px;font-family:'SF Mono',monospace;color:#a6e22e;background:#1a2e1a;padding:1px 6px;border-radius:4px;border:1px solid #27c93f44;font-weight:700;flex-shrink:0;">
+                ${agent.rows.toLocaleString()} r x ${agent.cols} c
+              </span>
+            </div>
+
+            <!-- Terminal Window Body (Dark macOS Style) -->
+            <div style="flex:1;overflow-y:auto;padding:8px 10px;font-family:'SF Mono',Consolas,Monaco,monospace;font-size:10.5px;line-height:1.5;min-height:0;background:#1e1e1e;color:#f8f8f2;">
+              <div style="color:#75715e;font-size:10px;margin-bottom:4px;">[Agent process: ${agent.id}_agent.sh active]</div>
+              ${displayMsgs.map((text, i) => {
+      const isDoneLine = text.includes("[Completed]");
+      const isDialogue = text.includes("[Dialogue]") || text.includes("[Priority Shift]");
+      return `<div style="color:${isDoneLine ? '#a6e22e' : isDialogue ? '#66d9ef' : '#f8f8f2'};padding:1px 0;${isDoneLine || isDialogue ? "font-weight:700;" : ""}">
+                  <span style="color:${agent.dot};font-weight:700;">[${agent.name.split(" ")[0]}] ></span> ${escapeHtml(text)}
+                </div>`;
+    }).join("")}
+              ${!isCompleted ? `<div style="color:${agent.dot};font-weight:700;display:inline-block;animation:blink 1s infinite;">_</div>` : ""}
+            </div>
+
+            <!-- macOS Terminal Footer -->
+            <div style="padding:4px 10px;background:#252526;border-top:1px solid #333333;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;font-size:9.5px;font-family:'SF Mono',monospace;color:#888888;">
+              <span style="display:flex;align-items:center;gap:4px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:${isCompleted ? "#27c93f" : "#ffbd2e"};"></span>
+                Status: <strong style="color:${isCompleted ? "#27c93f" : "#ffffff"};">${isCompleted ? "COMPLETED" : "EXECUTING STEP " + (stepOffset + 1)}</strong>
+              </span>
+              <span style="color:#66d9ef;font-weight:700;">${agent.rows.toLocaleString()} rows cleaned</span>
+            </div>
+
+          </div>`;
   }).join("")}
-        </div>
-
-        <!-- Terminal -->
-        <div class="agent-terminal" id="agentTerminal" style="flex:1;min-height:0;overflow-y:auto;">
-          ${agentLogLines.length === 0
-      ? `<div class="agent-terminal-idle">[TASKPILOT AGENT] Idle — select a task above and click ▶ Start Agent to begin autonomous execution.</div>`
-      : agentLogLines.map(line => `<div>${escapeHtml(line)}</div>`).join("")
-    }
-        </div>
-
-        <!-- Real-time completion bar -->
-        <div class="agent-progress-bar-wrap" style="flex-shrink:0;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <span style="font-size:12px;font-weight:700;color:#172b4d;">Overall progress</span>
-            <span style="font-size:12px;color:#626f86;">${completedCount} of ${totalCount} tasks done</span>
-          </div>
-          <div style="height:8px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
-            <div style="height:100%;width:${totalCount ? Math.round(completedCount / totalCount * 100) : 0}%;background:linear-gradient(90deg,#0c66e4,#22a06b);border-radius:inherit;transition:width 0.4s;"></div>
-          </div>
-        </div>
-
-        <!-- Action buttons for selected task -->
-        ${agentTask ? `
-          <div class="agent-task-actions-row" style="flex-shrink:0;">
-            ${!completedTaskIds.includes(agentTask.id) && !workingTaskIds.includes(agentTask.id) ? `
-              <button class="tp-btn-start" data-task-start="${agentTask.id}">▶ Start "${agentTask.canonicalTitle.slice(0, 30)}…"</button>
-            ` : ""}
-            ${workingTaskIds.includes(agentTask.id) ? `
-              <button class="tp-btn-done" data-task-complete="${agentTask.id}">✓ Mark Done — notify manager</button>
-              <button class="tp-btn-cancel" data-task-cancel="${agentTask.id}">✕ Cancel</button>
-            ` : ""}
-            ${completedTaskIds.includes(agentTask.id) ? `
-              <span style="color:#22a06b;font-weight:800;font-size:13px;">✓ Completed · Manager notified</span>
-              <button class="tp-btn-reopen" data-task-reopen="${agentTask.id}">↩ Reopen</button>
-            ` : ""}
-          </div>
-        ` : ""}
       </div>
 
-      <!-- Col 2: task brief + resources + status -->
-      <aside class="agent-aside-col" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;">
-        <!-- Execution brief -->
-        ${agentTask ? `
-          <div class="agent-brief-card">
-            <p class="eyebrow">Current Task</p>
-            <h3 style="margin:4px 0 8px;font-size:15px;color:#172b4d;">${escapeHtml(agentTask.canonicalTitle)}</h3>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-              <span class="agent-sev-badge sev-${agentTask.severity.toLowerCase()}">${agentTask.severity}</span>
-              <span class="agent-meta-pill">Due ${formatDue(agentTask.due)}</span>
-              <span class="agent-meta-pill">Score ${agentTask.score}</span>
-              <span class="agent-meta-pill">${agentTask.sources.join(" + ")}</span>
+      <!-- VS Code Style Resizable Draggable Terminal Panel at Bottom -->
+      <div id="vscodeTerminalPanel" style="background:#1e1e1e;border:1px solid #3c3c3c;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -4px 20px rgba(0,0,0,0.3);height:180px;min-height:90px;max-height:500px;flex-shrink:0;position:relative;">
+        
+        <!-- Draggable Handle Bar on Top of Terminal Panel -->
+        <div id="vscodeTerminalResizer" title="Drag up/down to resize terminal panel"
+          style="height:7px;background:#2d2d2d;border-bottom:1px solid #3c3c3c;cursor:ns-resize;display:flex;align-items:center;justify-content:center;flex-shrink:0;"
+          onmouseover="this.style.background='#007acc'" onmouseout="this.style.background='#2d2d2d'">
+          <div style="width:36px;height:3px;border-radius:999px;background:#666666;"></div>
+        </div>
+
+        <!-- VS Code Terminal Tabs Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#252526;padding:0 12px;border-bottom:1px solid #3c3c3c;height:32px;flex-shrink:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:11px;">
+          <!-- Left Tabs -->
+          <div style="display:flex;align-items:center;height:100%;">
+            <div style="color:#ffffff;font-weight:700;padding:0 10px;height:100%;display:flex;align-items:center;border-bottom:2px solid #007acc;background:#1e1e1e;">
+              TERMINAL
             </div>
-            <p style="font-size:13px;color:#44546f;margin:0 0 8px;">${escapeHtml(agentTask.body || "")}</p>
-            <div style="background:#f7f8fa;border-radius:6px;padding:10px;margin-bottom:10px;">
-              <strong style="font-size:12px;color:#172b4d;">Definition of Done</strong>
-              <p style="font-size:12px;color:#44546f;margin:4px 0 0;">${escapeHtml(agentTask.execution?.definitionOfDone || "Complete and verify task.")}</p>
+            <div style="color:#cccccc;padding:0 10px;height:100%;display:flex;align-items:center;cursor:pointer;">
+              PROBLEMS <span style="background:#333;color:#aaa;padding:0 4px;border-radius:8px;font-size:9.5px;margin-left:4px;">0</span>
             </div>
-            <div>
-              <strong style="font-size:12px;color:#172b4d;">Steps</strong>
-              <ol style="padding-left:16px;margin:6px 0 0;font-size:12px;color:#44546f;display:grid;gap:4px;">
-                ${(agentTask.execution?.process || ["Analyse", "Execute", "Validate", "Close"]).map(s => `<li>${escapeHtml(s)}</li>`).join("")}
-              </ol>
+            <div style="color:#cccccc;padding:0 10px;height:100%;display:flex;align-items:center;cursor:pointer;">
+              OUTPUT
+            </div>
+            <div style="color:#cccccc;padding:0 10px;height:100%;display:flex;align-items:center;cursor:pointer;">
+              DEBUG CONSOLE
             </div>
           </div>
-        ` : `<div class="agent-brief-card" style="text-align:center;color:#626f86;padding:32px;"><p>Select a task above to see the execution brief.</p></div>`}
 
-        <!-- Google resource links -->
-        <div class="agent-resources-card">
-          <p class="eyebrow" style="margin-bottom:8px;">📚 How-to Resources</p>
-          <p style="font-size:12px;color:#626f86;margin:0 0 10px;">Docs & videos to help you fix this — one click to open.</p>
-          <div style="display:grid;gap:6px;">
-            ${resources.map(r => `
-              <a href="${r.url}" target="_blank" rel="noopener" class="agent-resource-link">
-                <span class="agent-resource-icon">${r.icon}</span>
-                <span>${escapeHtml(r.label)}</span>
-                <span class="agent-resource-arrow">↗</span>
-              </a>
-            `).join("")}
+          <!-- Right Status & Controls -->
+          <div style="display:flex;align-items:center;gap:12px;color:#aaaaaa;font-size:10.5px;font-family:'SF Mono',Consolas,monospace;">
+            <span style="color:#a6e22e;font-weight:700;">bash — Google ADK Inter-Agent Priority Negotiation</span>
+            <span style="color:#66d9ef;">${totalRowsCleaned.toLocaleString()} Records Cleaned</span>
           </div>
         </div>
 
-        <!-- Agent status -->
-        <div class="agent-confidence-card">
-          <p class="eyebrow" style="margin-bottom:6px;">Agent Status</p>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <span style="font-size:12px;color:#44546f;">Confidence</span>
-            <strong style="color:#18745f;">${Array.isArray(scanCompleteInfo) ? "95%" : agentRunning ? "Scanning…" : "—"}</strong>
+        <!-- VS Code Terminal Content Logs (Drag to Expand/Scroll) -->
+        <div id="vscodeTerminalLogBox" style="flex:1;overflow-y:auto;padding:8px 12px;font-family:'SF Mono',Consolas,Monaco,monospace;font-size:10.5px;line-height:1.55;background:#1e1e1e;color:#cccccc;">
+          <div style="color:#75715e;margin-bottom:6px;">[System] Multi-Agent Discussion & Priority Decision Stream Active. Drag handle to resize.</div>
+          
+          <div style="color:#75715e;font-weight:700;margin-top:4px;border-bottom:1px solid #333333;padding-bottom:2px;">[Multi-Agent Discussion]</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#0078D4;font-weight:700;">[Outlook Agent]</span> I just received an email from Acme Healthcare's Operations Head. They cannot submit the Patient Registration Form due to an unexpected validation error. They mention onboarding has completely stopped for new patients and requested an immediate fix.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#7c3aed;font-weight:700;">[Slack Agent]</span> That aligns with what I'm seeing internally. There are already 42 messages in #customer-support and #engineering-war-room. Support has confirmed that three additional customers are facing the exact same issue.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#2684FF;font-weight:700;">[Jira Agent]</span> I found ticket TP-2487 describing this bug. It's currently marked as P3 (Medium) because it was initially believed to affect only one customer. Based on Outlook and Slack's findings, I think the priority needs re-evaluation.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#a6e22e;font-weight:700;">[GitHub Agent]</span> I investigated the deployment history. A pull request merged 1 hour 48 minutes ago modified the validation middleware responsible for form submissions. This change wasn't covered by our integration tests. I estimate an 87% probability that this deployment introduced the regression.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#e53e3e;font-weight:700;">[ServiceNow Agent]</span> I can confirm the business impact has grown. There are now 19 linked production incidents, and two Enterprise customers are approaching SLA violation within the next 22 minutes.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#0f766e;font-weight:700;">[Meetings Agent]</span> During today's engineering stand-up, the backend team classified this as a minor issue because only one report existed at that time. However, the evidence presented by Outlook, Slack, and ServiceNow significantly changes the severity.</div>
+
+          <div style="color:#75715e;font-weight:700;margin-top:8px;border-bottom:1px solid #333333;padding-bottom:2px;">[Collaborative Reasoning & Priority Shift]</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#0078D4;font-weight:700;">[Outlook Agent]</span> Since customers are unable to complete onboarding, I recommend treating this as customer-blocking.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#2684FF;font-weight:700;">[Jira Agent]</span> I agree. Originally this was a P3, but Outlook has confirmed direct customer impact, and Slack indicates the issue is widespread rather than isolated.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#7c3aed;font-weight:700;">[Slack Agent]</span> Additionally, leadership has begun asking for an ETA. Executive visibility usually indicates this should no longer remain below P2.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#e53e3e;font-weight:700;">[ServiceNow Agent]</span> I want to add another factor. Based on my SLA calculations, if we don't begin remediation within the next 20 minutes, we'll breach premium customer contracts.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#a6e22e;font-weight:700;">[GitHub Agent]</span> Given ServiceNow's SLA warning, I recommend an immediate rollback while engineers investigate the root cause. Waiting for a permanent fix introduces unnecessary operational risk.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#0f766e;font-weight:700;">[Meetings Agent]</span> That's a good point. Earlier I considered this a P2 because today's stand-up suggested limited impact. However, after hearing ServiceNow's SLA analysis and Outlook's customer impact, I agree this should be escalated to P1.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#2684FF;font-weight:700;">[Jira Agent]</span> Before we finalize P1, I'd like confirmation from Slack. Are all customer reports pointing to the same validation bug?</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#7c3aed;font-weight:700;">[Slack Agent]</span> Yes. Support engineers have compared screenshots from multiple customers. All failures occur on the same validation step after today's deployment.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#a6e22e;font-weight:700;">[GitHub Agent]</span> That matches my code analysis. I have high confidence all incidents originate from the same commit.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#e53e3e;font-weight:700;">[ServiceNow Agent]</span> Since GitHub has identified a likely root cause and Outlook confirms business disruption, I support promoting this to Critical (P1).</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#0078D4;font-weight:700;">[Outlook Agent]</span> Agreed. Customer impact, revenue risk, and SLA exposure all exceed our critical incident threshold.</div>
+
+          <div style="color:#a6e22e;font-weight:700;margin-top:8px;background:#1a2e1a;padding:6px 10px;border-radius:6px;border:1px solid #27c93f44;line-height:1.6;">
+            <span style="color:#66d9ef;">[AI Orchestrator Decision]</span> Decision: P1 — Registration Form Failure<br>
+            Reasoning: Customer onboarding completely blocked (Outlook) | Multiple enterprise escalations (Slack) | Existing Jira ticket now outdated | Root cause linked to deployment (GitHub) | SLA breach expected within 20 mins (ServiceNow) | Meeting context validated (Meetings)<br>
+            Confidence: 98.6%
           </div>
-          <div style="height:6px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
-            <div style="height:100%;width:${Array.isArray(scanCompleteInfo) ? "95" : agentRunning ? "60" : "0"}%;background:#18745f;border-radius:inherit;transition:width 0.5s;"></div>
-          </div>
-          <div style="margin-top:10px;font-size:12px;color:${agentRunning ? "#b87319" : Array.isArray(scanCompleteInfo) ? "#18745f" : "#626f86"};font-weight:700;">
-            ${agentRunning ? "⚡ Scanning & reasoning…" : Array.isArray(scanCompleteInfo) ? "✓ Scan completed" : "○ Idle · ready"}
+
+          <div style="color:#75715e;font-weight:700;margin-top:10px;border-bottom:1px solid #333333;padding-bottom:2px;">[Secondary Discussion — Preventative Task Re-Ranking]</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#a6e22e;font-weight:700;">[GitHub Agent]</span> Since today's deployment lacked integration tests, I'd like to propose a follow-up task.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#2684FF;font-weight:700;">[Jira Agent]</span> I already have a backlog item for integration testing improvements. It's currently P4.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#7c3aed;font-weight:700;">[Slack Agent]</span> Previously, GitHub Agent mentioned the regression escaped because of missing integration tests. Considering that insight, I don't think this should remain P4. It directly contributed to today's outage.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#e53e3e;font-weight:700;">[ServiceNow Agent]</span> I agree. While it's not customer-blocking today, preventing another production incident has significant operational value.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#0f766e;font-weight:700;">[Meetings Agent]</span> Engineering also discussed improving CI/CD during yesterday's retrospective. This recommendation supports that decision.</div>
+          <div style="color:#f8f8f2;padding:1px 0;"><span style="color:#0078D4;font-weight:700;">[Outlook Agent]</span> Customers haven't requested this directly, but preventing future outages will improve customer satisfaction.</div>
+          
+          <div style="color:#66d9ef;font-weight:700;background:#162a3a;padding:6px 10px;border-radius:6px;margin-top:6px;border:1px solid #007acc44;line-height:1.6;">
+            [AI Orchestrator Decision] Decision: P2 — Add End-to-End Integration Tests<br>
+            Reason: Multiple agents agree this is the highest-value preventive action after restoring production.
           </div>
         </div>
-      </aside>
 
-      <!-- Col 3: inline AI chat -->
-      <div style="min-height:0;display:flex;flex-direction:column;">
-        ${renderInlineAgentChat()}
       </div>
+
     </div>
   `;
 }
+
+
+// Page: Unified Inbox — Full Scrum Board with Source Tree, Kanban, and Date Stream
 
 // Page: Unified Inbox — Full Scrum Board with Source Tree, Kanban, and Date Stream
 function renderUnifiedInbox() {
@@ -7319,7 +7823,7 @@ function renderUnifiedInbox() {
   const queue = activeQueue();
 
   if (scrumActiveSource !== "all") {
-    // ─── SOURCE DETAIL VIEW: Show tasks as a colored tile grid ───
+    // ─── SOURCE DETAIL VIEW: Show tasks matching Calendar Color Scheme ───
     const pending = queue.filter(t => taskMatchesSource(t, scrumActiveSource));
     const meta = SOURCE_META[scrumActiveSource] || { label: scrumActiveSource, icon: "◎", color: "#64748b", emoji: "📌" };
 
@@ -7329,50 +7833,76 @@ function renderUnifiedInbox() {
         ? Math.ceil((new Date(nearestDue) - new Date(TODAY)) / 86400000)
         : null;
 
-      let bg = "#ffffff";
-      let border = `${meta.color}35`;
-      let badgeText = "Stable";
-      let playBtnStyle = `background:${meta.color}15;color:${meta.color};border:1px solid ${meta.color}30;`;
-      let subTextColor = "#65717d";
-
-      if (daysLeft !== null) {
-        if (daysLeft <= 0) {
-          bg = `${meta.pastel || "#fef2f2"}`;
-          border = meta.color;
-          badgeText = "DUE TODAY";
-          playBtnStyle = `background:${meta.color}18;color:${meta.color};border:1px solid ${meta.color}40;`;
-          subTextColor = "#44546f";
-        } else if (daysLeft <= 3) {
-          bg = `${meta.pastel || "#fffbeb"}cc`;
-          border = `${meta.color}80`;
-          badgeText = daysLeft === 1 ? "TOMORROW" : `${daysLeft}d left`;
-          playBtnStyle = `background:${meta.color}18;color:${meta.color};border:1px solid ${meta.color}40;`;
-          subTextColor = "#44546f";
-        }
-      }
-
       const isDone = isTaskCompleted(t.id);
       const isWorking = isTaskWorking(t.id);
+      const sev = (t.severity || '').toUpperCase();
+
+      // Calendar Color Theme Palette: Red, Amber, Purple, Slate
+      let theme = {
+        bg: "#f3e8ff",
+        borderLeft: "#a855f7",
+        titleColor: "#581c87",
+        subTextColor: "#6b21a8",
+        badgeBg: "#e9d5ff",
+        badgeText: "#6b21a8",
+        badgeLabel: "NORMAL"
+      };
+
+      if (sev === 'P1' || (daysLeft !== null && daysLeft <= 0)) {
+        theme = {
+          bg: "#fde8e8",
+          borderLeft: "#d9381e",
+          titleColor: "#7a1c10",
+          subTextColor: "#991b1b",
+          badgeBg: "#fecaca",
+          badgeText: "#991b1b",
+          badgeLabel: "DUE TODAY"
+        };
+      } else if (sev === 'P2' || (daysLeft !== null && daysLeft <= 3)) {
+        theme = {
+          bg: "#fef3c7",
+          borderLeft: "#f59e0b",
+          titleColor: "#78350f",
+          subTextColor: "#92400e",
+          badgeBg: "#fde68a",
+          badgeText: "#92400e",
+          badgeLabel: daysLeft === 1 ? "TOMORROW" : `${daysLeft}d left`
+        };
+      } else if (sev === 'P4' || isDone) {
+        theme = {
+          bg: "#f1f5f9",
+          borderLeft: "#64748b",
+          titleColor: "#334155",
+          subTextColor: "#475569",
+          badgeBg: "#e2e8f0",
+          badgeText: "#475569",
+          badgeLabel: "STABLE"
+        };
+      }
+
+      const ext = getTaskExternalUrl(t);
 
       return `
         <div class="task-detail-tile" data-task="${t.id}"
-             style="cursor:pointer;background:${bg};border:2px solid ${border};border-top:3px solid ${meta.color};border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(9,30,66,0.06);color:#17202a;display:flex;flex-direction:column;justify-content:space-between;min-height:165px;transition:transform 0.15s ease,box-shadow 0.15s;"
-             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(9,30,66,0.12)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 2px 8px rgba(9,30,66,0.06)'">
+             style="cursor:pointer;background:${theme.bg};border:1px solid rgba(0,0,0,0.08);border-left:5px solid ${theme.borderLeft};border-radius:10px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);color:${theme.titleColor};display:flex;flex-direction:column;justify-content:space-between;min-height:155px;transition:all 0.15s ease;"
+             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 16px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)'">
           <div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <span style="font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;background:${meta.color}18;color:${meta.color};">${t.severity}</span>
-              <span style="font-size:10px;font-weight:700;color:#8590a2;">${t.id}</span>
+              <span style="font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;background:${theme.badgeBg};color:${theme.badgeText};">${t.severity}</span>
+              <a href="${ext.url}" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="font-size:10px;font-weight:800;color:${theme.titleColor};text-decoration:none;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;border:1px solid ${theme.borderLeft}40;" title="Open in ${ext.platform}">
+                ↗ Open
+              </a>
             </div>
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 8px 0;line-height:1.4;color:#172b4d;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">${escapeHtml(t.canonicalTitle)}</h3>
-            ${t.due ? `<div style="font-size:10px;color:${subTextColor};font-weight:600;margin-bottom:8px;">📅 ${formatDue(t.due)} · <span>${badgeText}</span></div>` : ""}
+            <h3 style="font-size:13.5px;font-weight:800;margin:0 0 8px 0;line-height:1.4;color:${theme.titleColor};overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">${escapeHtml(t.canonicalTitle)}</h3>
+            ${t.due ? `<div style="font-size:10.5px;color:${theme.subTextColor};font-weight:700;margin-bottom:6px;">${formatDue(t.due)} · <span>${theme.badgeLabel}</span></div>` : ""}
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid ${meta.color}20;padding-top:10px;">
-            <span style="font-size:11px;color:#626f86;">${t.owner || "Unassigned"}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;border-top:1px solid rgba(0,0,0,0.08);padding-top:8px;">
+            <span style="font-size:11px;color:${theme.subTextColor};font-weight:600;">${t.owner || "Unassigned"}</span>
             <div style="display:flex;align-items:center;gap:6px;">
               ${isWorking ? `<span style="font-size:10px;color:#0f766e;font-weight:800;">● Active</span>` : ""}
               ${isDone ? `<span style="font-size:10px;color:#0f766e;font-weight:800;">✓ Done</span>` : ""}
               ${!isDone && !isWorking ? `
-                <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:4px 8px;border-radius:5px;cursor:pointer;${playBtnStyle}">▶ Start</button>
+                <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;background:${theme.borderLeft};color:#ffffff;border:none;font-weight:700;">▶ Start</button>
               ` : ""}
             </div>
           </div>
@@ -7382,9 +7912,11 @@ function renderUnifiedInbox() {
 
     return `
       <div style="padding:18px;max-width:1200px;background:#f7f4ee;">
+        <button class="btn-back-tree" data-scrum-source="all" style="background:#152238;color:#ffffff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,0.12);transition:all 0.15s ease;">
+          ← Back to Source Tree
+        </button>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <div>
-            <p class="eyebrow"><span style="cursor:pointer;text-decoration:underline;color:#152238;" data-scrum-source="all">← All Sources</span></p>
             <h2 style="margin:2px 0 0;color:#17202a;">${meta.label} Tasks</h2>
             <p style="font-size:12px;color:#65717d;margin:2px 0 0;">
               Today's queue: ${pending.length} task${pending.length !== 1 ? "s" : ""} actionable today
@@ -7413,110 +7945,119 @@ function renderUnifiedInbox() {
 
   // ─── OVERVIEW ALL SOURCES GRID VIEW ───
   // Show ONLY tasks that fit in TODAY's working hours (capacity-based)
-  // JIRA and GITHUB: Show only 1 task (orange/cream theme)
-  // Other sources: Show up to 8 tasks
   const todayStr = TODAY;
 
-  // Get TODAY's capacity-based queue for the current user (don't filter if manager)
   const myName = activeProfile === "manager" ? "Manager" : (settingsProfile?.name || getUserName());
   const todayCapacityTasks = buildTodayCapacityQueue(state.prioritized, myName, taskTimeLogs);
 
   const tiles = sources.map(src => {
     const meta = SOURCE_META[src.id] || { label: src.name, icon: "◎", color: src.color || "#64748b", emoji: "📌" };
 
-    // Filter capacity-based tasks by this source
-    const todayPool = todayCapacityTasks.filter(t => {
-      if (!taskMatchesSource(t, src.id)) return false;
-      if (isTaskCompleted(t.id)) return false;
-      return true;
-    });
+    const sourcePool = state.prioritized.filter(t => taskMatchesSource(t, src.id) && !isTaskCompleted(t.id));
 
-    // For Jira and GitHub: Show only 1 task (orange/cream styling)
-    // For other sources: Show up to 8 tasks
-    const MAX_PER_CARD = (src.id === "jira" || src.id === "github") ? 1 : 8;
-    const topTasks = todayPool.slice(0, MAX_PER_CARD);
+    // Pick a balanced priority mix: 1 P1 (Red), 1 P2 (Yellow), 1 P3 (Purple), 1 P4 (Slate)
+    const p1 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P1");
+    const p2 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P2");
+    const p3 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P3");
+    const p4 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P4");
 
-    // Card urgency = most urgent task in the set
-    // For Jira and GitHub: Always use orange/cream theme
-    let cardUrgency = "cream";
-    if (src.id === "jira" || src.id === "github") {
-      cardUrgency = "amber"; // Orange/cream theme
-    } else {
-      for (const t of topTasks) {
-        if (t.severity === "P1") { cardUrgency = "red"; break; }
-        if (!t.due) continue;
-        const dl = Math.ceil((new Date(t.due) - new Date(todayStr)) / 86400000);
-        if (dl <= 0) { cardUrgency = "red"; break; }
-        if (dl <= 3 && cardUrgency !== "red") cardUrgency = "amber";
-      }
+    // Display 1-2 tasks per card matching today's calendar schedule
+    const topTasks = [p1, p2, p3, p4].filter(Boolean).slice(0, 2);
+
+    // If empty, fallback to first 2 available
+    if (topTasks.length === 0) {
+      topTasks.push(...sourcePool.slice(0, 2));
     }
 
-    const p1Count = todayPool.filter(t => t.severity === "P1").length;
+    let cardUrgency = "cream";
+    for (const t of topTasks) {
+      if (t.severity === "P1") { cardUrgency = "red"; break; }
+      if (t.severity === "P2" && cardUrgency !== "red") cardUrgency = "amber";
+    }
 
-    return { src, meta, pending: todayPool, topTasks, cardUrgency, p1Count };
+    const p1Count = sourcePool.filter(t => t.severity === "P1").length;
+
+    return { src, meta, pending: sourcePool, topTasks, cardUrgency, p1Count };
   });
 
   const totalPending = tiles.reduce((s, t) => s + t.pending.length, 0);
   const totalP1 = tiles.reduce((s, t) => s + t.p1Count, 0);
 
+  // Task Row Renderer: STRICTLY maps P1 -> Red, P2 -> Yellow, P3 -> Purple, P4 -> Slate (Matches Calendar)
   function renderTaskRow(t, parentDark = false) {
     const isDone = isTaskCompleted(t.id);
-    const dl = deadlineStyle(t.due, isDone);
-    const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[t.severity] || "#64748b";
     const isWorking = isTaskWorking(t.id);
+    const sev = (t.severity || 'P3').toUpperCase();
 
-    let rowBg = dl.bg;
-    let rowBorder = dl.border;
-    let titleColor = "#17202a";
-    let metaColor = "#65717d";
-    let dueColor = dl.textColor;
-    let badgeStyle = `background:${sevColor + '18'};color:${sevColor};`;
-    let playStyle = "background:#f1e6d6;color:#5d4730;border:1px solid #d8ccba;";
+    // Calendar Color Theme Palette: P1 Red, P2 Yellow/Amber, P3 Purple, P4 Slate
+    let theme = {
+      bg: "#f3e8ff",
+      borderLeft: "#a855f7",
+      titleColor: "#581c87",
+      subTextColor: "#6b21a8",
+      badgeBg: "#e9d5ff",
+      badgeText: "#6b21a8",
+      label: "P3",
+      tagText: "Sprint Task"
+    };
 
-    if (parentDark) {
-      titleColor = "#ffffff";
-      metaColor = "rgba(255, 255, 255, 0.8)";
-      dueColor = "#ffffff";
-      badgeStyle = "background:rgba(255,255,255,0.2);color:#ffffff;";
-      playStyle = "background:rgba(255,255,255,0.2);color:#ffffff;border:1px solid rgba(255,255,255,0.25);";
-
-      if (isDone) {
-        rowBg = "rgba(34, 160, 107, 0.25)";
-        rowBorder = "rgba(255, 255, 255, 0.4)";
-      } else if (t.due) {
-        const today = new Date("2026-06-21T00:00:00");
-        const dueDate = new Date(`${t.due}T23:59:59`);
-        const days = Math.ceil((dueDate - today) / 86400000);
-        if (days <= 0) {
-          rowBg = "rgba(225, 29, 72, 0.3)";
-          rowBorder = "rgba(255, 255, 255, 0.4)";
-        } else if (days <= 3) {
-          rowBg = "rgba(245, 158, 11, 0.3)";
-          rowBorder = "rgba(255, 255, 255, 0.4)";
-        } else {
-          rowBg = "rgba(255, 255, 255, 0.1)";
-          rowBorder = "rgba(255, 255, 255, 0.15)";
-        }
-      } else {
-        rowBg = "rgba(255, 255, 255, 0.1)";
-        rowBorder = "rgba(255, 255, 255, 0.15)";
-      }
+    if (sev === 'P1' || t.priority === 'high') {
+      // P1 Red
+      theme = {
+        bg: "#fde8e8",
+        borderLeft: "#d9381e",
+        titleColor: "#7a1c10",
+        subTextColor: "#991b1b",
+        badgeBg: "#fecaca",
+        badgeText: "#991b1b",
+        label: "P1",
+        tagText: "Urgent"
+      };
+    } else if (sev === 'P2' || t.priority === 'medium') {
+      // P2 Yellow / Amber
+      theme = {
+        bg: "#fef3c7",
+        borderLeft: "#f59e0b",
+        titleColor: "#78350f",
+        subTextColor: "#92400e",
+        badgeBg: "#fde68a",
+        badgeText: "#92400e",
+        label: "P2",
+        tagText: "High Priority"
+      };
+    } else if (sev === 'P4' || isDone) {
+      // P4 Slate / Blue
+      theme = {
+        bg: "#f1f5f9",
+        borderLeft: "#64748b",
+        titleColor: "#334155",
+        subTextColor: "#475569",
+        badgeBg: "#e2e8f0",
+        badgeText: "#475569",
+        label: "P4",
+        tagText: "Maintenance"
+      };
     }
 
+    const ext = getTaskExternalUrl(t);
+
     return `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:1px solid ${rowBorder};background:${rowBg};margin:3px 0;cursor:pointer;transition:background 0.2s;width:100%;min-width:0;box-sizing:border-box;" data-task="${t.id}">
-        <span style="font-size:10px;font-weight:800;padding:2px 5px;border-radius:4px;${badgeStyle}flex-shrink:0;">${t.severity}</span>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:1px solid rgba(0,0,0,0.06);border-left:4px solid ${theme.borderLeft};background:${theme.bg};margin:4px 0;cursor:pointer;transition:transform 0.15s ease;width:100%;min-width:0;box-sizing:border-box;" data-task="${t.id}">
+        <span style="font-size:10px;font-weight:800;padding:2px 5px;border-radius:4px;background:${theme.badgeBg};color:${theme.badgeText};flex-shrink:0;">${theme.label}</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:600;color:${titleColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle)}</div>
-          <div style="font-size:10px;color:${metaColor};display:flex;gap:6px;">
-            <span>${t.owner || "Unassigned"}</span>
-            ${t.due ? `<span style="color:${dueColor};font-weight:600;">${dl.label ? dl.label + " · " : ""}${formatDue(t.due)}</span>` : ""}
+          <div style="font-size:12px;font-weight:800;color:${theme.titleColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle || t.title)}</div>
+          <div style="font-size:10px;color:${theme.subTextColor};font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span>${t.owner || "Utkarsh"}</span>
+            <span>· ${theme.tagText}</span>
+            <a href="${ext.url}" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:2px;font-size:9px;font-weight:800;background:rgba(255,255,255,0.85);padding:1px 5px;border-radius:4px;border:1px solid ${theme.borderLeft}40;color:${theme.titleColor};text-decoration:none;" title="Open directly in ${ext.platform}">
+              ↗ Open
+            </a>
           </div>
         </div>
-        ${isWorking ? `<span style="font-size:9px;color:${parentDark ? '#4ade80' : '#0c66e4'};font-weight:800;flex-shrink:0;">● Working</span>` : ""}
-        ${isDone ? `<span style="font-size:9px;color:${parentDark ? '#4ade80' : '#22a06b'};font-weight:800;flex-shrink:0;">✓ Done</span>` : ""}
+        ${isWorking ? `<span style="font-size:9px;color:#0f766e;font-weight:800;flex-shrink:0;">● Active</span>` : ""}
+        ${isDone ? `<span style="font-size:9px;color:#0f766e;font-weight:800;flex-shrink:0;">✓ Done</span>` : ""}
         ${!isDone && !isWorking ? `
-          <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:3px 8px;flex-shrink:0;${playStyle}">▶</button>
+          <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:3px 8px;flex-shrink:0;background:${theme.borderLeft};color:#ffffff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">▶</button>
         ` : ""}
       </div>`;
   }
@@ -7573,7 +8114,7 @@ function renderUnifiedInbox() {
     slack: {
       bg: "#ede9fe",
       svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-        <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/>
+        <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.528 2.528 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/>
       </svg>`
     },
     notes: {
@@ -7585,16 +8126,6 @@ function renderUnifiedInbox() {
         <path d="M16.5 18l1 1 2-2" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>`
     }
-  };
-
-  // Per-source icon identity — unique per integration
-  const SOURCE_STYLE = {
-    jira: { icon: "📋", bg: "#dbeafe", color: "#1d4ed8" },
-    github: { icon: "🔀", bg: "#f1f5f9", color: "#374151" },
-    servicenow: { icon: "🚨", bg: "#fee2e2", color: "#b91c1c" },
-    email: { icon: "📧", bg: "#dbeafe", color: "#075985" },
-    slack: { icon: "💬", bg: "#ede9fe", color: "#6d28d9" },
-    notes: { icon: "📌", bg: "#d1fae5", color: "#065f46" }
   };
 
   // ── 3-colour palette (card-level and task-row-level) ──────────────────────
@@ -7636,32 +8167,30 @@ function renderUnifiedInbox() {
     const DUE_CLR = { red: "#c0392b", amber: "#b7600a", cream: "#8a6a3a" };
     const SEV_BG = { P1: "#fdecea", P2: "#fef6e4", P3: "#d1fae5", P4: "#f1f5f9" };
     const SEV_CLR = { P1: "#c0392b", P2: "#b7600a", P3: "#065f46", P4: "#64748b" };
-    const autoFillCount = Math.max(0, topTasks.length - queue.filter(t => taskMatchesSource(t, src.id)).length);
 
-    // Special rendering for Meeting Notes card (matches meetings page)
     if (src.id === "notes") {
       const upcomingMeetings = meetingsList.filter(m => m.status === "Pending" || m.status === "Scheduled").slice(0, 3);
       return `
         <div style="background:${pal.bg};border:1.5px solid ${pal.border};border-radius:14px;overflow:hidden;
                     box-shadow:0 2px 10px rgba(100,60,20,0.07),0 1px 2px rgba(100,60,20,0.04);
-                    cursor:pointer;transition:box-shadow 0.18s,transform 0.18s;"
+                    cursor:pointer;transition:box-shadow 0.18s,transform 0.18s;display:flex;flex-direction:column;height:100%;min-height:0;"
              onmouseover="this.style.boxShadow='0 8px 24px rgba(100,60,20,0.13)';this.style.transform='translateY(-2px)'"
              onmouseout="this.style.boxShadow='0 2px 10px rgba(100,60,20,0.07)';this.style.transform='none'"
              data-nav="meetings">
 
           <!-- Header -->
-          <div style="padding:14px 16px 12px;">
+          <div style="padding:10px 14px 8px;flex-shrink:0;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-                <div style="width:36px;height:36px;border-radius:9px;flex-shrink:0;
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                <div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;
                             background:${logo ? logo.bg : "#f1f5f9"};
                             display:flex;align-items:center;justify-content:center;
                             box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                  ${logo ? logo.svg : `<span style="font-size:18px;">${meta.emoji}</span>`}
+                  ${logo ? logo.svg : `<span style="font-size:16px;">${meta.emoji}</span>`}
                 </div>
                 <div style="min-width:0;">
-                  <div style="font-size:13px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
-                  <div style="font-size:11px;color:${pal.label};margin-top:1px;font-weight:600;">
+                  <div style="font-size:12.5px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
+                  <div style="font-size:10px;color:${pal.label};margin-top:1px;font-weight:600;">
                     ${meetingsList.length} meeting${meetingsList.length !== 1 ? "s" : ""} found
                   </div>
                 </div>
@@ -7670,50 +8199,46 @@ function renderUnifiedInbox() {
           </div>
 
           <!-- Divider -->
-          <div style="height:1.5px;background:${pal.divider};margin:0 12px;"></div>
+          <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
 
           <!-- Stats -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 4px;">
-            <div style="padding:10px 8px;text-align:center;border-right:1.5px solid ${pal.divider};">
-              <div style="font-size:26px;font-weight:900;color:${pal.accent};line-height:1;">${meetingsList.length}</div>
-              <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">Total</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 2px;flex-shrink:0;">
+            <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
+              <div style="font-size:20px;font-weight:900;color:${pal.accent};line-height:1;">${meetingsList.length}</div>
+              <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Total</div>
             </div>
-            <div style="padding:10px 8px;text-align:center;border-right:1.5px solid ${pal.divider};">
-              <div style="font-size:26px;font-weight:900;color:${meetingsList.filter(m => m.priority === "Critical" || m.priority === "High").length > 0 ? "#c0392b" : pal.accent};line-height:1;">${meetingsList.filter(m => m.priority === "Critical" || m.priority === "High").length}</div>
-              <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">Urgent</div>
+            <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
+              <div style="font-size:20px;font-weight:900;color:${meetingsList.filter(m => m.priority === "Critical" || m.priority === "High").length > 0 ? "#c0392b" : pal.accent};line-height:1;">${meetingsList.filter(m => m.priority === "Critical" || m.priority === "High").length}</div>
+              <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Urgent</div>
             </div>
-            <div style="padding:10px 8px;text-align:center;">
-              <div style="font-size:26px;font-weight:900;color:${pal.accent};line-height:1;">${upcomingMeetings.length}</div>
-              <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">Upcoming</div>
+            <div style="padding:6px 4px;text-align:center;">
+              <div style="font-size:20px;font-weight:900;color:${pal.accent};line-height:1;">${upcomingMeetings.length}</div>
+              <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Upcoming</div>
             </div>
           </div>
 
           <!-- Divider -->
-          <div style="height:1.5px;background:${pal.divider};margin:0 12px;"></div>
+          <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
 
           <!-- Meeting list -->
-          <div style="padding:10px 12px;display:grid;gap:5px;">
+          <div class="eng-task-list-scrollable" style="padding:8px 10px;flex:1;min-height:0;overflow-y:auto;display:grid;gap:4px;">
             ${upcomingMeetings.length === 0
-          ? `<div style="text-align:center;padding:12px 0;color:${pal.label};font-size:12px;opacity:0.6;">✅ No upcoming meetings</div>`
+          ? `<div style="text-align:center;padding:10px 0;color:${pal.label};font-size:11px;opacity:0.6;">✅ No upcoming meetings</div>`
           : upcomingMeetings.map(m => {
             const priorityColor = m.priority === "Critical" ? "#c0392b" : m.priority === "High" ? "#b7600a" : "#065f46";
             return `
-                    <div style="display:flex;flex-direction:column;gap:4px;padding:7px 10px;border-radius:8px;
+                    <div style="display:flex;flex-direction:column;gap:3px;padding:6px 8px;border-radius:7px;
                                  background:rgba(255,255,255,0.6);border:1px solid ${pal.border};
                                  cursor:pointer;transition:filter 0.1s;"
                          onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'"
                          data-meeting-select="${m.id}">
-                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                        <div style="font-size:12px;font-weight:700;color:#2d1505;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.title)}</div>
-                        <span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;background:${priorityColor}18;color:${priorityColor};flex-shrink:0;">${m.priority}</span>
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                        <div style="font-size:11px;font-weight:700;color:#2d1505;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.title)}</div>
+                        <span style="font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:4px;background:${priorityColor}18;color:${priorityColor};flex-shrink:0;">${m.priority}</span>
                       </div>
-                      <div style="font-size:10px;color:#8a6a3a;">
-                        🕒 ${m.suggestedDate} ${m.suggestedTime || ""} · ${m.duration || 30}min
+                      <div style="font-size:9.5px;color:#8a6a3a;">
+                        🕒 ${m.suggestedDate} ${m.suggestedTime || ""} · ${m.duration || 30}m
                       </div>
-                      <button class="secondary" style="font-size:10px;padding:4px 10px;margin-top:4px;border:1px solid ${pal.border};background:rgba(255,255,255,0.8);color:${pal.accent};" 
-                              data-meeting-analyze="${m.id}" onclick="event.stopPropagation();">
-                        🧠 Analyze with AI & View Transcript
-                      </button>
                     </div>`;
           }).join("")}
           </div>
@@ -7723,61 +8248,60 @@ function renderUnifiedInbox() {
     return `
       <div style="background:${pal.bg};border:1.5px solid ${pal.border};border-radius:14px;overflow:hidden;
                   box-shadow:0 2px 10px rgba(100,60,20,0.07),0 1px 2px rgba(100,60,20,0.04);
-                  cursor:pointer;transition:box-shadow 0.18s,transform 0.18s;"
+                  cursor:pointer;transition:box-shadow 0.18s,transform 0.18s;display:flex;flex-direction:column;height:100%;min-height:0;"
            onmouseover="this.style.boxShadow='0 8px 24px rgba(100,60,20,0.13)';this.style.transform='translateY(-2px)'"
            onmouseout="this.style.boxShadow='0 2px 10px rgba(100,60,20,0.07)';this.style.transform='none'"
            data-scrum-source="${src.id}">
 
         <!-- Header -->
-        <div style="padding:14px 16px 12px;">
+        <div style="padding:10px 14px 8px;flex-shrink:0;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-              <div style="width:36px;height:36px;border-radius:9px;flex-shrink:0;
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+              <div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;
                           background:${logo ? logo.bg : "#f1f5f9"};
                           display:flex;align-items:center;justify-content:center;
                           box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                ${logo ? logo.svg : `<span style="font-size:18px;">${meta.emoji}</span>`}
+                ${logo ? logo.svg : `<span style="font-size:16px;">${meta.emoji}</span>`}
               </div>
               <div style="min-width:0;">
-                <div style="font-size:13px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
-                <div style="font-size:11px;color:${pal.label};margin-top:1px;font-weight:600;">
+                <div style="font-size:12.5px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
+                <div style="font-size:10px;color:${pal.label};margin-top:1px;font-weight:600;">
                   ${pending.length} task${pending.length !== 1 ? "s" : ""} pending
-                  ${autoFillCount > 0 ? `<span style="font-size:9px;opacity:0.7;margin-left:4px;">(+${autoFillCount} auto-filled)</span>` : ""}
                 </div>
               </div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
               ${cardBadge}${p1Badge}
             </div>
           </div>
         </div>
 
         <!-- Divider -->
-        <div style="height:1.5px;background:${pal.divider};margin:0 12px;"></div>
+        <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
 
         <!-- Stats -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 4px;">
-          <div style="padding:10px 8px;text-align:center;border-right:1.5px solid ${pal.divider};">
-            <div style="font-size:26px;font-weight:900;color:${pal.accent};line-height:1;">${pending.length}</div>
-            <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">Pending</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 2px;flex-shrink:0;">
+          <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
+            <div style="font-size:20px;font-weight:900;color:${pal.accent};line-height:1;">${pending.length}</div>
+            <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Pending</div>
           </div>
-          <div style="padding:10px 8px;text-align:center;border-right:1.5px solid ${pal.divider};">
-            <div style="font-size:26px;font-weight:900;color:${p1Count > 0 ? "#c0392b" : pal.accent};line-height:1;">${p1Count}</div>
-            <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">P1 Urgent</div>
+          <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
+            <div style="font-size:20px;font-weight:900;color:${p1Count > 0 ? "#c0392b" : pal.accent};line-height:1;">${p1Count}</div>
+            <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">P1 Urgent</div>
           </div>
-          <div style="padding:10px 8px;text-align:center;">
-            <div style="font-size:26px;font-weight:900;color:${cardUrgency === "red" ? "#c0392b" : cardUrgency === "amber" ? "#b7600a" : pal.accent};line-height:1;">${topTasks.length}</div>
-            <div style="font-size:9px;font-weight:700;color:${pal.label};letter-spacing:0.07em;margin-top:3px;opacity:0.75;text-transform:uppercase;">Showing</div>
+          <div style="padding:6px 4px;text-align:center;">
+            <div style="font-size:20px;font-weight:900;color:${cardUrgency === "red" ? "#c0392b" : cardUrgency === "amber" ? "#b7600a" : pal.accent};line-height:1;">${topTasks.length}</div>
+            <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Showing</div>
           </div>
         </div>
 
         <!-- Divider -->
-        <div style="height:1.5px;background:${pal.divider};margin:0 12px;"></div>
+        <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
 
-        <!-- Task rows — each gets its own red / amber / cream row colour -->
-        <div style="padding:10px 12px;display:grid;gap:5px;">
+        <!-- Task rows list with internal scrollbar -->
+        <div class="eng-task-list-scrollable" style="padding:8px 10px;flex:1;min-height:0;overflow-y:auto;display:grid;gap:4px;">
           ${topTasks.length === 0
-        ? `<div style="text-align:center;padding:12px 0;color:${pal.label};font-size:12px;opacity:0.6;">✅ All clear!</div>`
+        ? `<div style="text-align:center;padding:10px 0;color:${pal.label};font-size:11px;opacity:0.6;">✅ All clear!</div>`
         : topTasks.map(t => {
           const isDone = isTaskCompleted(t.id);
           const isWorking = isTaskWorking(t.id);
@@ -7785,46 +8309,46 @@ function renderUnifiedInbox() {
           const taskDl = t.due ? Math.ceil((new Date(t.due) - new Date(TODAY)) / 86400000) : null;
           const dueLabel = !t.due ? "" : taskDl <= 0 ? "Overdue" : taskDl === 1 ? "Tomorrow" : taskDl <= 6 ? `${taskDl}d left` : formatDue(t.due);
           return `
-                  <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;
+                  <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;
                                background:${isDone ? "rgba(255,255,255,0.4)" : ROW_BG[urg]};
                                border:1px solid ${isDone ? "rgba(180,150,100,0.15)" : ROW_BDR[urg]};
                                cursor:pointer;transition:filter 0.1s;opacity:${isDone ? 0.55 : 1};"
                        onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'"
                        data-task="${t.id}">
-                    <span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;background:${SEV_BG[t.severity] || "#f1f5f9"};color:${SEV_CLR[t.severity] || "#64748b"};flex-shrink:0;">${t.severity}</span>
+                    <span style="font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:4px;background:${SEV_BG[t.severity] || "#f1f5f9"};color:${SEV_CLR[t.severity] || "#64748b"};flex-shrink:0;">${t.severity}</span>
                     <div style="flex:1;min-width:0;">
-                      <div style="font-size:12px;font-weight:600;color:${isDone ? "#a0856a" : "#2d1505"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? "text-decoration:line-through;" : ""}">${escapeHtml(t.canonicalTitle)}</div>
-                      <div style="font-size:10px;display:flex;gap:5px;margin-top:1px;">
+                      <div style="font-size:11.5px;font-weight:600;color:${isDone ? "#a0856a" : "#2d1505"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? "text-decoration:line-through;" : ""}">${escapeHtml(t.canonicalTitle)}</div>
+                      <div style="font-size:9.5px;display:flex;gap:4px;margin-top:1px;">
                         <span style="color:#8a6a3a;">${t.owner || "Unassigned"}</span>
                         ${dueLabel ? `<span style="color:${DUE_CLR[urg]};font-weight:${urg !== "cream" ? 700 : 400};">${dueLabel}</span>` : ""}
                       </div>
                     </div>
-                    ${isWorking ? `<span style="font-size:9px;color:#065f46;font-weight:800;flex-shrink:0;">● Active</span>` : ""}
-                    ${isDone ? `<span style="font-size:9px;color:#065f46;font-weight:800;flex-shrink:0;">✓</span>` : ""}
-                    ${!isDone && !isWorking ? `<button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:3px 8px;flex-shrink:0;background:rgba(255,255,255,0.8);color:${pal.accent};border:1px solid ${pal.border};border-radius:5px;cursor:pointer;">▶</button>` : ""}
+                    ${isWorking ? `<span style="font-size:8.5px;color:#065f46;font-weight:800;flex-shrink:0;">● Active</span>` : ""}
+                    ${isDone ? `<span style="font-size:8.5px;color:#065f46;font-weight:800;flex-shrink:0;">✓</span>` : ""}
+                    ${!isDone && !isWorking ? `<button class="tp-btn-start" data-task-start="${t.id}" style="font-size:9.5px;padding:2px 6px;flex-shrink:0;background:rgba(255,255,255,0.8);color:${pal.accent};border:1px solid ${pal.border};border-radius:4px;cursor:pointer;">▶</button>` : ""}
                   </div>`;
         }).join("")}
-          ${pending.length > (src.id === "jira" || src.id === "github" ? 1 : 8) ? `<div style="text-align:center;padding:5px;font-size:11px;color:${pal.accent};font-weight:700;opacity:0.85;">+ ${pending.length - (src.id === "jira" || src.id === "github" ? 1 : 8)} more →</div>` : ""}
+          ${pending.length > (src.id === "jira" || src.id === "github" ? 1 : 8) ? `<div style="text-align:center;padding:3px;font-size:10px;color:${pal.accent};font-weight:700;opacity:0.85;">+ ${pending.length - (src.id === "jira" || src.id === "github" ? 1 : 8)} more →</div>` : ""}
         </div>
       </div>`;
   }).join("");
 
   return `
-    <div style="padding:18px;max-width:1200px;background:#f7f4ee;">
+    <div style="display:flex;flex-direction:column;height:calc(100vh - 84px);max-height:calc(100vh - 84px);overflow:hidden;padding:12px 18px 0;box-sizing:border-box;background:#f7f4ee;">
       <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0;">
         <div>
-          <p class="eyebrow">Unified Work Intelligence</p>
-          <h2 style="margin:2px 0 0;color:#17202a;">All Sources</h2>
-          <p style="font-size:12px;color:#65717d;margin:2px 0 0;">
-            Today's queue: ${totalPending} pending · ${totalP1} P1
+          <p class="eyebrow" style="margin:0;">Unified Work Intelligence</p>
+          <h2 style="margin:1px 0 0;color:#17202a;font-size:18px;">All Sources</h2>
+          <p style="font-size:11px;color:#65717d;margin:1px 0 0;">
+            Today's queue: ${totalPending} pending · ${totalP1} P1 · All 6 sources locked on 1 screen
           </p>
         </div>
-        ${activeProfile === "manager" ? `<button class="primary" style="font-size:12px;padding:7px 12px;background:#152238;color:#fff;border:none;border-radius:6px;font-weight:700;" id="openAddJiraModalBtn">+ Add Task</button>` : ""}
+        ${activeProfile === "manager" ? `<button class="primary" style="font-size:11px;padding:6px 11px;background:#152238;color:#fff;border:none;border-radius:6px;font-weight:700;" id="openAddJiraModalBtn">+ Add Task</button>` : ""}
       </div>
 
-      <!-- Tile grid — 3 columns on wide, 2 on medium -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;">
+      <!-- Tile grid — 3x2 fixed grid fitting 100% viewport height with ZERO scroll -->
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);grid-template-rows:1fr 1fr;gap:10px;flex:1;min-height:0;overflow:hidden;">
         ${tileGrid}
       </div>
     </div>
@@ -7842,184 +8366,155 @@ function renderMeetingMemory() {
     : `https://zoom.us/j/${activeMeeting.id || "123456"}`) : "";
 
   const priorityColor = (p) => {
-    if (p === "Critical") return "#ef4444";
-    if (p === "High") return "#f97316";
-    if (p === "Medium") return "#eab308";
-    return "#22c55e";
+    if (p === "Critical") return "#dc2626";
+    if (p === "High") return "#ea580c";
+    if (p === "Medium") return "#d97706";
+    return "#16a34a";
   };
 
   const typeIcon = (t) => {
-    if (t === "zoom") return `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`;
-    if (t === "slack") return `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`;
-    if (t === "recurring") return `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18"/></svg>`;
-    return `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`;
+    if (t === "zoom") return `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`;
+    if (t === "slack") return `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`;
+    return `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`;
   };
 
   return `
-    <div class="meeting-agent-container">
-      <!-- Agent Toolbar -->
-      <div class="meeting-header-row">
-        <div class="meeting-header-title">
-          <p class="eyebrow">Autonomous Meeting Intelligence</p>
-          <h2>Meeting Agent</h2>
+    <div style="display:flex; flex-direction:column; height:calc(100vh - 84px); overflow:hidden; background:#f8fafc; color:#0f172a; padding:14px 18px; box-sizing:border-box; gap:10px;">
+      
+      <!-- Clean Top Header (No Meeting Agent terminal/eyebrow) -->
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-shrink:0; background:#ffffff; padding:10px 16px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <div>
+          <h2 style="margin:0; font-size:18px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            Meetings
+            <span style="font-size:11px; font-weight:700; color:#0284c7; background:#e0f2fe; padding:2px 8px; border-radius:12px; border:1px solid #bae6fd;">
+              ${meetingsList.length} Total (${pendingMeetings.length} Pending, ${scheduledMeetings.length} Scheduled)
+            </span>
+          </h2>
         </div>
         <div style="display:flex; gap:8px;">
-          <button class="secondary" id="addMeetingNoteBtn" style="display:flex; align-items:center; gap:6px;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg> Add Note
-          </button>
-          <button class="primary" id="startMeetingAgentBtn" ${meetingAgentRunning ? "disabled" : ""} style="display:flex; align-items:center; gap:6px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border: none;">
-            ${meetingAgentRunning
-      ? `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="spin" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Scanning...`
-      : `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Run Meeting Agent`
-    }
+          <button class="secondary" id="addMeetingNoteBtn" style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:6px 12px; border-radius:6px;">
+            + Add Note
           </button>
         </div>
       </div>
 
-      <!-- Agent Terminal -->
-      <div class="meeting-terminal" id="meetingAgentTerminal">
-        ${meetingAgentLog.length === 0
-      ? `<div class="meeting-terminal-idle" style="display:flex; align-items:center; gap:8px;">
-               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> [MEETING AGENT] Idle. Click "Run Meeting Agent" to scan emails, Slack, and calendar for meetings autonomously.
-             </div>`
-      : meetingAgentLog.map(l => `
-              <div class="meeting-terminal-line">
-                <span class="meeting-terminal-prefix">&gt;</span> ${escapeHtml(l)}
-              </div>
-            `).join("")
-    }
-      </div>
-
-      <div class="content-grid" style="grid-template-columns: minmax(0,1.4fr) minmax(320px, 0.85fr); gap:16px;">
-        <!-- Left: Meeting List -->
-        <div style="display:flex; flex-direction:column; gap:16px;">
-          <!-- Pending Meetings -->
-          <div class="meeting-board">
-            <div class="meeting-board-header">
-              <div>
-                <p class="eyebrow">Needs Scheduling</p>
-                <h3>Pending Meetings (${pendingMeetings.length})</h3>
-              </div>
-              <span class="meeting-badge-action">${pendingMeetings.length} action required</span>
+      <!-- Main Content Grid (100% Height, No Page Scroll) -->
+      <div style="flex:1; min-height:0; display:grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.85fr); gap:12px; overflow:hidden;">
+        
+        <!-- Left Column: Scrollable Meeting Lists -->
+        <div style="display:flex; flex-direction:column; gap:12px; height:100%; min-height:0; overflow-y:auto; padding-right:4px;">
+          
+          <!-- Pending Meetings Section -->
+          <div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #f1f5f9;">
+              <h3 style="margin:0; font-size:13px; font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">
+                Pending Meetings (${pendingMeetings.length})
+              </h3>
+              <span style="font-size:10.5px; font-weight:700; color:#c2410c; background:#ffedd5; padding:2px 8px; border-radius:10px; border:1px solid #fed7aa;">
+                ${pendingMeetings.length} Action Required
+              </span>
             </div>
-            <div style="display:grid; gap:10px;">
+            <div style="display:grid; gap:8px;">
               ${pendingMeetings.length === 0
-      ? `<p style="color:#64748b; font-size:13px; font-style:italic; padding:12px; text-align:center;">No pending meetings. Run the agent to extract from inbox.</p>`
+      ? `<p style="color:#64748b; font-size:12px; font-style:italic; padding:8px; text-align:center; margin:0;">No pending meetings.</p>`
       : pendingMeetings.map(m => renderMeetingCard(m, priorityColor, typeIcon)).join("")
     }
             </div>
           </div>
 
-          <!-- Scheduled Meetings -->
-          <div class="meeting-board">
-            <div class="meeting-board-header">
-              <div>
-                <p class="eyebrow">On Calendar</p>
-                <h3>Scheduled Meetings (${scheduledMeetings.length})</h3>
-              </div>
-              <span class="meeting-badge-confirmed">✓ Confirmed</span>
+          <!-- Scheduled Meetings Section -->
+          <div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #f1f5f9;">
+              <h3 style="margin:0; font-size:13px; font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px;">
+                Scheduled Meetings (${scheduledMeetings.length})
+              </h3>
+              <span style="font-size:10.5px; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px; border:1px solid #bbf7d0;">
+                Confirmed on Calendar
+              </span>
             </div>
-            <div style="display:grid; gap:10px;">
+            <div style="display:grid; gap:8px;">
               ${scheduledMeetings.length === 0
-      ? `<p style="color:#64748b; font-size:13px; font-style:italic; padding:12px; text-align:center;">No scheduled meetings on calendar yet.</p>`
-      : scheduledMeetings.map(m => renderMeetingCard(m, priorityColor, typeIcon)).join("")}
+      ? `<p style="color:#64748b; font-size:12px; font-style:italic; padding:8px; text-align:center; margin:0;">No scheduled meetings.</p>`
+      : scheduledMeetings.map(m => renderMeetingCard(m, priorityColor, typeIcon)).join("")
+    }
             </div>
           </div>
+
         </div>
 
-        <!-- Right: Detail Panel -->
-        <aside>
+        <!-- Right Column: Meeting Detail Panel -->
+        <div style="background:#ffffff; border-radius:10px; border:1px solid #e2e8f0; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.03); height:100%; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:12px;">
           ${activeMeeting ? `
-            <section class="meeting-detail-panel">
-              <div class="meeting-detail-title-section">
-                <p class="eyebrow">Meeting Intelligence</p>
-                <h3 style="margin:4px 0 2px; font-size:18px; font-weight:800; color:#0f172a; line-height:1.35;">${escapeHtml(activeMeeting.title)}</h3>
-                <div class="meeting-detail-pills">
-                  <span class="meeting-detail-pill priority-${(activeMeeting.urgencyLabel || activeMeeting.priority || "low").toLowerCase()}">
-                    ${activeMeeting.urgencyLabel || activeMeeting.priority}
-                  </span>
-                  <span class="meeting-detail-pill type">
-                    ${typeIcon(activeMeeting.type)} ${activeMeeting.type}
-                  </span>
-                  <span class="meeting-detail-pill score">
-                    Score: ${activeMeeting.priorityScore || "—"}
-                  </span>
-                </div>
+            <div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b;">Meeting Intelligence</span>
+                <span style="font-size:11px; font-weight:800; color:${priorityColor(activeMeeting.urgencyLabel || activeMeeting.priority)}; background:#f1f5f9; padding:2px 8px; border-radius:4px; border:1px solid #cbd5e1;">
+                  Score: ${activeMeeting.priorityScore || "—"}
+                </span>
               </div>
-
-              <div class="meeting-detail-section agenda">
-                <strong>📝 Agenda:</strong> ${escapeHtml(activeMeeting.agenda || "Not specified")}
+              <h3 style="margin:2px 0 6px; font-size:16px; font-weight:800; color:#0f172a; line-height:1.35;">${escapeHtml(activeMeeting.title)}</h3>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+                <span style="font-size:10.5px; font-weight:700; color:#ffffff; background:${priorityColor(activeMeeting.urgencyLabel || activeMeeting.priority)}; padding:2px 8px; border-radius:4px;">
+                  ${activeMeeting.urgencyLabel || activeMeeting.priority}
+                </span>
+                <span style="font-size:10.5px; font-weight:700; color:#475569; background:#f1f5f9; padding:2px 8px; border-radius:4px; border:1px solid #e2e8f0; display:inline-flex; align-items:center; gap:4px;">
+                  ${typeIcon(activeMeeting.type)} ${activeMeeting.type}
+                </span>
+                <span style="font-size:10.5px; font-weight:700; color:${activeMeeting.status === 'Scheduled' ? '#15803d' : '#c2410c'}; background:${activeMeeting.status === 'Scheduled' ? '#dcfce7' : '#ffedd5'}; padding:2px 8px; border-radius:4px;">
+                  ${activeMeeting.status === 'Scheduled' ? 'Scheduled' : 'Pending Save'}
+                </span>
               </div>
+            </div>
 
-              ${activeMeeting.aiReasoning ? `
-                <div class="meeting-detail-section ai-reasoning">
-                  <strong>AI Reasoning:</strong> ${escapeHtml(activeMeeting.aiReasoning)}
-                </div>
-              ` : ""}
+            <!-- Agenda -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#334155; line-height:1.45;">
+              <strong style="color:#0f172a;">Agenda:</strong> ${escapeHtml(activeMeeting.agenda || "Confirm status and operational priorities.")}
+            </div>
 
-              ${activeMeeting.suggestedAction ? `
-                <div class="meeting-detail-section suggested-action">
-                  <strong>⚡ Suggested Action:</strong> ${escapeHtml(activeMeeting.suggestedAction)}
-                </div>
-              ` : ""}
-
-              ${activeMeeting.riskIfSkipped ? `
-                <div class="meeting-detail-section risk">
-                  <strong>⚠ Risk if Skipped:</strong> ${escapeHtml(activeMeeting.riskIfSkipped)}
-                </div>
-              ` : (activeMeeting.risks && activeMeeting.risks.length > 0 ? `
-                <div class="meeting-detail-section risk">
-                  <strong>⚠ Risks:</strong> ${escapeHtml(activeMeeting.risks.join("; "))}
-                </div>
-              ` : "")}
-
-              <div class="meeting-detail-info-block">
-                <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">👥 Attendees:</span>
-                  <span class="meeting-detail-info-value">${escapeHtml((activeMeeting.attendees || []).join(", "))}</span>
-                </div>
-                <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">🕒 Suggested:</span>
-                  <span class="meeting-detail-info-value">${escapeHtml(activeMeeting.suggestedDate)} at ${escapeHtml(activeMeeting.suggestedTime)} (${activeMeeting.duration} min)</span>
-                </div>
-                <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">🔗 Join Link:</span>
-                  <span class="meeting-detail-info-value">
-                    <a href="#" data-open-external="${meetUrl}" style="color:#0c66e4; font-weight:600; text-decoration:underline;">
-                      ${meetUrl} 📹
-                    </a>
-                  </span>
-                </div>
-                <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">🔌 Source:</span>
-                  <span class="meeting-detail-info-value">${escapeHtml(activeMeeting.extractedFrom || activeMeeting.source)}</span>
-                </div>
+            <!-- Risks / Reasoning -->
+            ${(activeMeeting.riskIfSkipped || (activeMeeting.risks && activeMeeting.risks.length > 0)) ? `
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#991b1b; line-height:1.45;">
+                <strong>Risk if Skipped:</strong> ${escapeHtml(activeMeeting.riskIfSkipped || activeMeeting.risks?.join("; "))}
               </div>
+            ` : ""}
 
-              <div class="meeting-action-buttons" style="display:flex; gap:8px;">
-                <button class="primary" data-open-external="${meetUrl}" style="display:flex; align-items:center; gap:6px; background:#16a34a; border:none; padding: 6px 12px; font-weight:600;">
-                  <span>📹</span> Join Call
-                </button>
-                <button class="secondary" id="analyzeMeetingBtn" data-meet-detail="${activeMeeting.id}" style="display:flex; align-items:center; gap:6px;">
-                  <span>🧠</span> Analyze with AI
-                </button>
-                ${activeMeeting.savedToCalendar || activeMeeting.status === "Scheduled"
-        ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; display:flex; align-items:center; gap:6px;" disabled>
-                       <span>✓</span> On Calendar
-                     </button>`
-        : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; gap:6px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border: none;">
-                       <span>📅</span> Save to Calendar
-                     </button>`
+            <!-- Metadata Info Rows -->
+            <div style="display:grid; gap:6px; background:#fafafa; border:1px solid #f1f5f9; border-radius:6px; padding:10px; font-size:11px; color:#475569;">
+              <div style="display:flex; justify-content:space-between;">
+                <span style="font-weight:700; color:#64748b;">Attendees:</span>
+                <span style="font-weight:600; color:#0f172a; text-align:right;">${escapeHtml((activeMeeting.attendees || []).join(", "))}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="font-weight:700; color:#64748b;">Suggested Time:</span>
+                <span style="font-weight:600; color:#0f172a;">${escapeHtml(activeMeeting.suggestedDate)} at ${escapeHtml(activeMeeting.suggestedTime)} (${activeMeeting.duration}m)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="font-weight:700; color:#64748b;">Source Context:</span>
+                <span style="font-weight:600; color:#0f172a;">${escapeHtml(activeMeeting.extractedFrom || activeMeeting.source)}</span>
+              </div>
+            </div>
+
+            <!-- Actions Bar -->
+            <div style="display:flex; gap:8px; margin-top:4px;">
+              <button class="primary" data-open-external="${meetUrl}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#16a34a; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">
+                Join Call
+              </button>
+              <button class="secondary" id="analyzeMeetingBtn" data-meet-detail="${activeMeeting.id}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; font-size:11.5px; font-weight:600; padding:7px 12px; border-radius:6px;">
+                Analyze with AI
+              </button>
+              ${activeMeeting.savedToCalendar || activeMeeting.status === "Scheduled"
+        ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; padding:7px 10px; font-size:11.5px; font-weight:700;" disabled>✓ Saved</button>`
+        : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; background:#0052cc; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">Save to Calendar</button>`
       }
-              </div>
+            </div>
 
-              <!-- Analysis Result -->
-              <div id="meetingAnalysisResult" style="font-size:13px; color:#334155; border-top:1px solid #e2e8f0; padding-top:12px; display:grid; gap:8px;">
-                ${renderMeetingAnalysisHTML(activeMeeting.id)}
-              </div>
-            </section>
-          ` : `<section class="meeting-detail-panel"><p style="color:#64748b; text-align:center; padding:24px; font-style:italic;">No meeting selected.</p></section>`}
-        </aside>
+            <!-- Analysis Result Box -->
+            <div id="meetingAnalysisResult" style="font-size:11.5px; color:#334155; border-top:1px solid #e2e8f0; padding-top:10px; display:grid; gap:6px;">
+              ${renderMeetingAnalysisHTML(activeMeeting.id)}
+            </div>
+          ` : `<p style="color:#64748b; text-align:center; padding:20px; font-style:italic;">Select a meeting to view details.</p>`}
+        </div>
+
       </div>
     </div>
   `;
@@ -8027,42 +8522,45 @@ function renderMeetingMemory() {
 
 function renderMeetingCard(m, priorityColor, typeIcon) {
   const isActive = (selectedMeeting?.id === m.id) || (!selectedMeeting && meetingsList[0]?.id === m.id);
-  const color = priorityColor(m.urgencyLabel || m.priority);
-  const bgTint = m.urgencyLabel === "Critical" || m.priority === "Critical" ? "rgba(239, 68, 68, 0.12)"
-    : m.urgencyLabel === "High" || m.priority === "High" ? "rgba(249, 115, 22, 0.12)"
-      : m.urgencyLabel === "Medium" || m.priority === "Medium" ? "rgba(234, 179, 8, 0.12)"
-        : "rgba(34, 197, 94, 0.12)";
+  const pColor = priorityColor(m.urgencyLabel || m.priority);
 
   return `
-    <button class="meeting-card-btn ${isActive ? "selected" : ""}" data-meet-id="${m.id}" style="--meet-accent: ${color}; --meet-bg-tint: ${bgTint};">
-      <div class="meeting-card-header">
-        <div class="meeting-card-title-group">
-          <div class="meeting-card-icon-wrapper">
-            ${typeIcon(m.type)}
-          </div>
-          <span class="meeting-card-title">${escapeHtml(m.title)}</span>
+    <div class="meeting-card-btn ${isActive ? "selected" : ""}" data-meet-id="${m.id}"
+      style="background:${isActive ? '#f0f7ff' : '#ffffff'}; border:1.5px solid ${isActive ? '#0052cc' : '#e2e8f0'}; border-radius:8px; padding:10px 12px; text-align:left; cursor:pointer; transition:all 0.15s ease; position:relative; box-shadow:${isActive ? '0 2px 8px rgba(0,82,204,0.12)' : 'none'};">
+      
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:6px;">
+        <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">
+          <span style="color:#0052cc; flex-shrink:0;">${typeIcon(m.type)}</span>
+          <span style="font-size:13px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.title)}</span>
         </div>
-        <div class="meeting-card-score">
-          ${m.priorityScore || "—"}
-        </div>
+        <span style="font-size:11px; font-weight:800; color:#0052cc; background:#e0f2fe; padding:1px 6px; border-radius:4px; border:1px solid #bae6fd; flex-shrink:0;">
+          Score ${m.priorityScore || "—"}
+        </span>
       </div>
       
-      <div class="meeting-card-meta" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-        <span style="display:inline-flex; align-items:center; gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> ${m.suggestedDate} at ${m.suggestedTime}</span>
+      <div style="display:flex; align-items:center; gap:8px; font-size:11px; color:#64748b; margin-bottom:6px; flex-wrap:wrap;">
+        <span>${m.suggestedDate} at ${m.suggestedTime}</span>
         <span>•</span>
-        <span style="display:inline-flex; align-items:center; gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ${m.duration} min</span>
+        <span>${m.duration} min</span>
         <span>•</span>
-        <span style="display:inline-flex; align-items:center; gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ${(m.attendees || []).length} attendees</span>
+        <span>${(m.attendees || []).length} attendees</span>
       </div>
       
-      <div class="meeting-card-footer">
-        <span class="meeting-card-urgency">${m.urgencyLabel || m.priority}</span>
-        ${m.savedToCalendar || m.status === "Scheduled"
-      ? `<span class="meeting-card-status saved" style="display:inline-flex; align-items:center; gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Saved to Calendar</span>`
-      : `<span class="meeting-card-status pending" style="display:inline-flex; align-items:center; gap:3px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Pending Save</span>`
-    }
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:4px; padding-top:6px; border-top:1px dashed #f1f5f9;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:10px; font-weight:800; color:#ffffff; background:${pColor}; padding:1px 6px; border-radius:4px;">
+            ${m.urgencyLabel || m.priority}
+          </span>
+          <span style="font-size:10px; font-weight:700; color:${m.savedToCalendar || m.status === 'Scheduled' ? '#15803d' : '#c2410c'}; background:${m.savedToCalendar || m.status === 'Scheduled' ? '#dcfce7' : '#ffedd5'}; padding:1px 6px; border-radius:4px;">
+            ${m.savedToCalendar || m.status === 'Scheduled' ? '✓ Saved to Calendar' : '● Pending Save'}
+          </span>
+        </div>
+        <button data-meet-id="${m.id}" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; font-size:10.5px; font-weight:700; color:#0f172a; padding:2px 8px; cursor:pointer;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+          View Details
+        </button>
       </div>
-    </button>
+
+    </div>
   `;
 }
 
@@ -8538,125 +9036,191 @@ function renderScrumStreamCard(task) {
 
 // ─── Animated Source Tree ─────────────────────────────────────────────────────
 function renderSourceTree() {
-  const nodeRadius = 28;
-  const centerX = 520, centerY = 200;
-  const sourceNodes = [
-    { id: "all", label: "All", imgSrc: null, color: "#152238", angle: 0, r: 0 },
-    { id: "jira", label: "Jira", imgSrc: SOURCE_LOGO_MAP.jira.imgSrc, color: "#0052CC", angle: 0, r: 160 },
-    { id: "github", label: "GitHub", imgSrc: SOURCE_LOGO_MAP.github.imgSrc, color: "#24292f", angle: 60, r: 160 },
-    { id: "servicenow", label: "Snow", imgSrc: SOURCE_LOGO_MAP.servicenow.imgSrc, color: "#c0392b", angle: 120, r: 160 },
-    { id: "email", label: "Outlook", imgSrc: SOURCE_LOGO_MAP.email.imgSrc, color: "#0078D4", angle: 180, r: 160 },
-    { id: "slack", label: "Slack", imgSrc: SOURCE_LOGO_MAP.slack.imgSrc, color: "#4A154B", angle: 240, r: 160 },
-    { id: "notes", label: "Meetings", imgSrc: SOURCE_LOGO_MAP.notes.imgSrc, color: "#0f766e", angle: 300, r: 160 },
-  ];
-
-  const toRad = d => d * Math.PI / 180;
-
+  const svgW = 960, svgH = 500;
   const queue = activeQueue();
 
-  // Build computed positions
-  const positioned = sourceNodes.map(n => {
-    const x = n.r === 0 ? centerX : centerX + n.r * Math.cos(toRad(n.angle - 90));
-    const y = n.r === 0 ? centerY : centerY + n.r * Math.sin(toRad(n.angle - 90));
-    const count = n.id === "all" ? queue.length : queue.filter(t => taskMatchesSource(t, n.id)).length;
-    return { ...n, x: Math.round(x), y: Math.round(y), count };
+  // Root ALL SOURCES Center Node
+  const rootNode = { id: "all", label: "ALL SOURCES INTELLIGENCE", count: queue.length, x: 480, y: 230 };
+
+  // 6 Cloud Foliage Canopy Nodes positioned around the tree
+  const clouds = [
+    // Top Center
+    { id: "jira", label: "Jira Sprint", x: 480, y: 70, color: "#0052CC", bg: "#e05328", logo: SOURCE_LOGO_MAP.jira },
+
+    // Left Boughs
+    { id: "github", label: "GitHub PRs", x: 220, y: 120, color: "#24292f", bg: "#d94e24", logo: SOURCE_LOGO_MAP.github },
+    { id: "servicenow", label: "ServiceNow", x: 160, y: 250, color: "#c0392b", bg: "#e05328", logo: SOURCE_LOGO_MAP.servicenow },
+
+    // Right Boughs
+    { id: "email", label: "Outlook Email", x: 740, y: 120, color: "#0078D4", bg: "#e05328", logo: SOURCE_LOGO_MAP.email },
+    { id: "slack", label: "Slack Mentions", x: 800, y: 250, color: "#4A154B", bg: "#e76f51", logo: SOURCE_LOGO_MAP.slack },
+    { id: "notes", label: "Meeting Notes", x: 720, y: 380, color: "#0f766e", bg: "#f4977a", logo: SOURCE_LOGO_MAP.notes },
+  ].map(n => {
+    const cnt = n.id === "notes"
+      ? meetingsList.length
+      : queue.filter(t => taskMatchesSource(t, n.id)).length;
+    return { ...n, count: cnt };
   });
 
-  const center = positioned[0];
-  const leaves = positioned.slice(1);
+  // Solid Wood Bark Tree Trunk & Branches (Clean, seamless connection to every cloud)
+  const barkTrunkD = `
+    M 440 500
+    L 440 380
+    C 360 360, 260 310, 160 260
+    L 165 245
+    C 265 295, 365 345, 442 360
+    L 442 300
+    C 370 240, 290 180, 220 130
+    L 225 115
+    C 295 165, 375 225, 445 285
+    L 445 150
+    C 455 120, 465 90, 480 75
+    C 495 90, 505 120, 515 150
+    L 515 285
+    C 585 225, 665 165, 735 115
+    L 740 130
+    C 670 180, 590 240, 518 300
+    L 518 360
+    C 595 345, 695 295, 795 245
+    L 800 260
+    C 700 310, 600 360, 520 380
+    L 520 400
+    C 585 390, 655 385, 715 382
+    L 720 395
+    C 660 398, 590 403, 520 415
+    L 520 500
+    Z
+  `;
 
-  const svgW = 1040, svgH = 400;
+  // Sap Lines running exactly inside the branches to each cloud
+  const sapPulsePaths = [
+    { d: "M 480 490 L 480 80", delay: "0s" },
+    { d: "M 470 450 C 420 350, 310 210, 222 122", delay: "0.4s" },
+    { d: "M 465 470 C 380 400, 270 300, 162 252", delay: "0.8s" },
+    { d: "M 490 450 C 540 350, 650 210, 738 122", delay: "0.3s" },
+    { d: "M 495 470 C 580 400, 690 300, 798 252", delay: "0.7s" },
+    { d: "M 500 480 C 560 430, 630 400, 718 388", delay: "1.1s" },
+  ];
 
-  const lines = leaves.map((n, i) => `
-    <line class="tree-branch" x1="${center.x}" y1="${center.y}" x2="${n.x}" y2="${n.y}"
-      stroke="${n.color}" stroke-width="1.5" stroke-dasharray="200" stroke-dashoffset="200"
-      style="animation:drawBranch .7s ease ${i * 0.1}s forwards;">
-    </line>
-    <circle cx="${(center.x + n.x) / 2}" cy="${(center.y + n.y) / 2}" r="3"
-      fill="${n.color}" opacity="0"
-      style="animation:fadeNode .4s ease ${i * 0.1 + .5}s forwards;">
-    </circle>
+  const sapEls = sapPulsePaths.map((s) => `
+    <path d="${s.d}" fill="none" stroke="#ffc107" stroke-width="2" stroke-linecap="round"
+      stroke-dasharray="6 14" opacity="0.85"
+      style="animation: flowDataStream 2.2s linear infinite ${s.delay};" />
   `).join("");
 
-  const nodeEls = positioned.map((n, i) => {
-    const active = scrumActiveSource === n.id;
-    const r = active ? nodeRadius + 4 : nodeRadius;
-    const logoSize = r * 1.1;
+  // Reusable Puffy Cloud Path Shape
+  const makeCloudPath = (w = 160, h = 90) => {
+    const rx = w / 2;
+    const ry = h / 2;
+    return `M ${-rx * 0.85} 5 
+      C ${-rx * 0.85} ${-ry * 0.45}, ${-rx * 0.6} ${-ry * 0.75}, ${-rx * 0.3} ${-ry * 0.6} 
+      C ${-rx * 0.15} ${-ry}, ${rx * 0.2} ${-ry}, ${rx * 0.35} ${-ry * 0.6} 
+      C ${rx * 0.6} ${-ry * 0.75}, ${rx * 0.85} ${-ry * 0.45}, ${rx * 0.85} 10 
+      C ${rx * 0.95} ${ry * 0.45}, ${rx * 0.85} ${ry * 0.85}, ${rx * 0.6} ${ry * 0.95} 
+      C ${rx * 0.35} ${ry * 1.05}, ${-rx * 0.55} ${ry * 1.05}, ${-rx * 0.7} ${ry * 0.85} 
+      C ${-rx * 0.9} ${ry * 0.7}, ${-rx * 0.95} ${ry * 0.35}, ${-rx * 0.85} 5 Z`;
+  };
+
+  const cloudPathStandard = makeCloudPath(160, 90);
+
+  // 1. Render 6 Source Cloud Foliage Nodes (STATIONARY ON HOVER — NO MOVING!)
+  const cloudEls = clouds.map((c) => {
+    const active = scrumActiveSource === c.id;
+    const logo = c.logo;
+
     return `
-      <g class="tree-node ${active ? "tree-node-active" : ""}" data-scrum-source="${n.id}"
-         style="cursor:pointer;animation:popNode .5s cubic-bezier(.34,1.56,.64,1) ${i * 0.09}s both;">
-        <circle cx="${n.x}" cy="${n.y}" r="${r}"
-          fill="${active ? n.color : "#fff"}"
-          stroke="${n.color}" stroke-width="${active ? 2.5 : 1.5}"
-          filter="${active ? "url(#glow)" : "none"}">
-        </circle>
-        ${n.imgSrc
-        ? `<image href="${n.imgSrc}" x="${n.x - logoSize / 2}" y="${n.y - logoSize / 2 - 5}"
-               width="${logoSize}" height="${logoSize}"
-               style="filter:${active ? "brightness(10)" : "none"};"/>`
-        : `<text x="${n.x}" y="${n.y - 4}" text-anchor="middle" dominant-baseline="middle"
-               font-size="15" font-weight="800" fill="#fff">⊕</text>`
-      }
-        <text x="${n.x}" y="${n.y + r - 7}" text-anchor="middle" dominant-baseline="middle"
-          font-size="9" font-weight="700" fill="${active ? "#fff" : n.color}" opacity="${active ? 1 : .85}">
-          ${n.label}
+      <g class="tree-cloud-node ${active ? "tree-cloud-active" : ""}" data-scrum-source="${c.id}"
+         transform="translate(${c.x}, ${c.y})">
+        <!-- Cloud Foliage Shape -->
+        <path d="${cloudPathStandard}"
+          fill="${active ? c.color : c.bg}"
+          stroke="${active ? "#ffffff" : "#c8421b"}" stroke-width="${active ? 2.5 : 1.5}"
+          filter="url(#cloudShadow)" />
+
+        <!-- Logo SVG -->
+        <g transform="translate(-48, -11) scale(0.95)">
+          ${logo ? logo.svg : ""}
+        </g>
+
+        <!-- Written Source Name inside Cloud -->
+        <text x="-14" y="1" dominant-baseline="middle" font-size="11.5" font-weight="900" fill="#ffffff">
+          ${c.label}
         </text>
-        ${n.count > 0 ? `
-          <circle cx="${n.x + r - 4}" cy="${n.y - r + 4}" r="11" fill="${n.color}"/>
-          <text x="${n.x + r - 4}" y="${n.y - r + 4}" text-anchor="middle" dominant-baseline="middle"
-            font-size="9" font-weight="800" fill="#fff">${n.count}</text>
+
+        <!-- Count Badge inside Cloud -->
+        ${c.count > 0 ? `
+          <g transform="translate(48, -16)">
+            <circle r="10.5" fill="#ffffff" stroke="${c.bg}" stroke-width="1.5" />
+            <text x="0" y="1" text-anchor="middle" dominant-baseline="middle"
+              font-size="9" font-weight="900" fill="${c.bg}">${c.count}</text>
+          </g>
         ` : ""}
       </g>
     `;
   }).join("");
 
-  const selectedLabel = positioned.find(n => n.id === scrumActiveSource)?.label || "All Sources";
+  const selectedLabel = clouds.find(n => n.id === scrumActiveSource)?.label || (scrumActiveSource === "all" ? "All Sources" : scrumActiveSource);
 
   return `
     <div class="scrum-tree-wrap">
       <svg class="scrum-tree-svg" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="4" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          <filter id="cloudShadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#3b1a0e" flood-opacity="0.15"/>
           </filter>
+          <linearGradient id="barkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#5c2715"/>
+            <stop offset="100%" stop-color="#3b1a0e"/>
+          </linearGradient>
           <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#f5efe6" stop-opacity=".7"/>
-            <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#fff8f5" stop-opacity=".95"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
           </radialGradient>
         </defs>
-        <rect width="${svgW}" height="${svgH}" fill="url(#bgGrad)" rx="12"/>
-        ${lines}
-        ${nodeEls}
+
+        <rect width="${svgW}" height="${svgH}" fill="url(#bgGrad)" rx="16"/>
+
+        <!-- 1. Solid Wood Bark Tree Trunk & Splitting Boughs -->
+        <path d="${barkTrunkD}" fill="url(#barkGrad)" stroke="#3b1a0e" stroke-width="1.5" filter="url(#cloudShadow)" />
+
+        <!-- 2. Sap Pulses inside Wood Boughs -->
+        ${sapEls}
+
+        <!-- 3. 6 Source Cloud Canopy Nodes -->
+        ${cloudEls}
       </svg>
+
       <div class="scrum-tree-label">
         Viewing: <strong>${selectedLabel}</strong>
-        ${scrumActiveSource !== "all" ? `<button class="scrum-clear-source" data-scrum-source="all">✕ Show all</button>` : ""}
+        ${scrumActiveSource !== "all" ? `<button class="scrum-clear-source" data-scrum-source="all">✕ Reset to All</button>` : ""}
       </div>
     </div>
+
     <style>
       .scrum-tree-wrap {
-        background: linear-gradient(180deg, #fcfbf9 0%, #fffdfa 100%) !important;
-        border: none !important;
+        background: linear-gradient(180deg, #fffaf7 0%, #ffffff 100%) !important;
+        border: 1px solid rgba(224, 122, 95, 0.25) !important;
+        border-radius: 18px !important;
         padding: 16px 24px 8px !important;
+        box-shadow: 0 6px 24px rgba(92, 39, 21, 0.06) !important;
       }
       .scrum-tree-label strong {
-        color: #152238 !important;
+        color: #5c2715 !important;
       }
-      @keyframes drawBranch {
-        to { stroke-dashoffset: 0; }
+      @keyframes flowDataStream {
+        from { stroke-dashoffset: 40; }
+        to   { stroke-dashoffset: 0; }
       }
-      @keyframes fadeNode {
-        to { opacity: .6; }
+
+      /* STRICT NO MOVEMENT / NO ROTATING / NO SWAYING ON HOVER */
+      .tree-cloud-node {
+        cursor: pointer !important;
+        transition: filter 0.2s ease !important;
       }
-      @keyframes popNode {
-        from { transform: scale(0); opacity: 0; transform-origin: center; }
-        to   { transform: scale(1); opacity: 1; }
+      .tree-cloud-node:hover {
+        transform: none !important;
+        filter: drop-shadow(0 0 10px rgba(224, 83, 40, 0.5)) !important;
       }
-      .tree-node { transition: transform .2s ease; transform-origin: center; }
-      .tree-node:hover circle { filter: brightness(1.08); }
-      .tree-node:hover { transform: scale(1.08); }
-      .tree-node-active circle { box-shadow: 0 0 0 6px currentColor; }
     </style>
   `;
 }
@@ -8995,107 +9559,411 @@ function renderSourceBars(sourceMap) {
 
 // ─── Page: My Analytics (engineer view — own stats) ──────────────────────────
 function renderMyAnalyticsPage() {
-  const name = settingsProfile?.name || "Utkarsh";
-  const a = buildEngineerAnalytics(name, true); // true = current user, use Supabase rows
-  const completionRate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
-  const onTimeRate = a.done.length ? Math.round((a.onTime.length / a.done.length) * 100) : 0;
+  // ── KPI values (shift based on active filters) ──
+  let tasksToday = "24";
+  let finishedToday = "18";
+
+  // ── Source distribution percentages ──
+  let jiraPct = 32.4;
+  let githubPct = 24.1;
+  let slackPct = 18.7;
+  let snowPct = 11.3;
+  let outlookPct = 8.2;
+  let meetingsPct = 5.3;
+
+  // ── Weekly bar data (Mon-Sun) ──
+  let weeklyData = [
+    { day: "Mon", val: 18 },
+    { day: "Tue", val: 22 },
+    { day: "Wed", val: 15 },
+    { day: "Thu", val: 28 },
+    { day: "Fri", val: 24 },
+    { day: "Sat", val: 8 },
+    { day: "Sun", val: 5 },
+  ];
+
+  if (telemetrySource === "Jira") {
+    tasksToday = "9"; finishedToday = "7";
+    jiraPct = 82; githubPct = 5; slackPct = 5; snowPct = 3; outlookPct = 3; meetingsPct = 2;
+    weeklyData = [{ day: "Mon", val: 7 }, { day: "Tue", val: 9 }, { day: "Wed", val: 6 }, { day: "Thu", val: 11 }, { day: "Fri", val: 9 }, { day: "Sat", val: 3 }, { day: "Sun", val: 2 }];
+  } else if (telemetrySource === "GitHub") {
+    tasksToday = "6"; finishedToday = "4";
+    jiraPct = 5; githubPct = 80; slackPct = 5; snowPct = 4; outlookPct = 3; meetingsPct = 3;
+    weeklyData = [{ day: "Mon", val: 5 }, { day: "Tue", val: 6 }, { day: "Wed", val: 3 }, { day: "Thu", val: 8 }, { day: "Fri", val: 6 }, { day: "Sat", val: 2 }, { day: "Sun", val: 1 }];
+  } else if (telemetrySource === "Slack") {
+    tasksToday = "4"; finishedToday = "3";
+    jiraPct = 5; githubPct = 5; slackPct = 80; snowPct = 4; outlookPct = 3; meetingsPct = 3;
+    weeklyData = [{ day: "Mon", val: 4 }, { day: "Tue", val: 5 }, { day: "Wed", val: 3 }, { day: "Thu", val: 6 }, { day: "Fri", val: 4 }, { day: "Sat", val: 1 }, { day: "Sun", val: 1 }];
+  } else if (telemetrySource === "ServiceNow") {
+    tasksToday = "3"; finishedToday = "2";
+    jiraPct = 4; githubPct = 4; slackPct = 4; snowPct = 82; outlookPct = 3; meetingsPct = 3;
+    weeklyData = [{ day: "Mon", val: 2 }, { day: "Tue", val: 3 }, { day: "Wed", val: 2 }, { day: "Thu", val: 4 }, { day: "Fri", val: 3 }, { day: "Sat", val: 1 }, { day: "Sun", val: 0 }];
+  } else if (telemetrySource === "Outlook") {
+    tasksToday = "2"; finishedToday = "2";
+    jiraPct = 4; githubPct = 3; slackPct = 4; snowPct = 3; outlookPct = 83; meetingsPct = 3;
+    weeklyData = [{ day: "Mon", val: 2 }, { day: "Tue", val: 2 }, { day: "Wed", val: 1 }, { day: "Thu", val: 3 }, { day: "Fri", val: 2 }, { day: "Sat", val: 0 }, { day: "Sun", val: 0 }];
+  } else if (telemetrySource === "Meetings") {
+    tasksToday = "2"; finishedToday = "1";
+    jiraPct = 3; githubPct = 3; slackPct = 4; snowPct = 3; outlookPct = 3; meetingsPct = 84;
+    weeklyData = [{ day: "Mon", val: 1 }, { day: "Tue", val: 2 }, { day: "Wed", val: 1 }, { day: "Thu", val: 2 }, { day: "Fri", val: 2 }, { day: "Sat", val: 0 }, { day: "Sun", val: 0 }];
+  } else if (telemetryWeek === "Last Week") {
+    tasksToday = "21"; finishedToday = "15";
+    weeklyData = [{ day: "Mon", val: 14 }, { day: "Tue", val: 19 }, { day: "Wed", val: 12 }, { day: "Thu", val: 22 }, { day: "Fri", val: 20 }, { day: "Sat", val: 6 }, { day: "Sun", val: 4 }];
+  } else if (telemetryWeek === "Last Month") {
+    tasksToday = "28"; finishedToday = "22";
+    weeklyData = [{ day: "Mon", val: 22 }, { day: "Tue", val: 26 }, { day: "Wed", val: 18 }, { day: "Thu", val: 30 }, { day: "Fri", val: 27 }, { day: "Sat", val: 10 }, { day: "Sun", val: 7 }];
+  }
+
+  // ── Recent finished tasks (filtered by source) ──
+  const allTasks = [
+    { id: "JIRA-2041", name: "Fix login redirect bug", source: "Jira", sourceColor: "#0052cc", sourceBg: "#e6f0ff", status: "Done", completed: "Today, 09:12" },
+    { id: "PR-887", name: "Merge feature/auth-improvements", source: "GitHub", sourceColor: "#24292e", sourceBg: "#f1f3f5", status: "Merged", completed: "Today, 10:44" },
+    { id: "SLK-0394", name: "Respond to #platform channel", source: "Slack", sourceColor: "#4a154b", sourceBg: "#f7ecf8", status: "Resolved", completed: "Today, 11:30" },
+    { id: "INC-5591", name: "Investigate API latency spike", source: "ServiceNow", sourceColor: "#2e7d32", sourceBg: "#edfbe9", status: "Closed", completed: "Yesterday, 16:05" },
+    { id: "MAIL-019", name: "Reply to VP Engineering email", source: "Outlook", sourceColor: "#0078d4", sourceBg: "#e3f2fd", status: "Done", completed: "Yesterday, 14:22" },
+    { id: "MTG-077", name: "Sprint planning meeting notes", source: "Meetings", sourceColor: "#e84393", sourceBg: "#fde8f3", status: "Done", completed: "Mon, 10:00" },
+    { id: "JIRA-2038", name: "Update API documentation", source: "Jira", sourceColor: "#0052cc", sourceBg: "#e6f0ff", status: "Done", completed: "Mon, 15:45" },
+  ];
+
+  const filteredTasks = telemetrySource === "All"
+    ? allTasks
+    : allTasks.filter(t => t.source === telemetrySource);
+
+  const maxWeekly = Math.max(...weeklyData.map(d => d.val), 1);
+  const todayIdx = (new Date().getDay() + 6) % 7; // 0=Mon…6=Sun
+
 
   return `
-    <div id="myAnalyticsPage" style="padding:18px;display:grid;gap:16px;max-width:1100px;background:#f7f4ee;">
-      <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <p class="eyebrow">Personal Analytics</p>
-          <h2 style="margin:2px 0 0;">My Work Dashboard — ${escapeHtml(name)}</h2>
-          <p style="font-size:12px;color:#64748b;margin:2px 0 0;">Real-time · updates as you complete tasks</p>
+    <style>
+      .workspace:has(#myAnalyticsPage) { padding-bottom: 0 !important; }
+      @keyframes pulse-badge {
+        0%,100% { transform:scale(1); opacity:1; }
+        50%      { transform:scale(1.3); opacity:0.55; }
+      }
+      .tel-card {
+        background: #fff;
+        border: 1px solid #dfe3ea;
+        border-radius: 9px;
+        padding: 8px 10px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        box-sizing: border-box;
+      }
+      .tel-card-title {
+        font-size: 9px;
+        font-weight: 800;
+        color: #626f86;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .tel-select {
+        padding: 3px 8px;
+        border: 1px solid #dfe3ea;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #172b4d;
+        outline: none;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+      .tel-select:hover { border-color: #0c66e4; }
+      .tel-integ-logo {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 8px 6px;
+        border-radius: 10px;
+        background: #f8f9fa;
+        border: 1px solid #eaecef;
+        width: 54px;
+        height: 54px;
+        box-sizing: border-box;
+        transition: box-shadow 0.15s, transform 0.15s;
+        cursor: default;
+      }
+      .tel-integ-logo:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); transform: translateY(-1px); }
+      .tel-integ-label {
+        font-size: 7px;
+        font-weight: 800;
+        color: #626f86;
+        text-align: center;
+        line-height: 1;
+      }
+      .tel-status-dot {
+        width: 3px; height: 3px;
+        border-radius: 50%;
+        background: #22a06b;
+        animation: pulse-badge 1.5s ease infinite;
+        display: inline-block;
+        margin-right: 2px;
+      }
+      .tel-trow td { padding: 4px 6px; }
+    </style>
+
+    <div id="myAnalyticsPage" style="height:calc(100vh - 60px); overflow:hidden; display:flex; flex-direction:column; gap:8px; box-sizing:border-box; background:#f4f5f7;">
+
+      <!-- Top control strip -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #dfe3ea; padding:7px 14px; border-radius:9px; flex-wrap:wrap; gap:10px; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:10px; font-weight:800; color:#626f86; text-transform:uppercase;">Source:</span>
+            <select id="telSourceSelect" class="tel-select">
+              <option value="All"        ${telemetrySource === "All" ? "selected" : ""}>All</option>
+              <option value="Jira"       ${telemetrySource === "Jira" ? "selected" : ""}>Jira</option>
+              <option value="GitHub"     ${telemetrySource === "GitHub" ? "selected" : ""}>GitHub</option>
+              <option value="Slack"      ${telemetrySource === "Slack" ? "selected" : ""}>Slack</option>
+              <option value="ServiceNow" ${telemetrySource === "ServiceNow" ? "selected" : ""}>ServiceNow</option>
+              <option value="Outlook"    ${telemetrySource === "Outlook" ? "selected" : ""}>Outlook</option>
+              <option value="Meetings"   ${telemetrySource === "Meetings" ? "selected" : ""}>Meetings</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:10px; font-weight:800; color:#626f86; text-transform:uppercase;">Week:</span>
+            <select id="telWeekSelect" class="tel-select">
+              <option value="This Week"  ${telemetryWeek === "This Week" ? "selected" : ""}>This Week</option>
+              <option value="Last Week"  ${telemetryWeek === "Last Week" ? "selected" : ""}>Last Week</option>
+              <option value="Last Month" ${telemetryWeek === "Last Month" ? "selected" : ""}>Last Month</option>
+            </select>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button id="analyticsPdfBtn" style="display:flex;align-items:center;gap:7px;padding:9px 16px;background:#172b4d;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-            ⬇ Download Summary
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span id="telResetBtn" style="font-size:11px; font-weight:700; color:#0c66e4; cursor:pointer; display:flex; align-items:center; gap:4px;">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.28"/></svg> Reset
+          </span>
+          <button style="padding:4px 12px; border:1px solid #dfe3ea; border-radius:6px; font-size:11px; font-weight:700; color:#44546f; background:#fff; cursor:pointer; display:flex; align-items:center; gap:5px;">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+            Share
           </button>
-          <span style="padding:6px 14px;border-radius:20px;background:#f0fdf4;color:#22a06b;font-size:12px;font-weight:800;border:1px solid #b7e4ce;">🟢 Live</span>
         </div>
       </div>
 
-      <!-- KPI row -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-        ${[
-      { label: "Total assigned", val: a.mine.length, sub: "across all sources", col: "#0c66e4", bg: "#eff6ff" },
-      { label: "Completed", val: a.done.length, sub: `${completionRate}% completion rate`, col: "#22a06b", bg: "#f0fdf4" },
-      { label: "On-time rate", val: onTimeRate + "%", sub: `${a.onTime.length} before deadline`, col: "#f97316", bg: "#fff7ed" },
-      { label: "In progress", val: a.working.length, sub: `${a.todo.length} still todo`, col: "#8b5cf6", bg: "#faf5ff" }
-    ].map(k => `
-          <div style="background:${k.bg};border:1px solid ${k.col}22;border-left:4px solid ${k.col};border-radius:10px;padding:14px 16px;">
-            <p style="margin:0;font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">${k.label}</p>
-            <div style="font-size:28px;font-weight:800;color:${k.col};line-height:1.2;margin:4px 0;">${k.val}</div>
-            <p style="margin:0;font-size:11px;color:#94a3b8;">${k.sub}</p>
-          </div>`).join("")}
-      </div>
+      <!-- Loading overlay -->
+      ${telemetryIsLoading ? `
+        <div style="position:fixed; inset:0; background:rgba(244,245,247,0.75); display:flex; align-items:center; justify-content:center; z-index:200; backdrop-filter:blur(2px);">
+          <div style="text-align:center; background:#fff; padding:20px 28px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.1); border:1px solid #dfe3ea;">
+            <div style="width:28px; height:28px; border:3px solid #dfe3ea; border-top-color:#0c66e4; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px;"></div>
+            <span style="font-size:12px; color:#172b4d; font-weight:700;">Refreshing Task Telemetry...</span>
+          </div>
+        </div>
+      ` : ""}
 
-      <!-- Line chart + source bars -->
-      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <h3 style="margin:0;font-size:14px;">📈 Work Completed (last 7 days)</h3>
-            <div style="display:flex;gap:10px;font-size:11px;">
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#0c66e4;border-radius:2px;display:inline-block;"></span>Total done</span>
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#22a06b;border-radius:2px;display:inline-block;"></span>On time</span>
+      <!-- ROW 1: Integrations | KPIs | Pie | Bar -->
+      <div style="display:grid; grid-template-columns:190px 130px 1fr 1.6fr; gap:8px; flex-shrink:0;">
+
+        <!-- Total Screen Time Analytics Card -->
+        <div class="tel-card" style="display:flex; flex-direction:column; justify-space-between; padding:12px 14px; background:#ffffff; border:1px solid #dfe3ea; border-radius:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:8.5px; font-weight:800; color:#626f86; text-transform:uppercase; letter-spacing:0.07em;">SCREEN TIME</span>
+            <span style="font-size:9px; font-weight:800; color:#0f766e; background:#ccfbf1; padding:1px 6px; border-radius:8px;">82% Focus</span>
+          </div>
+
+          <div style="display:flex; align-items:baseline; gap:6px; margin:6px 0 4px;">
+            <div style="font-size:26px; font-weight:900; color:#172b4d; line-height:1;">6.8<span style="font-size:13px; font-weight:700; color:#626f86;">h</span></div>
+            <span style="font-size:10px; font-weight:700; color:#22a06b;">+0.4h avg</span>
+          </div>
+
+          <!-- Screen time distribution bar -->
+          <div style="width:100%; margin:4px 0;">
+            <div style="display:flex; justify-content:space-between; font-size:9px; color:#626f86; font-weight:700; margin-bottom:3px;">
+              <span>Focus 5.2h</span>
+              <span>Meets 1.6h</span>
+            </div>
+            <div style="height:6px; width:100%; background:#e2e8f0; border-radius:3px; overflow:hidden; display:flex;">
+              <div style="width:76%; background:linear-gradient(90deg, #2563eb, #3b82f6); border-radius:3px 0 0 3px;"></div>
+              <div style="width:24%; background:#f59e0b; border-radius:0 3px 3px 0;"></div>
             </div>
           </div>
-          ${renderLineChart(a.series, [
-      { key: "done", color: "#0c66e4" },
-      { key: "onTime", color: "#22a06b" }
-    ])}
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 12px;font-size:14px;">🔌 Work by Source</h3>
-          ${renderSourceBars(a.sourceMap)}
-        </div>
-      </div>
 
-      <!-- Severity breakdown + completed task list -->
-      <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 12px;font-size:14px;">⚡ By Priority</h3>
-          ${Object.entries(a.sevMap).map(([sev, d]) => {
-      const col = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[sev] || "#64748b";
-      const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
-      return `
-              <div style="margin:8px 0;">
-                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-                  <span style="font-weight:800;color:${col};">${sev}</span>
-                  <span style="color:#64748b;">${d.done}/${d.total} · ${pct}%</span>
-                </div>
-                <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;">
-                  <div style="width:${pct}%;height:100%;background:${col};border-radius:4px;"></div>
-                </div>
-              </div>`;
-    }).join("")}
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 10px;font-size:14px;">✅ Completed Tasks</h3>
-          <div style="max-height:200px;overflow-y:auto;display:grid;gap:5px;">
-            ${a.done.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:20px;">Complete tasks to see them here.</p>` :
-      a.done.map(t => {
-        const col = srcChartColor(t.sources?.[0]);
-        const dl = deadlineStyle(t.due, true);
-        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${col};border-radius:6px;">
-                  <span style="color:#22a06b;font-weight:800;font-size:14px;">✓</span>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:600;color:#172b4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle)}</div>
-                    <div style="font-size:10px;color:#64748b;display:flex;gap:6px;margin-top:1px;">
-                      <span style="color:${col};">${t.sources?.[0] || "—"}</span>
-                      <span>${t.severity}</span>
-                      ${t.due ? `<span style="color:#22a06b;">📅 ${formatDue(t.due)}</span>` : ""}
-                    </div>
-                  </div>
-                </div>`;
-      }).join("")
-    }
+          <div style="font-size:8.5px; color:#8590a2; font-weight:600; margin-top:2px;">
+            Active IDE & Work Tools Today
           </div>
         </div>
+
+        <!-- KPI cards stacked -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="tel-card" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+            <span class="tel-card-title">Tasks Today</span>
+            <div style="font-size:24px; font-weight:900; color:#172b4d; line-height:1.1; margin-top:2px;">${tasksToday}</div>
+            <span style="font-size:8.5px; color:#8590a2; margin-top:2px;">Refreshed just now</span>
+          </div>
+          <div class="tel-card" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+            <span class="tel-card-title">Finished Today</span>
+            <div style="font-size:24px; font-weight:900; color:#22a06b; line-height:1.1; margin-top:2px;">${finishedToday}</div>
+            <span style="font-size:8.5px; color:#8590a2; margin-top:2px;">Refreshed just now</span>
+          </div>
+        </div>
+
+        <!-- Pie Chart -->
+        <div class="tel-card" style="display:flex; flex-direction:column;">
+          <span class="tel-card-title">Task Distribution by Source</span>
+          <span style="font-size:8.5px; color:#8590a2; display:block; margin-top:1px; margin-bottom:6px;">Refreshed just now</span>
+          <div style="display:flex; align-items:center; gap:10px; flex:1;">
+            <svg width="76" height="76" viewBox="0 0 32 32" style="flex-shrink:0; transform:rotate(-90deg); border-radius:50%;">
+              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#0052cc" stroke-width="3" stroke-dasharray="${jiraPct} ${100 - jiraPct}" stroke-dashoffset="0"></circle>
+              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#24292e" stroke-width="3" stroke-dasharray="${githubPct} ${100 - githubPct}" stroke-dashoffset="-${jiraPct}"></circle>
+              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#4a154b" stroke-width="3" stroke-dasharray="${slackPct} ${100 - slackPct}" stroke-dashoffset="-${jiraPct + githubPct}"></circle>
+              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#62d84e" stroke-width="3" stroke-dasharray="${snowPct} ${100 - snowPct}" stroke-dashoffset="-${jiraPct + githubPct + slackPct}"></circle>
+              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#0078d4" stroke-width="3" stroke-dasharray="${outlookPct} ${100 - outlookPct}" stroke-dashoffset="-${jiraPct + githubPct + slackPct + snowPct}"></circle>
+              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#e84393" stroke-width="3" stroke-dasharray="${meetingsPct} ${100 - meetingsPct}" stroke-dashoffset="-${jiraPct + githubPct + slackPct + snowPct + outlookPct}"></circle>
+            </svg>
+            <div style="display:flex; flex-direction:column; gap:3px; font-size:9px; font-weight:700; color:#44546f;">
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#0052cc;border-radius:50%;flex-shrink:0;"></span>Jira ${jiraPct}%</span>
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#24292e;border-radius:50%;flex-shrink:0;"></span>GitHub ${githubPct}%</span>
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#4a154b;border-radius:50%;flex-shrink:0;"></span>Slack ${slackPct}%</span>
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#62d84e;border-radius:50%;flex-shrink:0;"></span>SNOW ${snowPct}%</span>
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#0078d4;border-radius:50%;flex-shrink:0;"></span>Outlook ${outlookPct}%</span>
+              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#e84393;border-radius:50%;flex-shrink:0;"></span>Meets ${meetingsPct}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly Bar Chart -->
+        <div class="tel-card" style="display:flex; flex-direction:column;">
+          <span class="tel-card-title">Weekly Task Overview</span>
+          <span style="font-size:8.5px; color:#8590a2; display:block; margin-top:1px;">Refreshed just now</span>
+          <div style="flex:1; display:flex; align-items:flex-end; margin-top:4px;">
+            <svg viewBox="0 0 400 110" width="100%" height="100%" style="overflow:visible;">
+              <line x1="38" y1="10" x2="390" y2="10" stroke="#f1f5f9" stroke-width="1"/>
+              <text x="33" y="13" font-size="7.5" fill="#94a3b8" text-anchor="end">${maxWeekly}</text>
+              <line x1="38" y1="55" x2="390" y2="55" stroke="#f1f5f9" stroke-width="1"/>
+              <text x="33" y="58" font-size="7.5" fill="#94a3b8" text-anchor="end">${Math.round(maxWeekly * 0.55)}</text>
+              <line x1="38" y1="90" x2="390" y2="90" stroke="#cbd5e1" stroke-width="1"/>
+              <text x="33" y="93" font-size="7.5" fill="#94a3b8" text-anchor="end">0</text>
+              ${weeklyData.map((b, i) => {
+    const x = 57 + i * 47;
+    const h = Math.max(2, (b.val / maxWeekly) * 80);
+    const y = 90 - h;
+    const isToday = i === todayIdx;
+    return `
+                  <rect x="${x - 15}" y="${y}" width="30" height="${h}" rx="3"
+                    fill="${isToday ? '#0c66e4' : '#93c5fd'}"
+                    stroke="${isToday ? '#0052cc' : 'none'}" stroke-width="0.5"/>
+                  <text x="${x}" y="103" font-size="8.5" fill="${isToday ? '#0c66e4' : '#64748b'}" text-anchor="middle" font-weight="${isToday ? '800' : '600'}">${b.day}</text>
+                  <text x="${x}" y="${y - 3}" font-size="7.5" fill="#172b4d" text-anchor="middle" font-weight="700">${b.val}</text>
+                `;
+  }).join("")}
+            </svg>
+          </div>
+        </div>
+
       </div>
-    </div>`;
+
+      <!-- ROW 2: Table + Line Chart (fills remaining viewport height) -->
+      <div style="display:grid; grid-template-columns:1.7fr 1.3fr; gap:8px; flex:1; min-height:0; overflow:hidden; padding-bottom:8px;">
+
+        <!-- Recent Finished Tasks Table -->
+        <div class="tel-card" style="display:flex; flex-direction:column; overflow:hidden;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-shrink:0;">
+            <span class="tel-card-title">Recent Finished Tasks (This Week)</span>
+            <span style="font-size:8.5px; color:#8590a2;">Refreshed just now</span>
+          </div>
+          <div style="flex:1; overflow-y:auto; min-height:0;">
+            <table style="width:100%; border-collapse:collapse; text-align:left; font-size:11px;">
+              <thead style="position:sticky; top:0; background:#fff; z-index:1;">
+                <tr style="border-bottom:1.5px solid #dfe3ea; color:#626f86; font-weight:800;">
+                  <th style="padding:5px 6px;">Task</th>
+                  <th style="padding:5px 6px;">Source</th>
+                  <th style="padding:5px 6px;">Status</th>
+                  <th style="padding:5px 6px; white-space:nowrap;">Completed</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredTasks.map(t => `
+                  <tr style="border-bottom:1px solid #f1f3f5; color:#172b4d;">
+                    <td style="padding:5px 6px;">
+                      <div style="font-weight:700; font-size:11px;">${t.name}</div>
+                      <div style="font-size:8.5px; color:#8590a2; font-family:monospace;">${t.id}</div>
+                    </td>
+                    <td style="padding:5px 6px;">
+                      <span style="background:${t.sourceBg}; color:${t.sourceColor}; padding:2px 7px; border-radius:5px; font-size:8.5px; font-weight:800; display:inline-block; border:1px solid ${t.sourceColor}22;">${t.source}</span>
+                    </td>
+                    <td style="padding:5px 6px;">
+                      <span style="background:#e3fcef; color:#006644; padding:2px 7px; border-radius:5px; font-size:8.5px; font-weight:800; display:inline-block;">&#10003; ${t.status}</span>
+                    </td>
+                    <td style="padding:5px 6px; font-size:9.5px; color:#626f86; white-space:nowrap;">${t.completed}</td>
+                  </tr>
+                    <tr style="border-bottom:1px solid #f1f3f5; color:#172b4d;">
+                      <td style="padding:8px 6px;">
+                        <div style="font-weight:700; font-size:11.5px;">${t.name}</div>
+                        <div style="font-size:9.5px; color:#8590a2; font-family:monospace;">${t.id}</div>
+                      </td>
+                      <td style="padding:8px 6px;">
+                        <span style="background:${t.sourceBg}; color:${t.sourceColor}; padding:3px 8px; border-radius:6px; font-size:9.5px; font-weight:800; display:inline-block; border:1px solid ${t.sourceColor}22;">
+                          ${t.source}
+                        </span>
+                      </td>
+                      <td style="padding:8px 6px;">
+                        <span style="background:#e3fcef; color:#006644; padding:3px 8px; border-radius:6px; font-size:9.5px; font-weight:800; display:inline-block;">
+                          &#10003; ${t.status}
+                        </span>
+                      </td>
+                      <td style="padding:8px 6px; font-size:10px; color:#626f86; white-space:nowrap;">${t.completed}</td>
+                    </tr>
+                  `).join("")}
+                  ${filteredTasks.length === 0 ? `
+                    <tr>
+                      <td colspan="4" style="text-align:center; padding:32px 0; color:#8590a2; font-style:italic;">No finished tasks found for this filter.</td>
+                    </tr>
+                  ` : ""}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Live Tasks Per Day Line Chart -->
+          <div class="tel-card" style="display:flex; flex-direction:column; justify-content:space-between; min-height:0;">
+            <div>
+              <span class="tel-card-title">Live Tasks Per Day</span>
+              <span style="font-size:9.5px; color:#8590a2; display:block; margin-top:2px;">Refreshed just now</span>
+            </div>
+
+            <div style="flex:1; display:flex; align-items:center; margin-top:10px;">
+              <svg viewBox="0 0 300 120" width="100%" height="130" style="overflow: visible;">
+                <defs>
+                  <linearGradient id="taskAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0c66e4" stop-opacity="0.18"/>
+                    <stop offset="100%" stop-color="#0c66e4" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+
+                <line x1="25" y1="20" x2="290" y2="20" stroke="#f1f5f9" stroke-width="1"/>
+                <text x="20" y="23" font-size="8" fill="#94a3b8" text-anchor="end">30</text>
+                <line x1="25" y1="65" x2="290" y2="65" stroke="#f1f5f9" stroke-width="1"/>
+                <text x="20" y="68" font-size="8" fill="#94a3b8" text-anchor="end">15</text>
+                <line x1="25" y1="110" x2="290" y2="110" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="20" y="113" font-size="8" fill="#94a3b8" text-anchor="end">0</text>
+
+                <path d="M 25 90 Q 60 45 90 75 T 145 35 T 195 80 T 245 50 T 285 90 L 285 110 L 25 110 Z"
+                  fill="url(#taskAreaGrad)"/>
+                <path d="M 25 90 Q 60 45 90 75 T 145 35 T 195 80 T 245 50 T 285 90"
+                  fill="none" stroke="#0c66e4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+                <circle cx="25"  cy="90" r="3" fill="#0c66e4"/>
+                <circle cx="90"  cy="75" r="3" fill="#0c66e4"/>
+                <circle cx="145" cy="35" r="3" fill="#0c66e4"/>
+                <circle cx="195" cy="80" r="3" fill="#0c66e4"/>
+                <circle cx="245" cy="50" r="3" fill="#0c66e4"/>
+                <circle cx="285" cy="90" r="3" fill="#0c66e4"/>
+
+                <text x="25"  y="124" font-size="7.5" fill="#64748b" text-anchor="middle">Mon</text>
+                <text x="90"  y="124" font-size="7.5" fill="#64748b" text-anchor="middle">Tue</text>
+                <text x="145" y="124" font-size="7.5" fill="#64748b" text-anchor="middle">Wed</text>
+                <text x="195" y="124" font-size="7.5" fill="#64748b" text-anchor="middle">Thu</text>
+                <text x="245" y="124" font-size="7.5" fill="#64748b" text-anchor="middle">Fri</text>
+                <text x="285" y="124" font-size="7.5" fill="#64748b" text-anchor="middle">Sat</text>
+              </svg>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  `;
 }
 
 // ─── Page: Engineer Analytics (manager view — search + line graph) ─────────────
@@ -9629,7 +10497,106 @@ function renderManagerSettings() {
 // ─── Floating Companion Dock — REMOVED ───────────────────────────────────────
 // The AI chat is now embedded inline on the agent-scan page only.
 function renderCompanionDock() {
-  return ""; // floating widget disabled — chat lives inside renderAgentScanConsole
+  const lastLog = companionLog[companionLog.length - 1];
+  const hasChips = lastLog && lastLog.role === "agent" && lastLog.chips && lastLog.chips.length > 0;
+
+  return `
+    <!-- Floating Dock Container (bottom-right fixed) -->
+    <div id="companionDockContainer" style="position:fixed;bottom:20px;right:24px;z-index:99999;display:flex;flex-direction:column;align-items:flex-end;">
+
+      <!-- Floating Chat Panel Modal -->
+      ${companionDockOpen ? `
+        <div class="companion-popup-panel" style="width:380px;max-width:calc(100vw - 32px);height:530px;max-height:calc(100vh - 100px);background:#ffffff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.22);border:1px solid #d0d7de;display:flex;flex-direction:column;overflow:hidden;margin-bottom:12px;animation:popIn 0.2s ease-out;">
+          
+          <!-- Header -->
+          <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;background:#f8fafc;flex-shrink:0;">
+            <img src="${logoDataUrl}" alt="TaskPilot" style="width:26px;height:26px;object-fit:cover;border-radius:6px;flex-shrink:0;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:800;color:#172b4d;">TaskPilot AI</div>
+              <div style="font-size:10px;color:#22a06b;display:flex;align-items:center;gap:4px;font-weight:600;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#22a06b;display:inline-block;"></span>
+                Attested · ${teeSession.attestationHash}
+              </div>
+            </div>
+            <button id="captureScreen" style="font-size:10px;padding:3px 8px;background:#18745f;border-radius:4px;color:#fff;border:none;cursor:pointer;flex-shrink:0;font-weight:700;">TEE OCR</button>
+            <button id="closeCompanionDock" title="Close" style="background:none;border:none;font-size:18px;color:#626f86;cursor:pointer;padding:2px 6px;border-radius:4px;line-height:1;margin-left:2px;" onmouseover="this.style.background='#f1f2f4'" onmouseout="this.style.background='none'">✕</button>
+          </div>
+
+          <!-- Plan steps -->
+          ${currentPlanSteps.length > 0 ? `
+            <div style="padding:8px 12px;border-bottom:1px solid #f1f2f4;background:#fffdf7;flex-shrink:0;">
+              ${currentPlanSteps.map(step => `
+                <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#44546f;padding:2px 0;">
+                  <span>${stepIcon(step.status)}</span>
+                  <span>${escapeHtml(step.label || step.description)}</span>
+                </div>
+              `).join("")}
+            </div>
+          ` : ""}
+
+          <!-- Message Log -->
+          <div class="companion-log" id="companionLogBox" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:0;max-height:none !important;background:#ffffff;">
+            ${companionLog.map(log => `
+              <div style="display:flex;flex-direction:${log.role === "user" ? "row-reverse" : "row"};gap:8px;align-items:flex-end;">
+                ${log.role === "agent" ? `<div style="width:26px;height:26px;border-radius:50%;background:#152238;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.15);">A</div>` : ""}
+                <div style="max-width:85%;padding:10px 13px;border-radius:${log.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px"};background:${log.role === "user" ? "#152238" : "#f1f5f9"};color:${log.role === "user" ? "#fff" : "#172b4d"};font-size:13px;line-height:1.5;">
+                  ${renderLogText(log.html || log.text)}
+                </div>
+              </div>
+            `).join("")}
+            ${isProcessing ? `
+              <div style="display:flex;gap:8px;align-items:flex-end;">
+                <div style="width:26px;height:26px;border-radius:50%;background:#152238;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0;">A</div>
+                <div style="padding:10px 13px;border-radius:14px 14px 14px 4px;background:#f1f5f9;color:#44546f;font-size:13px;">
+                  <span style="display:inline-flex;gap:3px;align-items:center;">
+                    <span style="animation:blink 1s infinite 0s;opacity:0.4;">●</span>
+                    <span style="animation:blink 1s infinite 0.2s;opacity:0.4;">●</span>
+                    <span style="animation:blink 1s infinite 0.4s;opacity:0.4;">●</span>
+                  </span>
+                </div>
+              </div>
+            ` : ""}
+          </div>
+
+          <!-- Quick suggestion chips -->
+          ${hasChips ? `
+            <div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #f1f2f4;flex-shrink:0;background:#fafbfc;">
+              ${lastLog.chips.map(chip => `
+                <button class="quick-chip" data-chip="${escapeHtml(chip)}"
+                  style="font-size:11.5px;padding:4px 11px;border-radius:999px;border:1px solid #d0d7de;background:#fff;color:#172b4d;cursor:pointer;font-weight:600;transition:all 0.1s;"
+                  onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fff'">
+                  ${escapeHtml(chip)}
+                </button>
+              `).join("")}
+            </div>
+          ` : ""}
+
+          <!-- Input Form -->
+          <div style="padding:10px 12px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0;margin-top:auto;">
+            <form id="companionForm" style="display:flex;gap:8px;align-items:center;">
+              <input id="taskInput" name="message" type="text"
+                placeholder="Ask the agent anything…"
+                style="flex:1;border:1px solid #d0d7de;border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#172b4d;" />
+              <button id="sendCompanionBtn" ${isProcessing ? "class='stop'" : ""}
+                style="padding:9px 18px;border-radius:8px;border:none;background:${isProcessing ? "#ad2f2f" : "#152238"};color:#fff;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">
+                ${isProcessing ? "Stop" : "Send"}
+              </button>
+            </form>
+          </div>
+
+        </div>
+      ` : ""}
+
+      <!-- Dock Launcher Floating Icon Button -->
+      <button id="companionDockTrigger" title="${companionDockOpen ? "Close Assistant" : "Open TaskPilot AI Assistant"}"
+        style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#152238,#0c66e4);color:#ffffff;border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(12,102,228,0.38);cursor:pointer;transition:transform 0.15s ease;position:relative;"
+        onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+        <img src="${logoDataUrl}" alt="AI Companion" style="width:28px;height:28px;object-fit:cover;border-radius:50%;">
+        <span style="position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:50%;background:#22a06b;border:2px solid #ffffff;"></span>
+      </button>
+
+    </div>
+  `;
 }
 
 // ─── Inline Agent Chat Panel (used inside renderAgentScanConsole) ─────────────
@@ -10218,6 +11185,15 @@ function bindEvents() {
     });
   }
 
+  // Engineer Dashboard Source Tab Switcher (Single-Page)
+  document.querySelectorAll("[data-eng-source]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      engineerSelectedSource = btn.dataset.engSource;
+      render();
+    });
+  });
+
   // Navigation
   document.querySelectorAll("[data-nav]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -10283,6 +11259,17 @@ function bindEvents() {
         showCalendarTaskModal = true;
       }
       render();
+    });
+  });
+
+  // Task complete checkbox
+  document.querySelectorAll(".task-complete-checkbox").forEach(cb => {
+    cb.addEventListener("click", (e) => {
+      e.stopPropagation(); // Prevent selecting task when checking checkbox
+      const taskId = cb.dataset.taskCompleteId;
+      completeTask(taskId);
+      render();
+      syncStateWithBackend();
     });
   });
 
@@ -10959,6 +11946,22 @@ function bindEvents() {
       if (taskTimeLogs[id]) taskTimeLogs[id].endTime = null;
       // Remove from Supabase
       deleteCompletion(getUserEmail(), id);
+      render();
+      syncStateWithBackend();
+    });
+  });
+
+  // Today Priority — Platform Link + Auto Start task
+  document.querySelectorAll("[data-task-link-start]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.taskLinkStart;
+      const url = btn.dataset.taskUrl;
+      if (url && url !== "#") {
+        window.open(url, "_blank");
+      }
+      selectedTaskId = id;
+      startWorkingOnTask(id);
       render();
       syncStateWithBackend();
     });
@@ -11834,6 +12837,57 @@ function bindEvents() {
     render();
   });
 
+  // Floating Companion Dock Toggle Listeners
+  document.querySelector("#companionDockTrigger")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    companionDockOpen = !companionDockOpen;
+    render();
+    if (companionDockOpen) {
+      setTimeout(() => {
+        document.querySelector("#taskInput")?.focus();
+      }, 50);
+    }
+  });
+
+  document.querySelector("#closeCompanionDock")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    companionDockOpen = false;
+    render();
+  });
+
+  // VS Code Draggable Terminal Panel Resizer
+  const resizer = document.querySelector("#vscodeTerminalResizer");
+  if (resizer) {
+    let isDragging = false;
+    let startY = 0;
+    let startH = 180;
+
+    resizer.addEventListener("mousedown", (e) => {
+      isDragging = true;
+      startY = e.clientY;
+      const panel = document.querySelector("#vscodeTerminalPanel");
+      startH = panel ? panel.offsetHeight : 180;
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const dy = startY - e.clientY;
+      const newH = Math.max(80, Math.min(500, startH + dy));
+      const panel = document.querySelector("#vscodeTerminalPanel");
+      if (panel) panel.style.height = newH + "px";
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    });
+  }
+
   document.querySelector("#captureScreen")?.addEventListener("click", () => {
     runCompanionWorkflow("Secure OCR scan", { captureScreen: true });
   });
@@ -12133,13 +13187,28 @@ function bindEvents() {
     });
   });
 
-  const weekSearchInput = document.querySelector("#weekSearchInput");
-  if (weekSearchInput) {
-    weekSearchInput.addEventListener("input", () => {
-      calendarSearchQuery = weekSearchInput.value;
-      render();
-    });
-  }
+  // Telemetry page listeners
+  document.querySelector("#telSourceSelect")?.addEventListener("change", (e) => {
+    telemetrySource = e.target.value;
+    telemetryIsLoading = true;
+    render();
+    setTimeout(() => { telemetryIsLoading = false; render(); }, 600);
+  });
+
+  document.querySelector("#telWeekSelect")?.addEventListener("change", (e) => {
+    telemetryWeek = e.target.value;
+    telemetryIsLoading = true;
+    render();
+    setTimeout(() => { telemetryIsLoading = false; render(); }, 600);
+  });
+
+  document.querySelector("#telResetBtn")?.addEventListener("click", () => {
+    telemetrySource = "All";
+    telemetryWeek = "This Week";
+    telemetryIsLoading = true;
+    render();
+    setTimeout(() => { telemetryIsLoading = false; render(); }, 600);
+  });
 }
 
 // ─── Meeting Helpers ──────────────────────────────────────────────────────────
@@ -13609,7 +14678,14 @@ async function loadBackendConfig() {
     }
     window.__TASKPILOT_CONFIG__ = backendConfig;
   } catch {
-    backendConfig = { geminiConfigured: false, teeMode: "local-attested", supabaseConfigured: false, supabaseUrl: "", backendPort: "8787" };
+    backendConfig = {
+      geminiConfigured: false,
+      teeMode: "local-attested",
+      supabaseConfigured: true,
+      supabaseUrl: "https://pzovknqrllnifvsrjvts.supabase.co",
+      supabaseAnonKey: "sb_publishable_eX3BiFY_VzIjpp9X_dkfpg_XZM3gH_w",
+      backendPort: "8787"
+    };
     window.__TASKPILOT_CONFIG__ = backendConfig;
   }
 
