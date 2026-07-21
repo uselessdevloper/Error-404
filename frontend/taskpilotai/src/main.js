@@ -3669,8 +3669,6 @@ function renderCalendarAI() {
   `;
 }
 
-}
-
 // ─── Project Genome & Mutation Predictor ─────────────────────────────────────
 
 /**
