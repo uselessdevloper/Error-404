@@ -1491,7 +1491,6 @@ function render() {
       </aside>
 
       <section class="workspace">
-        ${(activeProfile === "manager" && activePage === "overview") ? "" : `
         <header class="topbar">
           <div>
             <h1>${navLabel(activePage)}</h1>
@@ -1506,9 +1505,9 @@ function render() {
                    <button class="secondary" id="simulateUrgent">Simulate team load shift</button>`
                 : `<button class="primary" id="runScan">Run autonomous scan</button>`
             }
+
           </div>
         </header>
-        `}
 
         ${renderPageContent(selected, executionBrief, dynamicPlan)}
       </section>
@@ -4391,7 +4390,7 @@ function renderDependencyGraph() {
         <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(t.canonicalTitle)}</div>
         <div style="font-size:10px;color:#64748b;margin-top:1px;">
           <span style="background:${col}18;color:${col};padding:1px 5px;border-radius:3px;font-weight:700;">${t.severity}</span>
-          <span style="margin-left:5px;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${escapeHtml(t.owner || "Unassigned")}</span>
+          <span style="margin-left:5px;">👤 ${escapeHtml(t.owner || "Unassigned")}</span>
           <span style="margin-left:5px;">Blocks ${t.blocksCount || "?"} downstream task${t.blocksCount !== 1 ? "s" : ""}</span>
         </div>
       </div>
@@ -4403,13 +4402,13 @@ function renderDependencyGraph() {
     const col = sevColor[t.severity] || "#626f86";
     const depText = (t.dependencies || []).filter(d => /block|waiting|eta|approval/i.test(d)).slice(0, 2).join(" · ");
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8f9ff;border:1px solid #c7d7f7;border-left:3px solid #0c66e4;border-radius:6px;margin:4px 0;">
-      <span style="display:inline-flex;align-items:center;justify-content:center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0c66e4" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span style="font-size:16px;">🚧</span>
       <div style="flex:1;min-width:0;">
         <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(t.canonicalTitle)}</div>
         <div style="font-size:10px;color:#64748b;margin-top:1px;">
           <span style="background:${col}18;color:${col};padding:1px 5px;border-radius:3px;font-weight:700;">${t.severity}</span>
-          <span style="margin-left:5px;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${escapeHtml(t.owner || "Unassigned")}</span>
-          ${depText ? `<span style="margin-left:5px;color:#974f0c;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg> ${escapeHtml(depText)}</span>` : ""}
+          <span style="margin-left:5px;">👤 ${escapeHtml(t.owner || "Unassigned")}</span>
+          ${depText ? `<span style="margin-left:5px;color:#974f0c;">⚠ ${escapeHtml(depText)}</span>` : ""}
         </div>
       </div>
       <span style="font-size:10px;font-weight:800;color:#0c66e4;background:#e8f0fe;padding:2px 6px;border-radius:4px;">BLOCKED</span>
@@ -4420,7 +4419,7 @@ function renderDependencyGraph() {
 
   if (!hasData) {
     return `<div style="padding:16px;text-align:center;color:#626f86;font-size:13px;">
-      <span style="display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" style="vertical-align:middle;"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+      <span style="font-size:24px;display:block;margin-bottom:6px;">✅</span>
       No blocking dependencies detected in the active queue.
     </div>`;
   }
@@ -4429,15 +4428,15 @@ function renderDependencyGraph() {
     <div style="display:grid;gap:10px;">
       ${allBlockers.length > 0 ? `
         <div>
-          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#de350b;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:#de350b;display:inline-block;"></span> Blocking (${allBlockers.length}) — resolve these first to unblock downstream work
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#de350b;margin-bottom:6px;">
+            🔴 Blocking (${allBlockers.length}) — resolve these first to unblock downstream work
           </div>
           ${blockingRows}
         </div>` : ""}
       ${allBlocked.length > 0 ? `
         <div style="margin-top:${allBlockers.length > 0 ? "8px" : "0"};">
-          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#0c66e4;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:#0c66e4;display:inline-block;"></span> Blocked (${allBlocked.length}) — waiting on decisions or other tasks
+          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#0c66e4;margin-bottom:6px;">
+            Blocked (${allBlocked.length}) — waiting on decisions or other tasks
           </div>
           ${blockedRows}
         </div>` : ""}
@@ -4609,9 +4608,9 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
               </div>
             </div>
             <div style="display:flex; gap:6px;">
-              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center;">⤢</button>
-              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></button>
-              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button>
+              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">⤢</button>
+              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">📊</button>
+              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">📥</button>
             </div>
           </div>
         </div>
@@ -4644,7 +4643,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                     <div style="width:30px; height:30px; border-radius:50%; background:${eng.avatarBg}; color:${eng.textCol}; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center;">${eng.name[0]}</div>
                     <div>
                       <div style="font-size:13px; font-weight:800; color:#0f172a;">${eng.name}</div>
-                      <div style="font-size:11px; color:#64748b; font-weight:600; display:inline-flex; align-items:center; gap:5px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ${eng.pts} · <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${eng.hours}</div>
+                      <div style="font-size:11px; color:#64748b; font-weight:600;">★ ${eng.pts} · ⏱ ${eng.hours}</div>
                     </div>
                   </div>
                   <button class="dash-leader-assign-btn" data-engineer="${eng.name}" style="padding:4px 12px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">Assign</button>
@@ -4676,13 +4675,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
                   <strong style="color:#0f172a; font-size:11.5px;">Executive request: weekly delivery risk update</strong>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Rohan (Backend)</span>
+                    <span style="color:#64748b; font-weight:700;">👤 Rohan (Backend)</span>
                     <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
+                  </div>
+                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:55%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
                   <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 2</span>
+                    <span style="color:#94a3b8;">🗎 2</span>
                     <div style="display:flex; gap:4px;">
                       <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
                     </div>
                   </div>
                 </div>
@@ -4690,15 +4691,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
                   <strong style="color:#0f172a; font-size:11.5px;">From VP Product: Sprint risk review — leadership concerned about Q2 delivery</strong>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Karan (DevOps)</span>
+                    <span style="color:#64748b; font-weight:700;">👤 Karan (DevOps)</span>
                     <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
                   </div>
                   <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:74%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
                   <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 2</span>
+                    <span style="color:#94a3b8;">🗎 2</span>
                     <div style="display:flex; gap:4px;">
                       <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
                     </div>
                   </div>
                 </div>
@@ -4706,15 +4707,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
                   <strong style="color:#0f172a; font-size:11.5px;">Resolve OAuth token refresh failures</strong>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Rohan (Backend)</span>
+                    <span style="color:#64748b; font-weight:700;">👤 Rohan (Backend)</span>
                     <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
                   </div>
                   <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:38%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
                   <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 2</span>
+                    <span style="color:#94a3b8;">🗎 2</span>
                     <div style="display:flex; gap:4px;">
                       <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
                     </div>
                   </div>
                 </div>
@@ -4731,15 +4732,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
                   <strong style="color:#0f172a; font-size:11.5px;">Investigate cache invalidation bug</strong>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Karan (DevOps)</span>
+                    <span style="color:#64748b; font-weight:700;">👤 Karan (DevOps)</span>
                     <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">2 days</span>
                   </div>
                   <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:65%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
                   <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 2</span>
+                    <span style="color:#94a3b8;">🗎 2</span>
                     <div style="display:flex; gap:4px;">
                       <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
                     </div>
                   </div>
                 </div>
@@ -4747,15 +4748,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
                   <strong style="color:#0f172a; font-size:11.5px;">Fix stale analytics cache</strong>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Neha (Data)</span>
+                    <span style="color:#64748b; font-weight:700;">👤 Neha (Data)</span>
                     <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">4 days</span>
                   </div>
                   <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:50%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
                   <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 2</span>
+                    <span style="color:#94a3b8;">🗎 2</span>
                     <div style="display:flex; gap:4px;">
                       <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
                     </div>
                   </div>
                 </div>
@@ -4772,15 +4773,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
                   <strong style="color:#0f172a; font-size:11.5px;">Automate code ownership validation</strong>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Sanya (DevOps)</span>
+                    <span style="color:#64748b; font-weight:700;">👤 Sanya (DevOps)</span>
                     <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">14 days</span>
                   </div>
                   <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:40%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
                   <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8; display:inline-flex; align-items:center; gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 2</span>
+                    <span style="color:#94a3b8;">🗎 2</span>
                     <div style="display:flex; gap:4px;">
                       <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
                     </div>
                   </div>
                 </div>
@@ -4793,7 +4794,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <span>● P4 Low</span>
                 <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">0</span>
               </div>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5" style="margin-bottom:6px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              <div style="font-size:24px; margin-bottom:6px;">📱</div>
               <div style="font-size:11px; color:#64748b; font-weight:700;">No pending tasks</div>
             </div>
           </div>
@@ -4853,7 +4854,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           <div>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="display:inline-flex; align-items:center; justify-content:center; color:#6366f1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                <span style="font-size:18px;">💬</span>
                 <div>
                   <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Team Portal</h3>
                   <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Live updates and team activity</p>
@@ -4901,7 +4902,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           <div>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="display:inline-flex; align-items:center; justify-content:center; color:#6366f1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M12 2v4M12 6a4 4 0 0 0-4 4M12 6a4 4 0 0 1 4 4M9 16h.01M15 16h.01"/></svg></span>
+                <span style="font-size:18px;">🤖</span>
                 <div>
                   <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Ask TaskPilot AI</h3>
                   <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Instant insights, query team workload & sprint risks</p>
@@ -4916,10 +4917,10 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <div style="margin-bottom:12px;">
               <div style="font-size:10px; font-weight:800; color:#94a3b8; letter-spacing:0.06em; margin-bottom:6px;">QUICK QUERIES</div>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="dash-quick-query-btn" data-query="Who is overloaded?" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Who is overloaded?</button>
-                <button class="dash-quick-query-btn" data-query="Show blockers" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Show blockers</button>
-                <button class="dash-quick-query-btn" data-query="Sprint risk summary" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Sprint risk summary</button>
-                <button class="dash-quick-query-btn" data-query="Recommend reallocations" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Recommend reallocations</button>
+                <button class="dash-quick-query-btn" data-query="Who is overloaded?" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">⚡ Who is overloaded?</button>
+                <button class="dash-quick-query-btn" data-query="Show blockers" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">🚧 Show blockers</button>
+                <button class="dash-quick-query-btn" data-query="Sprint risk summary" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">📈 Sprint risk summary</button>
+                <button class="dash-quick-query-btn" data-query="Recommend reallocations" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">🎯 Recommend reallocations</button>
               </div>
             </div>
 
@@ -4931,36 +4932,24 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
 
             <!-- 4 Mini Insight Cards Grid -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px; display:flex; align-items:center; gap:8px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
-                <div>
-                  <div style="font-size:12px; font-weight:800; color:#0f172a;">Capacity Alerts</div>
-                  <div style="font-size:10.5px; color:#64748b; margin-top:2px;">2 engineers currently exceeding capacity limits</div>
-                </div>
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">⚠️ Capacity Alerts</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">2 engineers currently exceeding capacity limits</div>
               </div>
 
-              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px; display:flex; align-items:center; gap:8px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2" style="flex-shrink:0;"><path d="M12 9v4M12 17h.01"/></svg>
-                <div>
-                  <div style="font-size:12px; font-weight:800; color:#0f172a;">Blocker Chain</div>
-                  <div style="font-size:10.5px; color:#64748b; margin-top:2px;">13 blocking dependencies requiring manager approval</div>
-                </div>
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">🚧 Blocker Chain</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">13 blocking dependencies requiring manager approval</div>
               </div>
 
-              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px; display:flex; align-items:center; gap:8px;">
-                <svg width="14" height="14" fill="none" stroke="#3b82f6" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-                <div>
-                  <div style="font-size:12px; font-weight:800; color:#0f172a;">Velocity Forecast</div>
-                  <div style="font-size:10.5px; color:#64748b; margin-top:2px;">On track for 92% completion rate this sprint</div>
-                </div>
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">📊 Velocity Forecast</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">On track for 92% completion rate this sprint</div>
               </div>
 
-              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px; display:flex; align-items:center; gap:8px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" style="flex-shrink:0;"><path d="M9 21h6M9 17h6M15 13a4 4 0 0 0 2-3.5 5 5 0 0 0-10 0A4 4 0 0 0 9 13"/></svg>
-                <div>
-                  <div style="font-size:12px; font-weight:800; color:#0f172a;">AI Smart Shift</div>
-                  <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Suggest 3 tasks for load rebalancing</div>
-                </div>
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">💡 AI Smart Shift</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Suggest 3 tasks for load rebalancing</div>
               </div>
             </div>
           </div>
