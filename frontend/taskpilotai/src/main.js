@@ -4785,141 +4785,8 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
         </div>
       </div>
 
-      <!-- Tier 2 Main Row: Team Execution Queue & Post Job Update -->
-      <div style="display:grid; grid-template-columns:2.2fr 1fr; gap:20px; margin-bottom:24px;">
-        <!-- Left: Team Execution Queue -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); overflow:hidden;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <h3 style="margin:0; font-size:18px; font-weight:800; color:#0f172a;">Team Execution Queue</h3>
-            <span style="font-size:12px; color:#64748b; font-weight:600;">AI-prioritized tasks across the team</span>
-          </div>
-
-          <!-- 4 Kanban Columns -->
-          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
-            <!-- Column P1 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                  <span style="font-size:12px; font-weight:800; color:#be123c;">● P1 Critical</span>
-                  <span style="background:#ffe4e6; color:#be123c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p1List.length}</span>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  ${renderLaneTasks(p1List, 'P1')}
-                </div>
-              </div>
-              <button class="dash-add-task-btn" data-priority="P1" style="width:100%; border:none; background:none; color:#be123c; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
-            </div>
-
-            <!-- Column P2 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                  <span style="font-size:12px; font-weight:800; color:#c2410c;">● P2 High</span>
-                  <span style="background:#ffedd5; color:#c2410c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p2List.length}</span>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  ${renderLaneTasks(p2List, 'P2')}
-                </div>
-              </div>
-              <button class="dash-add-task-btn" data-priority="P2" style="width:100%; border:none; background:none; color:#c2410c; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
-            </div>
-
-            <!-- Column P3 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                  <span style="font-size:12px; font-weight:800; color:#1d4ed8;">● P3 Medium</span>
-                  <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p3List.length}</span>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  ${renderLaneTasks(p3List, 'P3')}
-                </div>
-              </div>
-              <button class="dash-add-task-btn" data-priority="P3" style="width:100%; border:none; background:none; color:#1d4ed8; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
-            </div>
-
-            <!-- Column P4 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                  <span style="font-size:12px; font-weight:800; color:#15803d;">● P4 Low</span>
-                  <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p4List.length}</span>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  ${renderLaneTasks(p4List, 'P4')}
-                </div>
-              </div>
-              <button class="dash-add-task-btn" data-priority="P4" style="width:100%; border:none; background:none; color:#15803d; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Post Job Update Form (with solid blue left border) -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;" id="mgrPostFormContainer">
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
-                <span style="color:#8b5cf6; font-size:20px;">✦</span> Post Job Update
-              </h3>
-              <button style="border:none; background:none; color:#64748b; cursor:pointer; padding:4px;" title="Expand">⤢</button>
-            </div>
-            <p style="margin:0 0 14px 0; font-size:12px; color:#64748b; font-weight:500;">Update details and assign via TaskPilot AI</p>
-
-            <div style="display:flex; flex-direction:column; gap:12px;">
-              <div>
-                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">TASK TITLE *</label>
-                <input type="text" id="mgrPostTitle" placeholder="e.g. Fix OAuth token expiry bug in production" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
-              </div>
-
-              <div>
-                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">DESCRIPTION</label>
-                <textarea id="mgrPostDesc" placeholder="Context, acceptance criteria, relevant links..." style="width:100%; height:70px; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; font-family:inherit; resize:none;"></textarea>
-              </div>
-
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div>
-                  <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">PRIORITY</label>
-                  <select id="mgrPostPriority" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff; height:38px;">
-                    <option value="P1">P1 Critical</option>
-                    <option value="P2" selected>P2 High</option>
-                    <option value="P3">P3 Medium</option>
-                    <option value="P4">P4 Low</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">DEADLINE</label>
-                  <input type="date" id="mgrPostDeadline" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; height:38px;" />
-                </div>
-              </div>
-
-              <div>
-                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">TEAM / SQUAD</label>
-                <select id="mgrPostSquad" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff; height:38px;">
-                  <option value="" disabled>Select team or squad</option>
-                  <option value="Platform Apps" selected>Platform Apps</option>
-                  <option value="DevOps">DevOps</option>
-                  <option value="Data">Data</option>
-                  <option value="QA">QA</option>
-                  <option value="Backend">Backend</option>
-                </select>
-              </div>
-
-              <button id="mgrSubmitJobBtn" style="width:100%; padding:12px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.3); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:8px;" ${assignmentLoading ? "disabled" : ""}>
-                ${assignmentLoading ? "Analyzing..." : "✦ Analyze & Assign with TaskPilot AI"}
-              </button>
-
-              ${assignmentResult ? `
-                <div style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px;" id="mgrAssignResult">
-                  ${renderAssignmentResult(assignmentResult)}
-                </div>
-              ` : ""}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tier 3 Main Row: Team Portal & Ask TaskPilot AI -->
-      <div style="display:grid; grid-template-columns:1fr 1.2fr; gap:20px;">
+      <!-- Tier 2 Main Row: Team Portal & Ask TaskPilot AI (Moved Up) -->
+      <div style="display:grid; grid-template-columns:1fr 1.2fr; gap:20px; margin-bottom:24px;">
         <!-- Left: Team Portal -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
           <div>
@@ -5023,6 +4890,141 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <div style="font-size:12px; font-weight:800; color:#0f172a;">AI Smart Shift</div>
                 <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Suggest 3 tasks for load rebalancing</div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tier 3 Row: Team Execution Queue & Post Job Update (Aligned Heights) -->
+      <div style="display:grid; grid-template-columns:2.5fr 1fr; gap:20px; min-width:0;">
+        <!-- Left: Team Execution Queue -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); overflow:hidden; min-width:0; display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h3 style="margin:0; font-size:18px; font-weight:800; color:#0f172a;">Team Execution Queue</h3>
+              <span style="font-size:12px; color:#64748b; font-weight:600;">AI-prioritized tasks across the team</span>
+            </div>
+
+            <!-- 4 Kanban Columns -->
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; min-width:0;">
+              <!-- Column P1 -->
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:430px; min-width:0; box-sizing:border-box;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:12px; font-weight:800; color:#be123c;">● P1 Critical</span>
+                    <span style="background:#ffe4e6; color:#be123c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p1List.length}</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:8px; max-height:310px; overflow-y:auto; padding-right:2px; min-width:0;">
+                    ${renderLaneTasks(p1List, 'P1')}
+                  </div>
+                </div>
+                <button class="dash-add-task-btn" data-priority="P1" style="width:100%; border:none; background:none; color:#be123c; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
+              </div>
+
+              <!-- Column P2 -->
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:430px; min-width:0; box-sizing:border-box;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:12px; font-weight:800; color:#c2410c;">● P2 High</span>
+                    <span style="background:#ffedd5; color:#c2410c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p2List.length}</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:8px; max-height:310px; overflow-y:auto; padding-right:2px; min-width:0;">
+                    ${renderLaneTasks(p2List, 'P2')}
+                  </div>
+                </div>
+                <button class="dash-add-task-btn" data-priority="P2" style="width:100%; border:none; background:none; color:#c2410c; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
+              </div>
+
+              <!-- Column P3 -->
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:430px; min-width:0; box-sizing:border-box;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:12px; font-weight:800; color:#1d4ed8;">● P3 Medium</span>
+                    <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p3List.length}</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:8px; max-height:310px; overflow-y:auto; padding-right:2px; min-width:0;">
+                    ${renderLaneTasks(p3List, 'P3')}
+                  </div>
+                </div>
+                <button class="dash-add-task-btn" data-priority="P3" style="width:100%; border:none; background:none; color:#1d4ed8; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
+              </div>
+
+              <!-- Column P4 -->
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:430px; min-width:0; box-sizing:border-box;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:12px; font-weight:800; color:#15803d;">● P4 Low</span>
+                    <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p4List.length}</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:8px; max-height:310px; overflow-y:auto; padding-right:2px; min-width:0;">
+                    ${renderLaneTasks(p4List, 'P4')}
+                  </div>
+                </div>
+                <button class="dash-add-task-btn" data-priority="P4" style="width:100%; border:none; background:none; color:#15803d; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Post Job Update Form (with solid blue left border) -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between; min-height:430px; box-sizing:border-box;" id="mgrPostFormContainer">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                <span style="color:#8b5cf6; font-size:20px;">✦</span> Post Job Update
+              </h3>
+              <button style="border:none; background:none; color:#64748b; cursor:pointer; padding:4px;" title="Expand">⤢</button>
+            </div>
+            <p style="margin:0 0 14px 0; font-size:12px; color:#64748b; font-weight:500;">Update details and assign via TaskPilot AI</p>
+
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">TASK TITLE *</label>
+                <input type="text" id="mgrPostTitle" placeholder="e.g. Fix OAuth token expiry bug in production" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
+              </div>
+
+              <div>
+                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">DESCRIPTION</label>
+                <textarea id="mgrPostDesc" placeholder="Context, acceptance criteria, relevant links..." style="width:100%; height:70px; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; font-family:inherit; resize:none;"></textarea>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                  <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">PRIORITY</label>
+                  <select id="mgrPostPriority" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff; height:38px;">
+                    <option value="P1">P1 Critical</option>
+                    <option value="P2" selected>P2 High</option>
+                    <option value="P3">P3 Medium</option>
+                    <option value="P4">P4 Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">DEADLINE</label>
+                  <input type="date" id="mgrPostDeadline" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; height:38px;" />
+                </div>
+              </div>
+
+              <div>
+                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">TEAM / SQUAD</label>
+                <select id="mgrPostSquad" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff; height:38px;">
+                  <option value="" disabled>Select team or squad</option>
+                  <option value="Platform Apps" selected>Platform Apps</option>
+                  <option value="DevOps">DevOps</option>
+                  <option value="Data">Data</option>
+                  <option value="QA">QA</option>
+                  <option value="Backend">Backend</option>
+                </select>
+              </div>
+
+              <button id="mgrSubmitJobBtn" style="width:100%; padding:12px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.3); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:8px;" ${assignmentLoading ? "disabled" : ""}>
+                ${assignmentLoading ? "Analyzing..." : "✦ Analyze & Assign with TaskPilot AI"}
+              </button>
+
+              ${assignmentResult ? `
+                <div style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px;" id="mgrAssignResult">
+                  ${renderAssignmentResult(assignmentResult)}
+                </div>
+              ` : ""}
             </div>
           </div>
         </div>
