@@ -3532,10 +3532,10 @@ function renderCalendarAI() {
           </p>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
-          <button style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+          <button id="calApproveHandoffBtn" style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
             Approve next handoff
           </button>
-          <button style="padding:9px 16px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+          <button id="calSimulateLoadBtn" style="padding:9px 16px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
             Simulate team load shift
           </button>
         </div>
@@ -3544,20 +3544,20 @@ function renderCalendarAI() {
       <!-- Controls & Filter Toolbar -->
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:14px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.03); margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <button style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">‹</button>
+          <button id="calPrevWeekBtn" style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">‹</button>
           <span style="font-size:15px; font-weight:800; color:#0f172a;">Jul 19 — Jul 25, 2026</span>
-          <button style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">›</button>
+          <button id="calNextWeekBtn" style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">›</button>
         </div>
 
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button style="padding:7px 14px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+          <button id="calTodayBtn" style="padding:7px 14px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
             Today
           </button>
-          <select style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+          <select id="calWeekSelect" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
             <option>This Week</option>
             <option>Next Week</option>
           </select>
-          <button style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          <button id="calFiltersBtn" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
             ⚙ Filters
           </button>
           <select id="calendarEngineerSelect" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
@@ -3643,7 +3643,7 @@ function renderCalendarAI() {
           ${dayColumns.map(col => `
             <div style="border-right:1px solid #f1f5f9; padding:10px; display:flex; flex-direction:column; gap:10px; background:#ffffff;">
               ${col.events.map(evt => `
-                <div style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:10px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer;">
+                <div class="cal-event-card" data-title="${evt.title}" style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:10px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <div style="display:flex; align-items:center; gap:6px; min-width:0;">
                       <span style="font-size:12px;">📄</span>
@@ -3654,7 +3654,7 @@ function renderCalendarAI() {
                   <div style="font-size:10.5px; color:${evt.textCol}; font-weight:700; margin-bottom:8px;">${evt.time}</div>
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:4px;">
-                      <span style="width:18px; height:18px; border-radius:50%; background:#5b21b6; color:#fff; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;">K</span>
+                      <span style="width:18px; height:18px; border-radius:50%; background:#5b21b6; color:#fff; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;">${(evt.owner||"K")[0]}</span>
                       <span style="font-size:10.5px; font-weight:700; color:#334155;">${evt.owner}</span>
                     </div>
                     <span style="font-size:9px; font-weight:900; padding:1px 5px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol};">${evt.priority}</span>
@@ -8911,24 +8911,25 @@ function bindEvents() {
   });
 
   // CalendarAI event listeners
-  const optimizeScheduleBtn = document.querySelector("#optimizeScheduleBtn");
-  if (optimizeScheduleBtn) {
-    optimizeScheduleBtn.addEventListener("click", () => {
-      optimizeScheduleBtn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Assigning...';
-      optimizeScheduleBtn.disabled = true;
+  const autoAssignCalendarBtn = document.querySelector("#autoAssignCalendarBtn") || document.querySelector("#optimizeScheduleBtn");
+  if (autoAssignCalendarBtn) {
+    autoAssignCalendarBtn.addEventListener("click", () => {
+      autoAssignCalendarBtn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Auto-Assigning...';
+      autoAssignCalendarBtn.disabled = true;
       
       setTimeout(() => {
         assignRandomTasks();
-        optimizeScheduleBtn.innerHTML = 'Auto-Assign Tasks';
-        optimizeScheduleBtn.disabled = false;
-      }, 100);
+        autoAssignCalendarBtn.innerHTML = '+ Auto-Assign';
+        autoAssignCalendarBtn.disabled = false;
+        render();
+      }, 300);
     });
   }
 
-  const calFilterSelect = document.querySelector("#calendarEngineerFilter");
-  if (calFilterSelect) {
-    calFilterSelect.addEventListener("change", () => {
-      calendarSelectedEngineer = calFilterSelect.value;
+  const calEngSelect = document.querySelector("#calendarEngineerSelect") || document.querySelector("#calendarEngineerFilter");
+  if (calEngSelect) {
+    calEngSelect.addEventListener("change", () => {
+      calendarSelectedEngineer = calEngSelect.value;
       render();
     });
   }
@@ -8941,10 +8942,72 @@ function bindEvents() {
     });
   }
 
-  document.querySelectorAll(".cal-legend-chip").forEach(item => {
+  document.querySelectorAll(".eng-cal-chip, .cal-legend-chip").forEach(item => {
     item.addEventListener("click", () => {
       calendarSelectedEngineer = item.dataset.engineer;
       render();
+    });
+  });
+
+  const calApproveHandoffBtn = document.querySelector("#calApproveHandoffBtn");
+  if (calApproveHandoffBtn) {
+    calApproveHandoffBtn.addEventListener("click", () => {
+      calApproveHandoffBtn.innerHTML = '✔ Approved!';
+      calApproveHandoffBtn.style.background = '#dcfce7';
+      setTimeout(() => {
+        if (state.prioritized.length > 0) {
+          const t = state.prioritized[0];
+          reassignTask(t.id, "Utkarsh");
+        }
+        render();
+      }, 500);
+    });
+  }
+
+  const calSimulateLoadBtn = document.querySelector("#calSimulateLoadBtn");
+  if (calSimulateLoadBtn) {
+    calSimulateLoadBtn.addEventListener("click", () => {
+      calSimulateLoadBtn.innerHTML = '⚡ Simulating...';
+      setTimeout(() => {
+        assignRandomTasks();
+        render();
+      }, 400);
+    });
+  }
+
+  const calPrevWeekBtn = document.querySelector("#calPrevWeekBtn");
+  if (calPrevWeekBtn) {
+    calPrevWeekBtn.addEventListener("click", () => {
+      alert("Calendar week offset: Previous week loaded.");
+    });
+  }
+
+  const calNextWeekBtn = document.querySelector("#calNextWeekBtn");
+  if (calNextWeekBtn) {
+    calNextWeekBtn.addEventListener("click", () => {
+      alert("Calendar week offset: Next week loaded.");
+    });
+  }
+
+  const calTodayBtn = document.querySelector("#calTodayBtn");
+  if (calTodayBtn) {
+    calTodayBtn.addEventListener("click", () => {
+      calendarSelectedEngineer = "Karan";
+      render();
+    });
+  }
+
+  document.querySelectorAll(".cal-event-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const title = card.dataset.title;
+      const matched = state.prioritized.find(t => t.canonicalTitle.includes(title) || title.includes(t.canonicalTitle.slice(0, 10)));
+      if (matched) {
+        selectedTaskId = matched.id;
+        showCalendarTaskModal = true;
+        render();
+      } else {
+        alert(`Task Details:\n\nTitle: ${title}\nAI Rebalance Status: Optimal\nOwner: Assigned dynamically based on workload balance.`);
+      }
     });
   });
 
