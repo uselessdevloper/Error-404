@@ -1493,9 +1493,7 @@ function render() {
       <section class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Friday, June 19, 2026</p>
             <h1>${navLabel(activePage)}</h1>
-            <p class="topbar-subtitle">Active Profile: <strong>${escapeHtml(settingsProfile.name)}</strong> (${getProfileLabel()}) &middot; ${escapeHtml(authSession.email)}</p>
           </div>
           <div class="top-actions">
             ${activeProfile === "admin"
@@ -3432,6 +3430,28 @@ function renderCalendarTaskModal() {
  * - Per-engineer workload
  */
 function renderCalendarAI() {
+  // Real dynamic current time calculations
+  const now = new Date();
+  const rawHours = now.getHours();
+  const rawMinutes = now.getMinutes();
+  const formattedHours = rawHours % 12 || 12;
+  const formattedMinutes = rawMinutes < 10 ? `0${rawMinutes}` : rawMinutes;
+  const ampm = rawHours >= 12 ? "PM" : "AM";
+  const currentTimeStr = `${formattedHours}:${formattedMinutes} ${ampm}`;
+  const currentDateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
+
+  // Dynamic vertical position calculation for current time line indicator (9 AM to 6 PM)
+  const startHour = 9;
+  const totalGridHours = 9; // 9 AM to 6 PM (550px canvas height)
+  let currentTimeTop = 165;
+  if (rawHours >= 9 && rawHours <= 18) {
+    const elapsedMinutes = (rawHours - startHour) * 60 + rawMinutes;
+    currentTimeTop = 49 + Math.round((elapsedMinutes / (totalGridHours * 60)) * 550);
+  } else {
+    const minuteRatio = ((rawHours * 60 + rawMinutes) % (12 * 60)) / (12 * 60);
+    currentTimeTop = 49 + Math.round(minuteRatio * 500);
+  }
+
   const engineersList = [
     { name: "Rohan", hours: "33.6h", color: "#2563eb", dot: "#2563eb" },
     { name: "Karan", hours: "45.5h", color: "#7c3aed", dot: "#7c3aed" },
@@ -3522,36 +3542,23 @@ function renderCalendarAI() {
 
   return `
     <div id="calendarAiPage" style="padding:24px; max-width:1400px; margin:0 auto; background:#f8fafc; font-family:'Inter', sans-serif;">
-      <!-- Page Header -->
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-        <div>
-          <p style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 4px 0;">FRIDAY, JUNE 19, 2026</p>
-          <h1 style="margin:0; font-size:28px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">CalendarAI</h1>
-          <p style="font-size:13px; color:#64748b; margin:4px 0 0 0;">
-            Active Profile: Demo Manager (Manager) · <span style="color:#0284c7;">manager@taskpilot.dev</span>
-          </p>
-        </div>
-        <div style="display:flex; gap:10px; align-items:center;">
-          <button id="calApproveHandoffBtn" style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
-            Approve next handoff
-          </button>
-          <button id="calSimulateLoadBtn" style="padding:9px 16px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
-            Simulate team load shift
-          </button>
-        </div>
-      </div>
-
       <!-- Controls & Filter Toolbar -->
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:14px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.03); margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div style="display:flex; align-items:center; gap:10px;">
           <button id="calPrevWeekBtn" style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">‹</button>
           <span style="font-size:15px; font-weight:800; color:#0f172a;">Jul 19 — Jul 25, 2026</span>
           <button id="calNextWeekBtn" style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">›</button>
+          <button id="calTodayBtn" style="padding:7px 14px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; margin-left:6px;">
+            Today
+          </button>
         </div>
 
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button id="calTodayBtn" style="padding:7px 14px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
-            Today
+          <button id="calApproveHandoffBtn" style="padding:7px 14px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+            Approve next handoff
+          </button>
+          <button id="calSimulateLoadBtn" style="padding:7px 14px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+            Simulate team load shift
           </button>
           <select id="calWeekSelect" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
             <option>This Week</option>
@@ -3607,57 +3614,62 @@ function renderCalendarAI() {
       </div>
 
       <!-- Main Timed Calendar Grid Table -->
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.02); overflow:hidden; position:relative;">
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.02); overflow:hidden; position:relative; box-sizing:border-box;">
         
         <!-- Red Current Time Line Indicator -->
-        <div style="position:absolute; top:78px; left:0; right:0; height:2px; background:#ef4444; z-index:10; pointer-events:none; display:flex; align-items:center;">
-          <span style="background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:10px; margin-left:12px;">12:40 AM</span>
-          <span style="width:8px; height:8px; border-radius:50%; background:#ef4444; margin-left:-4px;"></span>
+        <div style="position:absolute; top:${currentTimeTop}px; left:80px; right:0; height:2px; background:#ef4444; z-index:10; pointer-events:none;">
+          <span style="position:absolute; left:-72px; top:-9px; background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; white-space:nowrap; box-shadow:0 2px 6px rgba(239,68,68,0.3);">${currentTimeStr}</span>
+          <span style="position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:#ef4444; box-shadow:0 0 0 2px #ffffff;"></span>
         </div>
 
         <!-- Day Columns Header -->
-        <div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); border-bottom:1px solid #e2e8f0; background:#ffffff;">
-          <div style="padding:14px; font-size:11px; font-weight:700; color:#94a3b8; border-right:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center;">
+        <div style="display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); border-bottom:1px solid #e2e8f0; background:#ffffff; box-sizing:border-box;">
+          <div style="padding:14px; font-size:11px; font-weight:700; color:#94a3b8; border-right:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; box-sizing:border-box;">
             GMT+5:30
           </div>
-          ${dayColumns.map(col => `
-            <div style="padding:14px; text-align:center; border-right:1px solid #f1f5f9; font-size:12.5px; font-weight:800; color:#334155; display:flex; align-items:center; justify-content:center; gap:6px;">
+          ${dayColumns.map((col, idx) => `
+            <div style="padding:14px; text-align:center; ${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; font-size:12.5px; font-weight:800; color:#334155; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box; min-width:0;">
               <span>${col.day.split(" ")[0]}</span>
               <span style="${col.active ? "background:#5b21b6; color:#ffffff; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;" : ""}">${col.dateNum}</span>
             </div>
           `).join("")}
         </div>
 
-        <!-- Hourly Schedule Canvas -->
-        <div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); min-height:540px;">
-          <!-- Left Time Axis -->
-          <div style="border-right:1px solid #f1f5f9; background:#fafafa; display:grid; grid-template-rows: repeat(5, 100px); text-align:center; font-size:11px; font-weight:700; color:#94a3b8; padding-top:15px;">
+        <!-- Hourly Schedule Canvas (9 AM to 6 PM) -->
+        <div style="display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); min-height:550px; box-sizing:border-box;">
+          <!-- Left Time Axis (9 AM to 6 PM) -->
+          <div style="border-right:1px solid #e2e8f0; background:#fafafa; display:grid; grid-template-rows: repeat(10, 55px); text-align:center; font-size:11px; font-weight:700; color:#94a3b8; padding-top:10px; box-sizing:border-box;">
+            <div>9 AM</div>
             <div>10 AM</div>
             <div>11 AM</div>
             <div>12 PM</div>
             <div>1 PM</div>
+            <div>2 PM</div>
             <div>3 PM</div>
+            <div>4 PM</div>
+            <div>5 PM</div>
+            <div>6 PM</div>
           </div>
 
           <!-- 7 Day Task Event Columns -->
-          ${dayColumns.map(col => `
-            <div style="border-right:1px solid #f1f5f9; padding:10px; display:flex; flex-direction:column; gap:10px; background:#ffffff;">
+          ${dayColumns.map((col, idx) => `
+            <div style="${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; padding:10px; display:flex; flex-direction:column; gap:10px; background:#ffffff; box-sizing:border-box; min-width:0;">
               ${col.events.map(evt => `
-                <div class="cal-event-card" data-title="${evt.title}" style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:10px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <div class="cal-event-card" data-title="${evt.title}" style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:10px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer; min-width:0; box-sizing:border-box;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; min-width:0;">
                     <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-                      <span style="font-size:12px;">📄</span>
-                      <strong style="font-size:12px; color:${evt.textCol}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${evt.title}</strong>
+                      <span style="font-size:12px; flex-shrink:0;">📄</span>
+                      <strong style="font-size:12px; color:${evt.textCol}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${evt.title}</strong>
                     </div>
-                    <span style="color:#94a3b8; font-size:12px; font-weight:800; cursor:pointer;">⋮</span>
+                    <span style="color:#94a3b8; font-size:12px; font-weight:800; cursor:pointer; flex-shrink:0;">⋮</span>
                   </div>
                   <div style="font-size:10.5px; color:${evt.textCol}; font-weight:700; margin-bottom:8px;">${evt.time}</div>
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:4px;">
-                      <span style="width:18px; height:18px; border-radius:50%; background:#5b21b6; color:#fff; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;">${(evt.owner||"K")[0]}</span>
+                      <span style="width:18px; height:18px; border-radius:50%; background:#5b21b6; color:#fff; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">${(evt.owner||"K")[0]}</span>
                       <span style="font-size:10.5px; font-weight:700; color:#334155;">${evt.owner}</span>
                     </div>
-                    <span style="font-size:9px; font-weight:900; padding:1px 5px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol};">${evt.priority}</span>
+                    <span style="font-size:9px; font-weight:900; padding:1px 5px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol}; flex-shrink:0;">${evt.priority}</span>
                   </div>
                 </div>
               `).join("")}
