@@ -1491,7 +1491,8 @@ function render() {
          ${renderDiscordUserPanel()}
       </aside>
 
-      <section class="workspace">
+      <section class="workspace" style="${activePage === 'team-portal' ? 'padding: 0;' : ''}">
+        ${activePage !== "team-portal" ? `
         <header class="topbar">
           <div>
             <h1>${navLabel(activePage)}</h1>
@@ -1509,6 +1510,7 @@ function render() {
 
           </div>
         </header>
+        ` : ""}
 
         ${renderPageContent(selected, executionBrief, dynamicPlan)}
       </section>
@@ -5778,148 +5780,134 @@ function renderTeamWorkload(isManager) {
   const progressPct = totalTasks ? Math.round(totalDone / totalTasks * 100) : 42;
 
   return `
-    <div style="padding:24px; max-width:1440px; margin:0 auto; background:#f8fafc; font-family:'Inter', sans-serif;">
+    <div style="padding:12px 20px; max-width:1440px; margin:0 auto; background:#f8fafc; font-family:'Inter', sans-serif;">
       
       <!-- Header Row -->
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
             <circle cx="9" cy="7" r="4"></circle>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
           </svg>
           <div>
-            <h2 style="margin:0; font-size:24px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Team Workload</h2>
-            <p style="margin:2px 0 0 0; font-size:13px; color:#64748b;">Real-time overview of team capacity, progress and assigned work</p>
+            <h2 style="margin:0; font-size:20px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Team Workload</h2>
+            <p style="margin:1px 0 0 0; font-size:12px; color:#64748b;">Real-time overview of team capacity, progress and assigned work</p>
           </div>
         </div>
-        <div style="display:flex; gap:10px; align-items:center;">
-          <button id="twApproveHandoffBtn" style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="twApproveHandoffBtn" style="padding:7px 12px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             Approve next handoff
           </button>
-          <button id="twSimulateLoadBtn" style="padding:9px 16px; background:#ffffff; color:#6b21a8; border:1px solid #e9d5ff; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+          <button id="twSimulateLoadBtn" style="padding:7px 12px; background:#ffffff; color:#6b21a8; border:1px solid #e9d5ff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
             <span style="color:#8b5cf6;">✦</span> Simulate team load shift
           </button>
-          <button id="twAssignTaskBtn" style="padding:9px 18px; background:#0c66e4; color:#ffffff; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+          <button id="twAssignTaskBtn" style="padding:7px 14px; background:#0c66e4; color:#ffffff; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
             + Assign Task
           </button>
         </div>
       </div>
 
       <!-- Tier 1 Metric Summary Cards Row -->
-      <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:16px; margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:12px;">
         <!-- Card 1: Overall Progress -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; align-items:center; gap:16px;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; align-items:center; gap:12px;">
           <!-- SVG Progress Ring -->
-          <div style="position:relative; width:64px; height:64px; display:grid; place-items:center; flex-shrink:0;">
-            <svg width="64" height="64" viewBox="0 0 36 36" style="transform: rotate(-90deg); position:absolute; top:0; left:0;">
+          <div style="position:relative; width:48px; height:48px; display:grid; place-items:center; flex-shrink:0;">
+            <svg width="48" height="48" viewBox="0 0 36 36" style="transform: rotate(-90deg); position:absolute; top:0; left:0;">
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" stroke-width="3.5"></circle>
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0284c7" stroke-width="3.5" stroke-dasharray="${progressPct} ${100 - progressPct}" stroke-linecap="round"></circle>
             </svg>
-            <span style="font-size:14px; font-weight:800; color:#0f172a;">${progressPct}%</span>
+            <span style="font-size:11px; font-weight:800; color:#0f172a;">${progressPct}%</span>
           </div>
           <div>
-            <div style="font-size:12px; font-weight:700; color:#64748b; margin-bottom:6px;">Overall Progress</div>
-            <div style="font-size:11px; line-height:1.4; color:#475569;">
-              <div style="display:flex; align-items:center; gap:4px;"><span style="color:#22c55e;">●</span> <strong>${totalDone}</strong> Done</div>
-              <div style="display:flex; align-items:center; gap:4px;"><span style="color:#f59e0b;">●</span> <strong>${totalWorking}</strong> Working</div>
-              <div style="display:flex; align-items:center; gap:4px;"><span style="color:#6366f1;">●</span> <strong>${totalTodo}</strong> Todo</div>
+            <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:2px;">Overall Progress</div>
+            <div style="font-size:10px; line-height:1.3; color:#475569;">
+              <span style="color:#22c55e; margin-right:2px;">●</span><strong>${totalDone}</strong> Done
+              <span style="color:#f59e0b; margin-left:6px; margin-right:2px;">●</span><strong>${totalWorking}</strong> Work
             </div>
           </div>
         </div>
 
         <!-- Card 2: Tasks Completed -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; flex-direction:column; justify-content:space-between; height:74px; box-sizing:border-box;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; height:32px;">
             <div>
-              <div style="font-size:12px; font-weight:700; color:#64748b; margin-bottom:4px;">Tasks Completed</div>
-              <div style="font-size:24px; font-weight:800; color:#0f172a;">${totalDone}</div>
+              <div style="font-size:11px; font-weight:700; color:#64748b;">Tasks Completed</div>
+              <div style="font-size:18px; font-weight:800; color:#0f172a; margin-top:1px;">${totalDone}</div>
             </div>
-            <span style="width:28px; height:28px; border-radius:50%; background:#dcfce7; color:#15803d; display:flex; align-items:center; justify-content:center;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span style="width:20px; height:20px; border-radius:50%; background:#dcfce7; color:#15803d; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </span>
           </div>
-          <div style="margin-top:10px;">
-            <span style="font-size:11px; font-weight:700; color:#16a34a;">↑ 18% <span style="color:#94a3b8; font-weight:500;">from last week</span></span>
-            <div style="margin-top:8px;">
-              <svg width="100%" height="24" viewBox="0 0 100 24" preserveAspectRatio="none">
-                <path d="M0 20 Q20 5, 40 15 T80 8 T100 12" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-            </div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <span style="font-size:9.5px; font-weight:700; color:#16a34a;">↑ 18%</span>
+            <svg width="50" height="12" viewBox="0 0 100 24" preserveAspectRatio="none" style="margin-bottom:2px;">
+              <path d="M0 20 Q20 5, 40 15 T80 8 T100 12" fill="none" stroke="#22c55e" stroke-width="2"></path>
+            </svg>
           </div>
         </div>
 
         <!-- Card 3: Work in Progress -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; flex-direction:column; justify-content:space-between; height:74px; box-sizing:border-box;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; height:32px;">
             <div>
-              <div style="font-size:12px; font-weight:700; color:#64748b; margin-bottom:4px;">Work in Progress</div>
-              <div style="font-size:24px; font-weight:800; color:#0f172a;">${totalWorking}</div>
+              <div style="font-size:11px; font-weight:700; color:#64748b;">Work in Progress</div>
+              <div style="font-size:18px; font-weight:800; color:#0f172a; margin-top:1px;">${totalWorking}</div>
             </div>
-            <span style="width:28px; height:28px; border-radius:50%; background:#fffbeb; color:#d97706; display:flex; align-items:center; justify-content:center;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
+            <span style="width:20px; height:20px; border-radius:50%; background:#fffbeb; color:#d97706; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
             </span>
           </div>
-          <div style="margin-top:10px;">
-            <span style="font-size:11px; font-weight:700; color:#d97706;">↑ 8% <span style="color:#94a3b8; font-weight:500;">from last week</span></span>
-            <div style="margin-top:8px;">
-              <svg width="100%" height="24" viewBox="0 0 100 24" preserveAspectRatio="none">
-                <path d="M0 22 Q25 8, 50 18 T100 10" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-            </div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <span style="font-size:9.5px; font-weight:700; color:#d97706;">↑ 8%</span>
+            <svg width="50" height="12" viewBox="0 0 100 24" preserveAspectRatio="none" style="margin-bottom:2px;">
+              <path d="M0 22 Q25 8, 50 18 T100 10" fill="none" stroke="#f59e0b" stroke-width="2"></path>
+            </svg>
           </div>
         </div>
 
         <!-- Card 4: Blocked Tasks -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; flex-direction:column; justify-content:space-between; height:74px; box-sizing:border-box;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; height:32px;">
             <div>
-              <div style="font-size:12px; font-weight:700; color:#64748b; margin-bottom:4px;">Blocked Tasks</div>
-              <div style="font-size:24px; font-weight:800; color:#0f172a;">${blockedCount}</div>
+              <div style="font-size:11px; font-weight:700; color:#64748b;">Blocked Tasks</div>
+              <div style="font-size:18px; font-weight:800; color:#0f172a; margin-top:1px;">${blockedCount}</div>
             </div>
-            <span style="width:28px; height:28px; border-radius:50%; background:#fff5f5; color:#e53e3e; display:flex; align-items:center; justify-content:center;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
+            <span style="width:20px; height:20px; border-radius:50%; background:#fff5f5; color:#e53e3e; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             </span>
           </div>
-          <div style="margin-top:10px;">
-            <span style="font-size:11px; font-weight:700; color:#e53e3e;">↓ 5% <span style="color:#94a3b8; font-weight:500;">from last week</span></span>
-            <div style="margin-top:8px;">
-              <svg width="100%" height="24" viewBox="0 0 100 24" preserveAspectRatio="none">
-                <path d="M0 10 Q30 22, 60 14 T100 20" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-            </div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <span style="font-size:9.5px; font-weight:700; color:#e53e3e;">↓ 5%</span>
+            <svg width="50" height="12" viewBox="0 0 100 24" preserveAspectRatio="none" style="margin-bottom:2px;">
+              <path d="M0 10 Q30 22, 60 14 T100 20" fill="none" stroke="#ef4444" stroke-width="2"></path>
+            </svg>
           </div>
         </div>
 
         <!-- Card 5: Total Engineers -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; flex-direction:column; justify-content:space-between; height:74px; box-sizing:border-box;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; height:32px;">
             <div>
-              <div style="font-size:12px; font-weight:700; color:#64748b; margin-bottom:4px;">Total Engineers</div>
-              <div style="font-size:24px; font-weight:800; color:#0f172a;">10</div>
+              <div style="font-size:11px; font-weight:700; color:#64748b;">Total Engineers</div>
+              <div style="font-size:18px; font-weight:800; color:#0f172a; margin-top:1px;">10</div>
             </div>
-            <span style="width:28px; height:28px; border-radius:50%; background:#f3e8ff; color:#7c3aed; display:flex; align-items:center; justify-content:center;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle>
-              </svg>
+            <span style="width:20px; height:20px; border-radius:50%; background:#f3e8ff; color:#7c3aed; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
             </span>
           </div>
-          <div style="margin-top:10px;">
-            <span style="font-size:11px; font-weight:700; color:#15803d; display:flex; align-items:center; gap:4px;">
-              <span style="width:6px; height:6px; border-radius:50%; background:#22c55e; display:inline-block;"></span>
-              Online 8
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <span style="font-size:9.5px; font-weight:700; color:#15803d; display:flex; align-items:center; gap:2px;">
+              <span style="width:4px; height:4px; border-radius:50%; background:#22c55e; display:inline-block;"></span>Online 8
             </span>
-            <div style="display:flex; gap:-4px; margin-top:8px; overflow:hidden;">
-              ${["Utkarsh", "Meera", "Riya", "Rohan", "Neha"].map((n, i) => {
-                const colors = ["#eff6ff","#fffbeb","#f0fdf4","#fdf2f8","#f3e8ff"];
-                const text = ["#2563eb","#d97706","#16a34a","#db2777","#9333ea"];
-                return `<div style="width:20px; height:20px; border-radius:50%; background:${colors[i]}; color:${text[i]}; border:1px solid #ffffff; font-size:8px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-right:-4px;">${n[0]}</div>`;
+            <div style="display:flex; gap:-5px; overflow:hidden;">
+              ${["Utkarsh", "Meera", "Riya", "Rohan"].map((n, i) => {
+                const colors = ["#eff6ff","#fffbeb","#f0fdf4","#fdf2f8"];
+                const text = ["#2563eb","#d97706","#16a34a","#db2777"];
+                return `<div style="width:14px; height:14px; border-radius:50%; background:${colors[i]}; color:${text[i]}; border:1px solid #ffffff; font-size:7px; font-weight:800; display:flex; align-items:center; justify-content:center;">${n[0]}</div>`;
               }).join("")}
             </div>
           </div>
@@ -5927,35 +5915,35 @@ function renderTeamWorkload(isManager) {
       </div>
 
       <!-- Filters and Controls Row -->
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
-        <div style="display:flex; gap:10px; align-items:center;">
-          <div style="display:flex; align-items:center; gap:6px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:6px 12px; font-size:12.5px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div style="display:flex; align-items:center; gap:4px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 8px; font-size:11.5px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
             <select style="border:none; outline:none; font-weight:700; color:#334155; cursor:pointer; background:none;">
               <option>All Teams</option>
             </select>
           </div>
-          <div style="display:flex; align-items:center; gap:6px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:6px 12px; font-size:12.5px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <div style="display:flex; align-items:center; gap:4px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 8px; font-size:11.5px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             <select style="border:none; outline:none; font-weight:700; color:#334155; cursor:pointer; background:none;">
               <option>This Sprint</option>
             </select>
           </div>
         </div>
-        <div style="display:flex; border:1px solid #cbd5e1; border-radius:8px; background:#ffffff; overflow:hidden; padding:2px;">
-          <button style="border:none; padding:6px 14px; background:#eff6ff; color:#1e40af; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+        <div style="display:flex; border:1px solid #cbd5e1; border-radius:6px; background:#ffffff; overflow:hidden; padding:1px;">
+          <button style="border:none; padding:4px 10px; background:#eff6ff; color:#1e40af; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer; display:flex; align-items:center; gap:3px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
             Card View
           </button>
-          <button style="border:none; padding:6px 14px; background:none; color:#64748b; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
+          <button style="border:none; padding:4px 10px; background:none; color:#64748b; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
             Heatmap View
           </button>
         </div>
       </div>
 
       <!-- Tier 2 Engineer Cards Grid -->
-      <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:16px; margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; margin-bottom:10px;">
         ${teammates.map((eng, idx) => {
           const pct = eng.total ? Math.round(eng.done / eng.total * 100) : 40;
           const colors = ["#0052cc", "#22a06b", "#6554c0", "#de350b", "#ffab00", "#0052cc", "#22a06b", "#6554c0", "#de350b", "#ffab00"];
@@ -5968,71 +5956,71 @@ function renderTeamWorkload(isManager) {
           const freeHours = Math.max(0, 40 - (eng.working * 4 + eng.todo * 2));
           
           return `
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; flex-direction:column; justify-content:space-between; min-height:210px; box-sizing:border-box;">
               <div>
                 <!-- Teammate Header -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width:34px; height:34px; border-radius:50%; background:${bg}; color:${color}; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; border:1px solid #e2e8f0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <div style="width:28px; height:28px; border-radius:50%; background:${bg}; color:${color}; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; border:1px solid #e2e8f0;">
                       ${initials}
                     </div>
                     <div>
-                      <div style="font-size:13.5px; font-weight:800; color:#0f172a;">${escapeHtml(eng.name)}</div>
-                      <div style="font-size:10px; color:#64748b; font-weight:600; margin-top:2px;">${eng.p1} P1 · ${eng.p2} P2</div>
+                      <div style="font-size:12px; font-weight:800; color:#0f172a; line-height:1.2;">${escapeHtml(eng.name)}</div>
+                      <div style="font-size:9.5px; color:#64748b; font-weight:600;">${eng.p1} P1 · ${eng.p2} P2</div>
                     </div>
                   </div>
                   <!-- Donut gauge -->
-                  <div style="position:relative; width:34px; height:34px; display:grid; place-items:center; flex-shrink:0;">
-                    <svg width="34" height="34" viewBox="0 0 36 36" style="transform: rotate(-90deg); position:absolute; top:0; left:0;">
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" stroke-width="3.5"></circle>
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="${color}" stroke-width="3.5" stroke-dasharray="${pct} ${100 - pct}" stroke-linecap="round"></circle>
+                  <div style="position:relative; width:28px; height:28px; display:grid; place-items:center; flex-shrink:0;">
+                    <svg width="28" height="28" viewBox="0 0 36 36" style="transform: rotate(-90deg); position:absolute; top:0; left:0;">
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" stroke-width="4"></circle>
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="${pct} ${100 - pct}" stroke-linecap="round"></circle>
                     </svg>
-                    <span style="font-size:9.5px; font-weight:800; color:#334155;">${pct}%</span>
+                    <span style="font-size:8.5px; font-weight:800; color:#334155;">${pct}%</span>
                   </div>
                 </div>
 
                 <!-- Stats bullets row -->
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:10px; font-size:10.5px; font-weight:700;">
-                  <span style="color:#16a34a; display:flex; align-items:center; gap:3px;">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:6px; font-size:10px; font-weight:700;">
+                  <span style="color:#16a34a; display:flex; align-items:center; gap:2px;">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     ${eng.done} Done
                   </span>
-                  <span style="color:#d97706;">● ${eng.working} Working</span>
+                  <span style="color:#d97706;">● ${eng.working} Work</span>
                   <span style="color:#64748b;">● ${eng.todo} Todo</span>
                 </div>
 
                 <!-- Top Priorities list -->
-                <div style="margin-bottom:14px;">
-                  <div style="font-size:9.5px; font-weight:800; color:#94a3b8; letter-spacing:0.04em; margin-bottom:6px; text-transform:uppercase;">Top Priorities</div>
-                  <div style="display:flex; flex-direction:column; gap:6px;">
-                    ${eng.tasks.filter(t => !isTaskCompleted(t.id)).slice(0, 3).map(t => {
+                <div style="margin-bottom:6px;">
+                  <div style="font-size:9px; font-weight:800; color:#94a3b8; letter-spacing:0.04em; margin-bottom:4px; text-transform:uppercase;">Top Priorities</div>
+                  <div style="display:flex; flex-direction:column; gap:4px;">
+                    ${eng.tasks.filter(t => !isTaskCompleted(t.id)).slice(0, 2).map(t => {
                       const badgeCol = t.severity === "P1" ? "#de350b" : "#974f0c";
                       return `
-                        <div style="font-size:11.5px; line-height:1.3; color:#334155; display:flex; align-items:flex-start;">
-                          <span style="color:${badgeCol}; font-weight:800; font-size:10px; margin-right:6px; flex-shrink:0;">${t.severity}</span>
-                          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-1; width:140px;">${escapeHtml(t.canonicalTitle)}</span>
+                        <div style="font-size:10.5px; line-height:1.2; color:#334155; display:flex; align-items:flex-start;">
+                          <span style="color:${badgeCol}; font-weight:800; font-size:9px; margin-right:4px; flex-shrink:0;">${t.severity}</span>
+                          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; max-width:130px;" title="${escapeHtml(t.canonicalTitle)}">${escapeHtml(t.canonicalTitle)}</span>
                         </div>
                       `;
                     }).join("")}
-                    ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length > 3 ? `
-                      <div style="font-size:10.5px; color:#64748b; margin-top:2px;">+ ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length - 3} more tasks</div>
+                    ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length > 2 ? `
+                      <div style="font-size:9.5px; color:#64748b; margin-top:1px;">+ ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length - 2} more</div>
                     ` : ""}
                   </div>
                 </div>
               </div>
 
               <!-- Card Est. Free Capacity Footer -->
-              <div style="border-top:1px solid #f1f5f9; padding-top:10px; display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+              <div style="border-top:1px solid #f1f5f9; padding-top:6px; display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
                 <div>
-                  <div style="font-size:9px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em;">Est. Free Capacity</div>
-                  <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-                    <strong style="font-size:14px; color:#334155;">${freeHours}h</strong>
-                    <svg width="40" height="14" viewBox="0 0 50 20" preserveAspectRatio="none">
-                      <path d="M0 15 Q12.5 5, 25 12 T50 8" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round"></path>
+                  <div style="font-size:8.5px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.03em;">Free Cap.</div>
+                  <div style="display:flex; align-items:center; gap:4px; margin-top:1px;">
+                    <strong style="font-size:12px; color:#334155;">${freeHours}h</strong>
+                    <svg width="24" height="10" viewBox="0 0 50 20" preserveAspectRatio="none">
+                      <path d="M0 15 Q12.5 5, 25 12 T50 8" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"></path>
                     </svg>
                   </div>
                 </div>
-                <button class="dash-member-view-tasks" data-engineer="${escapeHtml(eng.name)}" style="padding:4px 8px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer;">View Tasks</button>
+                <button class="dash-member-view-tasks" data-engineer="${escapeHtml(eng.name)}" style="padding:2px 6px; background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; font-size:10px; font-weight:700; color:#334155; cursor:pointer;">View</button>
               </div>
             </div>
           `;
@@ -6040,25 +6028,25 @@ function renderTeamWorkload(isManager) {
       </div>
 
       <!-- AI Workload Insights Footer Row -->
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.02); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-        <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="color:#8b5cf6; font-size:18px;">✦</span>
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 14px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; box-sizing:border-box;">
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="color:#8b5cf6; font-size:15px;">✦</span>
             <div>
-              <strong style="font-size:12.5px; color:#0f172a; display:block;">AI Workload Insights</strong>
-              <span style="font-size:11.5px; color:#64748b;">2 team members are nearing capacity limit. Consider redistributing 18 tasks to balance workload.</span>
+              <strong style="font-size:11.5px; color:#0f172a; display:block; line-height:1.2;">AI Workload Insights</strong>
+              <span style="font-size:10.5px; color:#64748b;">2 team members are nearing capacity limit. Consider redistributing 18 tasks.</span>
             </div>
           </div>
-          <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:#475569; font-weight:700; background:#f8fafc; padding:6px 12px; border-radius:8px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <div style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:#475569; font-weight:700; background:#f8fafc; padding:4px 8px; border-radius:6px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
             High risk of delay in 3 projects
           </div>
-          <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:#e53e3e; font-weight:700; background:#fff5f5; padding:6px 12px; border-radius:8px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            ${blockedCount} blocked tasks affecting 117 downstream tasks
+          <div style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:#e53e3e; font-weight:700; background:#fff5f5; padding:4px 8px; border-radius:6px;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            ${blockedCount} blocked tasks
           </div>
         </div>
-        <button id="twViewRecommendationsBtn" style="padding:8px 16px; background:#ffffff; border:1px solid #0c66e4; color:#0c66e4; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
+        <button id="twViewRecommendationsBtn" style="padding:6px 12px; background:#ffffff; border:1px solid #0c66e4; color:#0c66e4; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
           View Recommendations
         </button>
       </div>
