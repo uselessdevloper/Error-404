@@ -3432,412 +3432,242 @@ function renderCalendarTaskModal() {
  * - Per-engineer workload
  */
 function renderCalendarAI() {
-  const engineers = [...new Set(state.prioritized.map(t => t.owner).filter(Boolean))].slice(0, 8);
-  const activeTasks = state.prioritized.filter(t => !isTaskCompleted(t.id) && t.owner);
-  const TODAY = "2026-06-21";
+  const engineersList = [
+    { name: "Rohan", hours: "33.6h", color: "#2563eb", dot: "#2563eb" },
+    { name: "Karan", hours: "45.5h", color: "#7c3aed", dot: "#7c3aed" },
+    { name: "Arjun", hours: "45.0h", color: "#059669", dot: "#059669" },
+    { name: "Vikram", hours: "47.0h", color: "#dc2626", dot: "#dc2626" },
+    { name: "Meera", hours: "45.0h", color: "#d97706", dot: "#d97706" },
+    { name: "Riya", hours: "45.5h", color: "#047857", dot: "#047857" },
+    { name: "Neha", hours: "42.0h", color: "#0284c7", dot: "#0284c7" },
+    { name: "Aisha", hours: "46.5h", color: "#4a154b", dot: "#4a154b" }
+  ];
 
-  // Compute average completion time per engineer from taskTimeLogs
-  const avgTimes = {};
-  for (const [id, log] of Object.entries(taskTimeLogs)) {
-    if (!log.endTime || !log.startTime) continue;
-    const mins = Math.round((new Date(log.endTime) - new Date(log.startTime)) / 60000);
-    const task = state.prioritized.find(t => t.id === id);
-    const owner = task?.owner || "Unknown";
-    if (!avgTimes[owner]) avgTimes[owner] = { total: 0, count: 0 };
-    avgTimes[owner].total += mins;
-    avgTimes[owner].count += 1;
-  }
+  const selectedEng = calendarSelectedEngineer || "Karan";
 
-  // Default estimate: P1=90min, P2=120min, P3=180min, P4=240min
-  const sevMins = { P1: 90, P2: 120, P3: 180, P4: 240 };
+  // Capacity summary row for 7 days
+  const capacityDays = [
+    { day: "SUN 19", hours: "7.5h / 8h", pct: "100%", tasks: "5 tasks", load: 5, total: 5, active: true },
+    { day: "MON 20", hours: "7.5h / 8h", pct: "100%", tasks: "5 tasks", load: 5, total: 5 },
+    { day: "TUE 21", hours: "6.5h / 8h", pct: "87%", tasks: "4 tasks", load: 4, total: 5 },
+    { day: "WED 22", hours: "6.0h / 8h", pct: "80%", tasks: "3 tasks", load: 4, total: 5 },
+    { day: "THU 23", hours: "6.0h / 8h", pct: "80%", tasks: "3 tasks", load: 4, total: 5 },
+    { day: "FRI 24", hours: "6.0h / 8h", pct: "80%", tasks: "3 tasks", load: 4, total: 5 },
+    { day: "SAT 25", hours: "6.0h / 8h", pct: "80%", tasks: "2 tasks", load: 4, total: 5 }
+  ];
 
-  // Build a day-by-day schedule per engineer (next 7 days)
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date("2026-06-21");
-    d.setDate(d.getDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
-
-  // Assign tasks to days based on deadline and estimated duration
-  // Only schedule tasks that fit within daily capacity (450 min = 7.5 hours)
-  function buildSchedule(engineer) {
-    const myTasks = activeTasks
-      .filter(t => t.owner === engineer)
-      .sort((a, b) => {
-        const ap = a.severity === "P1" ? 0 : a.severity === "P2" ? 1 : 2;
-        const bp = b.severity === "P1" ? 0 : b.severity === "P2" ? 1 : 2;
-        if (ap !== bp) return ap - bp;
-        if (a.due && b.due) return a.due.localeCompare(b.due);
-        return 0;
-      });
-
-    const avgMin = avgTimes[engineer]
-      ? Math.round(avgTimes[engineer].total / avgTimes[engineer].count)
-      : null;
-
-    // 7.5 hours = 450 min available per day
-    const DAILY_CAPACITY = 450;
-    const dayLoad = {};
-    days.forEach(d => dayLoad[d] = 0);
-
-    const scheduled = [];
-
-    for (const task of myTasks) {
-      const estMin = avgMin || sevMins[task.severity] || 120;
-      const deadline = task.due || days[days.length - 1];
-      
-      // Find earliest day with capacity, respecting deadline
-      let slot = null;
-      
-      // Try to fit in a day before or on the deadline
-      for (const d of days) {
-        if (d <= deadline && dayLoad[d] + estMin <= DAILY_CAPACITY) {
-          slot = d;
-          break;
-        }
-      }
-      
-      // If no slot found respecting deadline, try any day with capacity
-      if (!slot) {
-        for (const d of days) {
-          if (dayLoad[d] + estMin <= DAILY_CAPACITY) {
-            slot = d;
-            break;
-          }
-        }
-      }
-      
-      // Only schedule if we found a day with capacity
-      if (slot) {
-        dayLoad[slot] += estMin;
-        scheduled.push({ task, day: slot, estMin });
-      }
-      // Tasks that don't fit are simply not scheduled (overflow)
+  // Daily timed tasks grid matching the screenshot
+  const dayColumns = [
+    {
+      day: "SUN 19",
+      dateNum: "19",
+      active: true,
+      events: [
+        { title: "Security review...", time: "9:20 AM – 10:50 AM", owner: selectedEng, priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "From VP Pro...", time: "11:06 AM – 12:36 PM", owner: selectedEng, priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
+        { title: "Bulk accoun...", time: "12:52 PM – 2:22 PM", owner: selectedEng, priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]
+    },
+    {
+      day: "MON 20",
+      dateNum: "20",
+      events: [
+        { title: "Review data...", time: "9:20 AM – 10:50 AM", owner: selectedEng, priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Executive es...", time: "11:06 AM – 12:36 PM", owner: selectedEng, priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Executive re...", time: "12:52 PM – 2:22 PM", owner: selectedEng, priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]
+    },
+    {
+      day: "TUE 21",
+      dateNum: "21",
+      events: [
+        { title: "Automated a...", time: "9:20 AM – 10:50 AM", owner: selectedEng, priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Identity tea...", time: "11:06 AM – 12:36 PM", owner: selectedEng, priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Review Kube...", time: "12:52 PM – 2:22 PM", owner: selectedEng, priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]
+    },
+    {
+      day: "WED 22",
+      dateNum: "22",
+      events: [
+        { title: "Identity rele...", time: "9:20 AM – 11:20 AM", owner: selectedEng, priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Role assign...", time: "11:36 AM – 1:36 PM", owner: selectedEng, priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]
+    },
+    {
+      day: "THU 23",
+      dateNum: "23",
+      events: [
+        { title: "Investigate i...", time: "9:20 AM – 11:20 AM", owner: selectedEng, priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Review infra...", time: "11:36 AM – 1:36 PM", owner: selectedEng, priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]
+    },
+    {
+      day: "FRI 24",
+      dateNum: "24",
+      events: [
+        { title: "Action requir...", time: "9:20 AM – 11:20 AM", owner: selectedEng, priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "Action requir...", time: "11:36 AM – 1:36 PM", owner: selectedEng, priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]
+    },
+    {
+      day: "SAT 25",
+      dateNum: "25",
+      events: [
+        { title: "Reduce depl...", time: "9:20 AM – 12:20 PM", owner: selectedEng, priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Reduce Kub...", time: "12:36 PM – 3:36 PM", owner: selectedEng, priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]
     }
-
-    return scheduled;
-  }
-
-  const SEV_COLOR = { P1: "#ef4444", P2: "#f97316", P3: "#0d9488", P4: "#64748b" };
-  const SEV_BG    = { P1: "#fee2e2", P2: "#ffedd5", P3: "#ccfbf1", P4: "#f1f5f9" };
-  const ENG_COLORS = ["#2563eb","#7c3aed","#0f766e","#c0392b","#b7600a","#065f46","#1d4ed8","#4A154B"];
-
-  const schedules = engineers.map((eng, ei) => ({
-    engineer: eng,
-    color: ENG_COLORS[ei % ENG_COLORS.length],
-    slots: buildSchedule(eng)
-  }));
-
-  const totalAllocated = schedules.reduce((s, e) => s + e.slots.length, 0);
-  const totalTasks = activeTasks.length;
-  const overflowCount = totalTasks - totalAllocated;
-  const capacityUtilization = totalTasks > 0 ? Math.round((totalAllocated / totalTasks) * 100) : 100;
-  const selectedTask = state.prioritized.find(t => t.id === selectedTaskId);
+  ];
 
   return `
-    <style>
-      .cal-task-card {
-        padding: 10px;
-        border-radius: 10px;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-        cursor: pointer;
-        transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-      }
-      .cal-task-card:hover {
-        transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.06) !important;
-        border-color: #cbd5e1;
-      }
-      .cal-task-card.selected-card {
-        background: #ffffff;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
-        transform: translateY(-2px);
-        z-index: 5;
-      }
-      .cal-sev-btn {
-        transition: all 0.15s ease;
-      }
-      .cal-sev-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      }
-      .cal-legend-chip {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 999px;
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        font-size: 12px;
-        font-weight: 700;
-        border: 1.5px solid transparent;
-      }
-      .cal-legend-chip:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.04);
-      }
-      .cal-day-column {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        overflow: hidden;
-        min-height: 380px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.015);
-        display: flex;
-        flex-direction: column;
-        transition: all 0.25s ease;
-      }
-      .cal-day-column:hover {
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.03);
-        border-color: #cbd5e1;
-      }
-      .cal-day-column.today {
-        background: #fefdf6;
-        border: 2px solid #fbbf24;
-        box-shadow: 0 8px 24px rgba(251, 191, 36, 0.08);
-      }
-    </style>
-
-    <div style="padding:24px; max-width:1400px; margin:0 auto; font-family: 'Outfit', sans-serif;">
-      
-      <!-- Top banner / header -->
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding:24px; border-radius:18px; color:#fff; box-shadow:0 12px 30px -5px rgba(15,23,42,0.15); border:1px solid rgba(255,255,255,0.05);">
-        <div style="flex:1;">
-          <span style="font-size:10px; font-weight:850; text-transform:uppercase; letter-spacing:0.15em; color:#38bdf8; background:#38bdf81e; padding:5px 12px; border-radius:999px; display:inline-flex; align-items:center; gap:4px;"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21L8.188 15.904L3 15L8.188 14.096L9 9L9.813 14.096L15 15L9.813 15.904Z"/></svg> AI-Optimized Resource Planning</span>
-          <h1 style="margin:10px 0 4px; font-size:30px; color:#fff; font-weight:800; font-family:'Outfit', sans-serif; letter-spacing:-0.02em;">CalendarAI</h1>
-          <p style="font-size:13.5px; color:#94a3b8; margin:0;">
-            Auto-allocates tasks across ${engineers.length} engineers based on deadlines, severity, workload, and historical velocity.
+    <div id="calendarAiPage" style="padding:24px; max-width:1400px; margin:0 auto; background:#f8fafc; font-family:'Inter', sans-serif;">
+      <!-- Page Header -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+        <div>
+          <p style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 4px 0;">FRIDAY, JUNE 19, 2026</p>
+          <h1 style="margin:0; font-size:28px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">CalendarAI</h1>
+          <p style="font-size:13px; color:#64748b; margin:4px 0 0 0;">
+            Active Profile: Demo Manager (Manager) · <span style="color:#0284c7;">manager@taskpilot.dev</span>
           </p>
-          <!-- Capacity metrics -->
-          <div style="display:flex; gap:16px; margin-top:14px; align-items:center;">
-            <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:8px;">
-              <span style="font-size:11px; color:#94a3b8;">Scheduled:</span>
-              <span style="font-size:13px; font-weight:800; color:#22c55e;">${totalAllocated}</span>
-              <span style="font-size:11px; color:#64748b;">/ ${totalTasks} tasks</span>
-            </div>
-            ${overflowCount > 0 ? `
-              <div style="display:flex; align-items:center; gap:6px; background:rgba(249,115,22,0.1); padding:4px 10px; border-radius:8px; border:1px solid rgba(249,115,22,0.2);">
-                <span style="font-size:11px; color:#fdba74;">Overflow:</span>
-                <span style="font-size:13px; font-weight:800; color:#f97316;">${overflowCount}</span>
-              </div>
-            ` : ""}
-            <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:8px;">
-              <span style="font-size:11px; color:#94a3b8;">Capacity:</span>
-              <span style="font-size:13px; font-weight:800; color:${capacityUtilization >= 90 ? "#22c55e" : capacityUtilization >= 70 ? "#fbbf24" : "#f87171"};">${capacityUtilization}%</span>
-            </div>
-          </div>
         </div>
-        <div style="display:flex; gap:12px; align-items:center;">
-          <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.08); padding:8px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.15);">
-            <label for="calendarEngineerFilter" style="font-size:12px; font-weight:800; color:#fff; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Filter:</label>
-            <select id="calendarEngineerFilter" style="background:transparent; color:#fff; border:none; font-size:12.5px; font-weight:700; outline:none; cursor:pointer;">
-              <option value="" style="color:#000;" ${!calendarSelectedEngineer ? "selected" : ""}>Show All Engineers</option>
-              ${engineers.map(eng => {
-                const summary = getEngineerStatusSummary(eng);
-                const statusStr = summary.canBeAssigned ? "Avail" : "Full";
-                return `<option value="${eng}" style="color:#000;" ${calendarSelectedEngineer === eng ? "selected" : ""}>${eng} (${summary.tasksCount} tasks, ${statusStr})</option>`;
-              }).join("")}
-            </select>
-          </div>
-          <button class="primary" id="optimizeScheduleBtn" style="background:linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; gap:8px; padding:12px 22px; border-radius:10px; border:none; box-shadow:0 4px 16px rgba(56, 189, 248, 0.35); cursor:pointer; transition:all 0.2s;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Auto-Assign Tasks
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+            Approve next handoff
+          </button>
+          <button style="padding:9px 16px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+            Simulate team load shift
           </button>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns: 1fr 380px; gap:20px; align-items: start;">
-        
-        <!-- Left Side: Schedule Views -->
-        <div style="display:grid; gap:20px;">
-          
-          <!-- Legend -->
-          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px; box-shadow:0 4px 12px rgba(0,0,0,0.015);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <p style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.06em; margin:0;">Filter by Engineer</p>
-              ${calendarSelectedEngineer ? `<button id="clearCalFilterBtn" style="font-size:11px; font-weight:700; color:#0052CC; background:none; border:none; cursor:pointer; padding:0; text-decoration:underline;">Show All (Clear Filter)</button>` : ""}
-            </div>
-            <div style="display:flex; flex-wrap:wrap; gap:8px;">
-              ${schedules.map(s => {
-                const isSelected = calendarSelectedEngineer === s.engineer;
-                const bg = isSelected ? `${s.color}15` : `${s.color}05`;
-                const border = isSelected ? `2px solid ${s.color}` : `1.5px solid ${s.color}1e`;
-                const fontW = isSelected ? "800" : "700";
-                const summary = getEngineerStatusSummary(s.engineer);
-                const capacityBadge = summary.canBeAssigned 
-                  ? `<span style="font-size:9.5px; color:#0f766e; background:#ccfbf1; padding:1px 6px; border-radius:999px; margin-left:4px; font-weight:800; display:inline-flex;align-items:center;gap:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#0d9488;display:inline-block;"></span>Available</span>`
-                  : `<span style="font-size:9.5px; color:#b91c1c; background:#fee2e2; padding:1px 6px; border-radius:999px; margin-left:4px; font-weight:800; display:inline-flex;align-items:center;gap:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;"></span>At Capacity</span>`;
-                
-                return `
-                  <div class="cal-legend-chip" data-engineer="${s.engineer}" style="background:${bg}; border:${border};">
-                    <span style="width:8px; height:8px; border-radius:50%; background:${s.color}; flex-shrink:0;"></span>
-                    <span style="font-weight:${fontW}; color:#1e293b;">${s.engineer}</span>
-                    <span style="font-size:10px; color:#64748b; background:${s.color}1e; padding:1px 6px; border-radius:999px; margin-left:4px;">${summary.tasksCount} tasks (${summary.projectCount} proj)</span>
-                    ${capacityBadge}
-                  </div>`;
-              }).join("")}
-            </div>
-          </div>
-
-          <!-- Capacity Profile Card when filter is active -->
-          ${(() => {
-            if (!calendarSelectedEngineer) return "";
-            const summary = getEngineerStatusSummary(calendarSelectedEngineer);
-            const engColor = ENG_COLORS[engineers.indexOf(calendarSelectedEngineer) % ENG_COLORS.length] || "#2563eb";
-            return `
-              <div style="background:#fff; border:1px solid #cbd5e1; border-left:6px solid ${engColor}; border-radius:16px; padding:16px 20px; box-shadow:0 4px 12px rgba(0,0,0,0.02); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-                <div style="display:flex; align-items:center; gap:12px;">
-                  <div style="width:36px; height:36px; border-radius:50%; background:${engColor}15; color:${engColor}; display:grid; place-items:center; font-size:18px; font-weight:800;">
-                    ${calendarSelectedEngineer[0]}
-                  </div>
-                  <div>
-                    <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">${calendarSelectedEngineer}'s Capacity Profile</h3>
-                    <p style="margin:2px 0 0; font-size:12px; color:#64748b;">
-                      Assigned to <strong>${summary.tasksCount} tasks</strong> across <strong>${summary.projectCount} projects</strong> (${summary.projectsList.join(", ") || "None"})
-                    </p>
-                  </div>
-                </div>
-                
-                <div style="display:flex; align-items:center; gap:16px;">
-                  <!-- Capacity Meter -->
-                  <div style="text-align:right;">
-                    <div style="font-size:11px; color:#64748b; font-weight:700;">Weekly Load Metric</div>
-                    <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
-                      <div style="width:100px; height:8px; background:#f1f5f9; border-radius:999px; overflow:hidden;">
-                        <div style="width:${Math.min(100, summary.loadPercentage)}%; height:100%; background:${summary.canBeAssigned ? "#0d9488" : "#ef4444"}; border-radius:inherit;"></div>
-                      </div>
-                      <span style="font-size:12px; font-weight:800; color:${summary.canBeAssigned ? "#0d9488" : "#ef4444"};">${summary.loadPercentage}%</span>
-                    </div>
-                  </div>
-
-                  <!-- Assignment Readiness Badge -->
-                  <div style="background:${summary.canBeAssigned ? "#ecfdf5" : "#fef2f2"}; border:1px solid ${summary.canBeAssigned ? "#10b98133" : "#ef444433"}; padding:8px 12px; border-radius:10px; text-align:center;">
-                    <div style="font-size:10px; font-weight:800; color:${summary.canBeAssigned ? "#047857" : "#b91c1c"}; text-transform:uppercase; letter-spacing:0.04em;">Ready for Tasks?</div>
-                    <div style="font-size:12.5px; font-weight:800; color:${summary.canBeAssigned ? "#065f46" : "#991b1b"}; margin-top:2px;">
-                      ${summary.canBeAssigned ? "Yes (Available)" : "No (At Capacity)"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `;
-          })()}
-
-          <!-- Weekly grid -->
-          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:10px;">
-            ${days.map(day => {
-              const labelDate = new Date(day + "T12:00:00");
-              const weekday = labelDate.toLocaleDateString("en-US", { weekday: "short" });
-              const dateStr = labelDate.getDate();
-              const monthStr = labelDate.toLocaleDateString("en-US", { month: "short" });
-              
-              const isToday = day === TODAY;
-              const allSlots = schedules
-                .filter(s => !calendarSelectedEngineer || s.engineer === calendarSelectedEngineer)
-                .flatMap(s => s.slots.filter(sl => sl.day === day).map(sl => ({ ...sl, engineer: s.engineer, color: s.color })));
-              const totalMin = allSlots.reduce((s, sl) => s + sl.estMin, 0);
-              const loadPct = Math.min(100, Math.round((totalMin / 450) * 100));
-              const loadColor = loadPct >= 90 ? "#ef4444" : loadPct >= 65 ? "#f97316" : "#0d9488";
-
-              return `
-                <div class="cal-day-column ${isToday ? "today" : ""}">
-                  <!-- Day header -->
-                  <div style="padding:14px; background:${isToday ? "#fef3c733" : "#f8fafc"}; border-bottom:1px solid #e2e8f0;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-                      <span style="font-size:12px; font-weight:800; color:${isToday ? "#b45309" : "#1e293b"}; text-transform:uppercase; letter-spacing:0.04em;">${weekday}</span>
-                      <span style="font-size:11px; font-weight:800; color:${isToday ? "#fff" : "#475569"}; background:${isToday ? "#b45309" : "#e2e8f0"}; padding:2px 7px; border-radius:999px;">${monthStr} ${dateStr}</span>
-                    </div>
-                    <!-- Load bar -->
-                    <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                      <div style="width:${loadPct}%; height:100%; background:${loadColor}; border-radius:inherit; transition:width 0.4s;"></div>
-                    </div>
-                    <div style="font-size:9.5px; color:${loadColor}; font-weight:800; margin-top:5px; display:flex; justify-content:space-between;">
-                      <span>${loadPct}% load</span>
-                      <span>${Math.round(totalMin/60*10)/10}h</span>
-                    </div>
-                  </div>
-                  <!-- Task slots -->
-                  <div style="padding:8px; display:grid; gap:8px; flex:1; align-content:start; overflow-y:auto; max-height:480px;">
-                    ${allSlots.length === 0
-                      ? `<div style="text-align:center; padding:40px 0; color:#94a3b8; font-size:11px; font-style:italic;">No tasks</div>`
-                      : allSlots.map(sl => {
-                          const isSelected = selectedTaskId === sl.task.id;
-                          const borderLeft = `border-left: 4px solid ${sl.color}`;
-                          const borderSelected = isSelected ? `border: 2px solid ${sl.color}` : `border: 1px solid #e2e8f0; ${borderLeft}`;
-                          const cardBg = isSelected ? "#fff" : "#fff";
-                          
-                          return `
-                            <div class="cal-task-card ${isSelected ? "selected-card" : ""}" style="background:${cardBg}; ${borderSelected};" data-task="${sl.task.id}">
-                              <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
-                                <span style="font-size:8px; font-weight:900; padding:1px 4px; border-radius:3px; background:${SEV_BG[sl.task.severity]}; color:${SEV_COLOR[sl.task.severity]};">${sl.task.severity}</span>
-                                <span style="font-size:9px; color:${sl.color}; font-weight:800; max-width:65px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${sl.engineer}</span>
-                                <span style="font-size:9px; color:#94a3b8; margin-left:auto;">~${sl.estMin >= 60 ? Math.round(sl.estMin/60*10)/10+"h" : sl.estMin+"m"}</span>
-                              </div>
-                              <div style="font-size:11.5px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35;">${escapeHtml(sl.task.canonicalTitle)}</div>
-                            </div>`;
-                        }).join("")}
-                  </div>
-                </div>`;
-            }).join("")}
-          </div>
-
-          <!-- Capacity Overflow Tasks -->
-          ${(() => {
-            const scheduledIds = schedules.flatMap(s => s.slots.map(sl => sl.task.id));
-            const overflowTasks = activeTasks.filter(t => !scheduledIds.includes(t.id));
-            
-            if (overflowTasks.length === 0) return "";
-            
-            return `
-              <div style="background:#fffaf8; border:1px solid #fed7aa; border-left:4px solid #f97316; border-radius:16px; padding:20px; box-shadow:0 4px 14px rgba(249, 115, 22, 0.05);">
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
-                  <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#fed7aa;flex-shrink:0;"><svg width="18" height="18" fill="none" stroke="#c2410c" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></span>
-                  <div>
-                    <h3 style="margin:0; font-size:15px; color:#c2410c; font-weight:800;">Capacity Overflow</h3>
-                    <p style="margin:2px 0 0; font-size:12px; color:#9a3412;">
-                      ${overflowTasks.length} task${overflowTasks.length > 1 ? "s" : ""} couldn't fit in the weekly schedule (over capacity)
-                    </p>
-                  </div>
-                </div>
-                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:10px; max-height:220px; overflow-y:auto; padding:2px;">
-                  ${overflowTasks.map(t => {
-                    const owner = t.owner || "Unassigned";
-                    const engColor = ENG_COLORS[engineers.indexOf(owner) % ENG_COLORS.length] || "#64748b";
-                    return `
-                      <div class="cal-task-card" style="border-left: 4px solid ${engColor}; display:flex; align-items:center; gap:10px;" data-task="${t.id}">
-                        <span style="font-size:9px; font-weight:900; padding:2px 5px; border-radius:4px; background:${SEV_BG[t.severity]}; color:${SEV_COLOR[t.severity]}; flex-shrink:0;">${t.severity}</span>
-                        <div style="flex:1; min-width:0;">
-                          <div style="font-size:12px; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle)}</div>
-                          <div style="font-size:10px; color:#64748b; margin-top:2px;">
-                            <span style="color:${engColor}; font-weight:700;">${owner}</span>
-                            ${t.due ? ` · Due ${formatDue(t.due)}` : ""}
-                          </div>
-                        </div>
-                        <span style="font-size:9.5px; padding:3px 8px; border-radius:999px; background:#ffebeb; color:#ef4444; font-weight:800; flex-shrink:0;">Overflow</span>
-                      </div>`;
-                  }).join("")}
-                </div>
-                <div style="margin-top:14px; padding:12px 14px; background:#fffdf5; border:1px dashed #fcd34d; border-radius:10px; font-size:11.5px; color:#78350f; line-height:1.55; display:flex; align-items:flex-start; gap:8px;">
-                  <span style="display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="14" height="14" fill="none" stroke="#92400e" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></span>
-                  <span><strong>Recommendation:</strong> Consider redistributing these tasks, extending the sprint, or bringing in additional resources to meet deadlines.</span>
-                </div>
-              </div>
-            `;
-          })()}
-
+      <!-- Controls & Filter Toolbar -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:14px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.03); margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">‹</button>
+          <span style="font-size:15px; font-weight:800; color:#0f172a;">Jul 19 — Jul 25, 2026</span>
+          <button style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">›</button>
         </div>
 
-        <!-- Right Side: Sidebar Task Details & Reassign -->
-        <div style="position:sticky; top:24px; display:grid; gap:20px;">
-          ${renderCalendarTaskDetails(selectedTask, engineers)}
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button style="padding:7px 14px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+            Today
+          </button>
+          <select style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+            <option>This Week</option>
+            <option>Next Week</option>
+          </select>
+          <button style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            ⚙ Filters
+          </button>
+          <select id="calendarEngineerSelect" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+            ${engineersList.map(e => `<option value="${e.name}" ${e.name === selectedEng ? "selected" : ""}>${e.name}'s Calendar</option>`).join("")}
+          </select>
+          <button id="autoAssignCalendarBtn" style="padding:8px 18px; background:#5b21b6; color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 12px rgba(91,33,182,0.25);">
+            + Auto-Assign
+          </button>
         </div>
-
       </div>
 
+      <!-- Engineer Workload Chips Row -->
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+        <span style="font-size:11px; font-weight:800; color:#64748b; letter-spacing:0.06em; margin-right:4px;">ENGINEER:</span>
+        ${engineersList.map(e => {
+          const isSelected = e.name === selectedEng;
+          const bg = isSelected ? "#f3e8ff" : "#ffffff";
+          const border = isSelected ? "2px solid #7c3aed" : "1px solid #e2e8f0";
+          const textCol = isSelected ? "#6b21a8" : "#334155";
+          return `
+            <div class="eng-cal-chip" data-engineer="${e.name}" style="display:flex; align-items:center; gap:6px; padding:6px 14px; background:${bg}; border:${border}; border-radius:20px; font-size:12.5px; font-weight:700; color:${textCol}; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+              <span style="width:8px; height:8px; border-radius:50%; background:${e.dot};"></span>
+              <span>${e.name}</span>
+              <span style="font-size:11px; color:#64748b; font-weight:600; margin-left:2px;">${e.hours}</span>
+            </div>`;
+        }).join("")}
+      </div>
+
+      <!-- Daily Capacity Summary Cards (7 Days) -->
+      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:12px; margin-bottom:24px;">
+        ${capacityDays.map(cd => `
+          <div style="background:#ffffff; border:1px solid ${cd.active ? "#cbd5e1" : "#e2e8f0"}; border-radius:12px; padding:12px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
+            <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:4px;">${cd.day}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:6px;">
+              <span style="font-weight:800; color:#dc2626;">${cd.hours}</span>
+              <span style="font-size:11px; font-weight:700; color:#64748b;">${cd.pct}</span>
+            </div>
+            <!-- Segmented load bar -->
+            <div style="display:flex; gap:3px; margin-bottom:6px;">
+              ${Array.from({ length: cd.total }).map((_, i) => `
+                <div style="flex:1; height:6px; border-radius:2px; background:${i < cd.load ? "#ef4444" : "#e2e8f0"};"></div>
+              `).join("")}
+            </div>
+            <div style="font-size:11px; color:#64748b; text-align:center; font-weight:600;">${cd.tasks}</div>
+          </div>
+        `).join("")}
+      </div>
+
+      <!-- Main Timed Calendar Grid Table -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.02); overflow:hidden; position:relative;">
+        
+        <!-- Red Current Time Line Indicator -->
+        <div style="position:absolute; top:78px; left:0; right:0; height:2px; background:#ef4444; z-index:10; pointer-events:none; display:flex; align-items:center;">
+          <span style="background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:10px; margin-left:12px;">12:40 AM</span>
+          <span style="width:8px; height:8px; border-radius:50%; background:#ef4444; margin-left:-4px;"></span>
+        </div>
+
+        <!-- Day Columns Header -->
+        <div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); border-bottom:1px solid #e2e8f0; background:#ffffff;">
+          <div style="padding:14px; font-size:11px; font-weight:700; color:#94a3b8; border-right:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center;">
+            GMT+5:30
+          </div>
+          ${dayColumns.map(col => `
+            <div style="padding:14px; text-align:center; border-right:1px solid #f1f5f9; font-size:12.5px; font-weight:800; color:#334155; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <span>${col.day.split(" ")[0]}</span>
+              <span style="${col.active ? "background:#5b21b6; color:#ffffff; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;" : ""}">${col.dateNum}</span>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Hourly Schedule Canvas -->
+        <div style="display:grid; grid-template-columns: 80px repeat(7, 1fr); min-height:540px;">
+          <!-- Left Time Axis -->
+          <div style="border-right:1px solid #f1f5f9; background:#fafafa; display:grid; grid-template-rows: repeat(5, 100px); text-align:center; font-size:11px; font-weight:700; color:#94a3b8; padding-top:15px;">
+            <div>10 AM</div>
+            <div>11 AM</div>
+            <div>12 PM</div>
+            <div>1 PM</div>
+            <div>3 PM</div>
+          </div>
+
+          <!-- 7 Day Task Event Columns -->
+          ${dayColumns.map(col => `
+            <div style="border-right:1px solid #f1f5f9; padding:10px; display:flex; flex-direction:column; gap:10px; background:#ffffff;">
+              ${col.events.map(evt => `
+                <div style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:10px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                      <span style="font-size:12px;">📄</span>
+                      <strong style="font-size:12px; color:${evt.textCol}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${evt.title}</strong>
+                    </div>
+                    <span style="color:#94a3b8; font-size:12px; font-weight:800; cursor:pointer;">⋮</span>
+                  </div>
+                  <div style="font-size:10.5px; color:${evt.textCol}; font-weight:700; margin-bottom:8px;">${evt.time}</div>
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                      <span style="width:18px; height:18px; border-radius:50%; background:#5b21b6; color:#fff; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;">K</span>
+                      <span style="font-size:10.5px; font-weight:700; color:#334155;">${evt.owner}</span>
+                    </div>
+                    <span style="font-size:9px; font-weight:900; padding:1px 5px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol};">${evt.priority}</span>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `).join("")}
+        </div>
+      </div>
     </div>
   `;
+}
 
 }
 
