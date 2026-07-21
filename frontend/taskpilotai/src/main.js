@@ -4479,6 +4479,20 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
         </div>
       `;
     }
+    const avatarPhotos = {
+      "Rohan": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&fit=crop&q=80",
+      "Karan": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&fit=crop&q=80",
+      "Sanya": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&fit=crop&q=80",
+      "Neha": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&fit=crop&q=80",
+      "Meera": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&fit=crop&q=80",
+      "Aisha": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&fit=crop&q=80",
+      "Utkarsh": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&fit=crop&q=80",
+      "Vikram": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&fit=crop&q=80",
+      "Riya": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&fit=crop&q=80",
+      "Arjun": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&fit=crop&q=80",
+      "Unassigned": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80"
+    };
+
     return list.slice(0, 5).map(t => {
       const score = t.score || Math.round(t.priorityScore) || 50;
       const col = { P1: "#be123c", P2: "#c2410c", P3: "#1d4ed8", P4: "#15803d" }[t.severity] || "#64748b";
@@ -4487,25 +4501,19 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
 
       // Determine badge color for due date
       const isP1 = t.severity === "P1";
-      const badgeBg = isP1 ? "#ffedd5" : "#dbeafe";
-      const badgeText = isP1 ? "#c2410c" : "#1e40af";
-      const dueLabel = t.due || (isP1 ? "Tomorrow" : "Sprint");
+      const badgeBg = isP1 ? "#ffe4e6" : "#e9f2ff";
+      const badgeText = isP1 ? "#de350b" : "#0c66e4";
+      
+      // Clean up "Due in 14d" format
+      let dueLabel = t.due || (isP1 ? "Tomorrow" : "Sprint");
+      if (dueLabel.toLowerCase().includes("due in ")) {
+        dueLabel = dueLabel.toLowerCase().replace("due in ", "");
+      }
 
-      // Generate avatar circle style
+      // Generate avatar style
       const ownerName = t.owner || "Unassigned";
-      const squad = t.team || "Platform";
-      const initials = ownerName.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
-      const avatarColors = {
-        "Rohan": { bg: "#eff6ff", text: "#2563eb" },
-        "Karan": { bg: "#fffbeb", text: "#d97706" },
-        "Sanya": { bg: "#f0fdf4", text: "#16a34a" },
-        "Neha": { bg: "#fdf2f8", text: "#db2777" },
-        "Meera": { bg: "#f3e8ff", text: "#9333ea" },
-        "Aisha": { bg: "#ecfeff", text: "#0891b2" },
-        "Utkarsh": { bg: "#e0f2fe", text: "#0284c7" },
-        "Vikram": { bg: "#eff6ff", text: "#1d4ed8" }
-      };
-      const av = avatarColors[ownerName] || { bg: "#f1f5f9", text: "#475569" };
+      const squad = t.team || "DevOps";
+      const avatarUrl = avatarPhotos[ownerName] || avatarPhotos["Unassigned"];
 
       return `
         <div class="kanban-task-card" style="background:#ffffff; border:${isSelected ? '2px solid #6366f1' : '1px solid #e2e8f0'}; border-radius:12px; padding:12px; margin-bottom:12px; box-shadow: ${isSelected ? '0 4px 12px rgba(99,102,241,0.12)' : '0 1px 3px rgba(0,0,0,0.02)'}; transition: all 0.2s ease;">
@@ -4517,17 +4525,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           <!-- Owner & Deadline Row -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <div style="display:flex; align-items:center; gap:8px;">
-              <!-- Avatar Circle -->
-              <div style="width:24px; height:24px; border-radius:50%; background:${av.bg}; color:${av.text}; font-size:9.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; border: 1px solid #e2e8f0;">
-                ${initials}
-              </div>
+              <!-- Avatar Portrait Image -->
+              <img src="${avatarUrl}" style="width:28px; height:28px; border-radius:50%; object-fit:cover; flex-shrink:0; border: 1px solid #e2e8f0;" alt="${ownerName}" />
               <div style="line-height:1.2;">
                 <div style="font-size:11px; font-weight:700; color:#334155;">${escapeHtml(ownerName)}</div>
-                <div style="font-size:9.5px; color:#64748b; font-weight:500;">${escapeHtml(squad)}</div>
+                <div style="font-size:9.5px; color:#0c66e4; font-weight:700;">${escapeHtml(squad)}</div>
               </div>
             </div>
             <!-- Due Badge -->
-            <span style="background:${badgeBg}; color:${badgeText}; font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; text-transform:capitalize;">
+            <span style="background:${badgeBg}; color:${badgeText}; font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px;">
               ${escapeHtml(dueLabel)}
             </span>
           </div>
@@ -4541,20 +4547,20 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           </div>
 
           <!-- Card Footer (Actions & Meta) -->
-          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px solid #f1f5f9;">
-            <!-- Document / Source Indicator -->
-            <div style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:#94a3b8; font-weight:700;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid #f1f5f9; margin-top:4px;">
+            <!-- Checklist Indicator -->
+            <div style="display:flex; align-items:center; gap:4px; font-size:11px; color:#94a3b8; font-weight:700;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:2px;">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
               </svg>
-              <span>${(t.sources || []).length || 1}</span>
+              <span>${(t.sources || []).length || 2}</span>
             </div>
             <!-- Action buttons and Star -->
             <div style="display:flex; align-items:center; gap:6px; position:relative;">
-              <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="padding:4px 8px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Assign</button>
+              <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="padding:4px 10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Assign</button>
               <div style="position:relative; display:inline-block;">
-                <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:4px 8px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Select</button>
+                <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:4px 10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Select</button>
                 ${activeSelectTaskDropdownId === t.id ? `
                   <div class="engineer-selector-dropdown" style="position:absolute; right:0; top:100%; margin-top:4px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999; min-width:140px; padding:6px 0; max-height:220px; overflow-y:auto;">
                     <div style="font-size:10px; font-weight:800; color:#94a3b8; padding:4px 12px; border-bottom:1px solid #f1f5f9; letter-spacing:0.05em; text-transform:uppercase;">Select Engineer</div>
@@ -4566,7 +4572,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                   </div>
                 ` : ""}
               </div>
-              <span style="color:#f59e0b; font-size:12px; margin-left:2px; font-weight:bold; cursor:default;">✦</span>
+              <span style="color:#f59e0b; font-size:13px; margin-left:4px; font-weight:bold; cursor:default;">✦</span>
             </div>
           </div>
         </div>
