@@ -3465,156 +3465,338 @@ function renderCalendarAI() {
 
   const selectedEng = calendarSelectedEngineer || "Karan";
 
-  // Capacity summary row for 7 days
-  const capacityDays = [
-    { day: "SUN 19", hours: "7.5h / 8h", pct: "100%", tasks: "5 tasks", load: 5, total: 5, active: true },
-    { day: "MON 20", hours: "7.5h / 8h", pct: "100%", tasks: "5 tasks", load: 5, total: 5 },
-    { day: "TUE 21", hours: "6.5h / 8h", pct: "87%", tasks: "4 tasks", load: 4, total: 5 },
-    { day: "WED 22", hours: "6.0h / 8h", pct: "80%", tasks: "3 tasks", load: 4, total: 5 },
-    { day: "THU 23", hours: "6.0h / 8h", pct: "80%", tasks: "3 tasks", load: 4, total: 5 },
-    { day: "FRI 24", hours: "6.0h / 8h", pct: "80%", tasks: "3 tasks", load: 4, total: 5 },
-    { day: "SAT 25", hours: "6.0h / 8h", pct: "80%", tasks: "2 tasks", load: 4, total: 5 }
-  ];
+  const engineerSchedules = {
+    Karan: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Security review of OAuth2", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "VP Product sync", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
+        { title: "Bulk account migration", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Executive escalations triage", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "DB query optimization", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Executive review prep", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Automated audit pipeline", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Identity architecture review", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Kube cluster upgrade", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Identity release v2.4", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Role assignment logic", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Investigate infra latency", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Review infra metrics", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Action item review", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "Team handoff review", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Reduce deployment latency", time: "9:20 AM – 12:20 PM", owner: "Karan", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Reduce Kube memory footprint", time: "12:36 PM – 3:36 PM", owner: "Karan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]}
+    ],
+    Rohan: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Backend API refactoring", time: "9:30 AM – 11:00 AM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "Redis cache warming setup", time: "11:15 AM – 12:45 PM", owner: "Rohan", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Auth service P99 latency fix", time: "9:00 AM – 11:00 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Microservices gateway patch", time: "11:30 AM – 1:30 PM", owner: "Rohan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Sentry error log triage", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
+        { title: "Load balancer health checks", time: "1:00 PM – 3:00 PM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "PostgreSQL index optimization", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Connection pooling tune", time: "12:00 PM – 2:00 PM", owner: "Rohan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Docker container security audit", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "E2E integration test suite", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Telemetry metrics cleanup", time: "11:00 AM – 1:00 PM", owner: "Rohan", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]}
+    ],
+    Arjun: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Kafka stream consumer fix", time: "9:00 AM – 11:00 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Frontend state hydration debug", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "React memoization audit", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Vite bundle size optimization", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "CSS glassmorphism polish", time: "1:00 PM – 3:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "WCAG accessibility compliance", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "User profile settings modal", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "WebSocket real-time sync", time: "9:00 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Design system token migration", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Cross-browser UI QA testing", time: "11:00 AM – 1:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]}
+    ],
+    Vikram: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Terraform infra script update", time: "9:00 AM – 11:00 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "AWS EC2 auto-scaling policy", time: "11:30 AM – 1:30 PM", owner: "Vikram", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Kubernetes pod resource limits", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Helm chart deployment v3", time: "12:00 PM – 2:00 PM", owner: "Vikram", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "CI/CD pipeline acceleration", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "GitHub Actions workflow fix", time: "1:00 PM – 3:00 PM", owner: "Vikram", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "NGINX ingress controller config", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "CloudWatch alarm threshold tuning", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Disaster recovery backup drill", time: "9:00 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Serverless Lambda cold start fix", time: "11:00 AM – 1:00 PM", owner: "Vikram", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]}
+    ],
+    Meera: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Data warehouse ETL pipeline", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Snowflake schema migration", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "PostgreSQL query execution plan", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Data pipeline SLA monitoring", time: "12:00 PM – 2:00 PM", owner: "Meera", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Analytics dashboard metrics", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "ML model inference benchmark", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Vector DB embedding index", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Customer analytics export", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Real-time telemetry streaming", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Data retention cleanup cron", time: "11:00 AM – 1:00 PM", owner: "Meera", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]}
+    ],
+    Riya: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "QA regression test automation", time: "9:00 AM – 11:00 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Cypress E2E test runner", time: "11:30 AM – 1:30 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "API integration test framework", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Mock server environment setup", time: "12:00 PM – 2:00 PM", owner: "Riya", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Bug triage & reproduction", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Performance stress testing", time: "1:00 PM – 3:00 PM", owner: "Riya", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Security penetration test report", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Edge case validation suite", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Release candidate QA sign-off", time: "9:00 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Test coverage report generation", time: "11:00 AM – 1:00 PM", owner: "Riya", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]}
+    ],
+    Neha: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Product analytics tracking", time: "9:30 AM – 11:00 AM", owner: "Neha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "User onboarding telemetry", time: "11:15 AM – 12:45 PM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Feature flag rollout config", time: "9:00 AM – 11:00 AM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "A/B testing framework setup", time: "11:30 AM – 1:30 PM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "User feedback triage", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Search indexing pipeline", time: "1:00 PM – 3:00 PM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Recommendation engine tuning", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Session replay event logger", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Customer feedback SLA review", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Weekly usage report generator", time: "11:00 AM – 1:00 PM", owner: "Neha", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]}
+    ],
+    Aisha: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Security vulnerability patching", time: "9:00 AM – 11:00 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "SSO SAML2 integration", time: "11:30 AM – 1:30 PM", owner: "Aisha", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Zero-trust network access audit", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Vault secrets rotation", time: "12:00 PM – 2:00 PM", owner: "Aisha", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "API rate limiting middleware", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "WAF security rules update", time: "1:00 PM – 3:00 PM", owner: "Aisha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Audit trail compliance logging", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Encryption key rotation", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "SOC2 compliance documentation", time: "9:00 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Security incident dry-run", time: "11:00 AM – 1:00 PM", owner: "Aisha", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]}
+    ]
+  };
 
-  // Daily timed tasks grid matching the screenshot
-  const dayColumns = [
-    {
-      day: "SUN 19",
-      dateNum: "19",
-      active: true,
-      events: [
-        { title: "Security review...", time: "9:20 AM – 10:50 AM", owner: selectedEng, priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "From VP Pro...", time: "11:06 AM – 12:36 PM", owner: selectedEng, priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
-        { title: "Bulk accoun...", time: "12:52 PM – 2:22 PM", owner: selectedEng, priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]
-    },
-    {
-      day: "MON 20",
-      dateNum: "20",
-      events: [
-        { title: "Review data...", time: "9:20 AM – 10:50 AM", owner: selectedEng, priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Executive es...", time: "11:06 AM – 12:36 PM", owner: selectedEng, priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Executive re...", time: "12:52 PM – 2:22 PM", owner: selectedEng, priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]
-    },
-    {
-      day: "TUE 21",
-      dateNum: "21",
-      events: [
-        { title: "Automated a...", time: "9:20 AM – 10:50 AM", owner: selectedEng, priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Identity tea...", time: "11:06 AM – 12:36 PM", owner: selectedEng, priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Review Kube...", time: "12:52 PM – 2:22 PM", owner: selectedEng, priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]
-    },
-    {
-      day: "WED 22",
-      dateNum: "22",
-      events: [
-        { title: "Identity rele...", time: "9:20 AM – 11:20 AM", owner: selectedEng, priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Role assign...", time: "11:36 AM – 1:36 PM", owner: selectedEng, priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]
-    },
-    {
-      day: "THU 23",
-      dateNum: "23",
-      events: [
-        { title: "Investigate i...", time: "9:20 AM – 11:20 AM", owner: selectedEng, priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Review infra...", time: "11:36 AM – 1:36 PM", owner: selectedEng, priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]
-    },
-    {
-      day: "FRI 24",
-      dateNum: "24",
-      events: [
-        { title: "Action requir...", time: "9:20 AM – 11:20 AM", owner: selectedEng, priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "Action requir...", time: "11:36 AM – 1:36 PM", owner: selectedEng, priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]
-    },
-    {
-      day: "SAT 25",
-      dateNum: "25",
-      events: [
-        { title: "Reduce depl...", time: "9:20 AM – 12:20 PM", owner: selectedEng, priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Reduce Kub...", time: "12:36 PM – 3:36 PM", owner: selectedEng, priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]
-    }
-  ];
+  const dayColumns = engineerSchedules[selectedEng] || engineerSchedules.Karan;
+
+  const capacityDays = dayColumns.map(col => {
+    const tasksCount = col.events.length;
+    let totalMinutes = 0;
+    col.events.forEach(evt => {
+      const match = evt.time.match(/(\d+):(\d+)\s*(AM|PM)\s*–\s*(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let sh = parseInt(match[1]);
+        const sm = parseInt(match[2]);
+        const sampm = match[3].toUpperCase();
+        let eh = parseInt(match[4]);
+        const em = parseInt(match[5]);
+        const eampm = match[6].toUpperCase();
+        if (sampm === "PM" && sh < 12) sh += 12;
+        if (sampm === "AM" && sh === 12) sh = 0;
+        if (eampm === "PM" && eh < 12) eh += 12;
+        if (eampm === "AM" && eh === 12) eh = 0;
+        const start = sh * 60 + sm;
+        const end = eh * 60 + em;
+        totalMinutes += (end - start);
+      }
+    });
+    const hoursNum = (totalMinutes / 60).toFixed(1);
+    const pctVal = Math.min(100, Math.round((totalMinutes / 480) * 100));
+    const totalSegments = 5;
+    const loadSegments = Math.min(totalSegments, Math.round((pctVal / 100) * totalSegments));
+    return {
+      day: col.day,
+      active: !!col.active,
+      hours: `${hoursNum}h / 8h`,
+      pct: `${pctVal}%`,
+      total: totalSegments,
+      load: loadSegments,
+      tasks: `${tasksCount} task${tasksCount !== 1 ? 's' : ''}`
+    };
+  });
 
   return `
-    <div id="calendarAiPage" style="padding:24px; max-width:1400px; margin:0 auto; background:#f8fafc; font-family:'Inter', sans-serif;">
+    <div id="calendarAiPage" style="padding:12px 20px; max-width:100%; height:calc(100vh - 143px); display:flex; flex-direction:column; overflow:hidden; background:#f8fafc; font-family:'Inter', sans-serif; box-sizing:border-box;">
       <!-- Controls & Filter Toolbar -->
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:14px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.03); margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <button id="calPrevWeekBtn" style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">‹</button>
-          <span style="font-size:15px; font-weight:800; color:#0f172a;">Jul 19 — Jul 25, 2026</span>
-          <button id="calNextWeekBtn" style="width:28px; height:28px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800;">›</button>
-          <button id="calTodayBtn" style="padding:7px 14px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; margin-left:6px;">
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.02); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="calPrevWeekBtn" style="width:26px; height:26px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">‹</button>
+          <span style="font-size:14px; font-weight:800; color:#0f172a;">Jul 19 — Jul 25, 2026</span>
+          <button id="calNextWeekBtn" style="width:26px; height:26px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">›</button>
+          <button id="calTodayBtn" style="padding:5px 12px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-left:4px;">
             Today
           </button>
         </div>
 
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button id="calApproveHandoffBtn" style="padding:7px 14px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <button id="calApproveHandoffBtn" style="padding:6px 12px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
             Approve next handoff
           </button>
-          <button id="calSimulateLoadBtn" style="padding:7px 14px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+          <button id="calSimulateLoadBtn" style="padding:6px 12px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
             Simulate team load shift
           </button>
-          <select id="calWeekSelect" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+          <select id="calWeekSelect" style="padding:6px 10px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
             <option>This Week</option>
             <option>Next Week</option>
           </select>
-          <button id="calFiltersBtn" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          <button id="calFiltersBtn" style="padding:6px 12px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
             ⚙ Filters
           </button>
-          <select id="calendarEngineerSelect" style="padding:7px 14px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+          <select id="calendarEngineerSelect" style="padding:6px 10px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
             ${engineersList.map(e => `<option value="${e.name}" ${e.name === selectedEng ? "selected" : ""}>${e.name}'s Calendar</option>`).join("")}
           </select>
-          <button id="autoAssignCalendarBtn" style="padding:8px 18px; background:#5b21b6; color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 12px rgba(91,33,182,0.25);">
+          <button id="autoAssignCalendarBtn" style="padding:7px 16px; background:#5b21b6; color:#ffffff; border:none; border-radius:8px; font-size:12.5px; font-weight:800; cursor:pointer; box-shadow:0 3px 10px rgba(91,33,182,0.2);">
             + Auto-Assign
           </button>
         </div>
       </div>
 
       <!-- Engineer Workload Chips Row -->
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
-        <span style="font-size:11px; font-weight:800; color:#64748b; letter-spacing:0.06em; margin-right:4px;">ENGINEER:</span>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; flex-shrink:0;">
+        <span style="font-size:10.5px; font-weight:800; color:#64748b; letter-spacing:0.06em; margin-right:2px;">ENGINEER:</span>
         ${engineersList.map(e => {
           const isSelected = e.name === selectedEng;
           const bg = isSelected ? "#f3e8ff" : "#ffffff";
           const border = isSelected ? "2px solid #7c3aed" : "1px solid #e2e8f0";
           const textCol = isSelected ? "#6b21a8" : "#334155";
           return `
-            <div class="eng-cal-chip" data-engineer="${e.name}" style="display:flex; align-items:center; gap:6px; padding:6px 14px; background:${bg}; border:${border}; border-radius:20px; font-size:12.5px; font-weight:700; color:${textCol}; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-              <span style="width:8px; height:8px; border-radius:50%; background:${e.dot};"></span>
+            <div class="eng-cal-chip" data-engineer="${e.name}" style="display:flex; align-items:center; gap:5px; padding:4px 10px; background:${bg}; border:${border}; border-radius:16px; font-size:11.5px; font-weight:700; color:${textCol}; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+              <span style="width:7px; height:7px; border-radius:50%; background:${e.dot};"></span>
               <span>${e.name}</span>
-              <span style="font-size:11px; color:#64748b; font-weight:600; margin-left:2px;">${e.hours}</span>
+              <span style="font-size:10px; color:#64748b; font-weight:600; margin-left:1px;">${e.hours}</span>
             </div>`;
         }).join("")}
       </div>
 
       <!-- Daily Capacity Summary Cards (7 Days) -->
-      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:12px; margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; margin-bottom:10px; flex-shrink:0;">
         ${capacityDays.map(cd => `
-          <div style="background:#ffffff; border:1px solid ${cd.active ? "#cbd5e1" : "#e2e8f0"}; border-radius:12px; padding:12px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
-            <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:4px;">${cd.day}</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:6px;">
+          <div style="background:#ffffff; border:1px solid ${cd.active ? "#cbd5e1" : "#e2e8f0"}; border-radius:10px; padding:8px 10px; box-shadow:0 1px 4px rgba(0,0,0,0.015);">
+            <div style="font-size:10px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:2px;">${cd.day}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:4px;">
               <span style="font-weight:800; color:#dc2626;">${cd.hours}</span>
-              <span style="font-size:11px; font-weight:700; color:#64748b;">${cd.pct}</span>
+              <span style="font-size:10px; font-weight:700; color:#64748b;">${cd.pct}</span>
             </div>
             <!-- Segmented load bar -->
-            <div style="display:flex; gap:3px; margin-bottom:6px;">
+            <div style="display:flex; gap:2px; margin-bottom:3px;">
               ${Array.from({ length: cd.total }).map((_, i) => `
-                <div style="flex:1; height:6px; border-radius:2px; background:${i < cd.load ? "#ef4444" : "#e2e8f0"};"></div>
+                <div style="flex:1; height:5px; border-radius:2px; background:${i < cd.load ? "#ef4444" : "#e2e8f0"};"></div>
               `).join("")}
             </div>
-            <div style="font-size:11px; color:#64748b; text-align:center; font-weight:600;">${cd.tasks}</div>
+            <div style="font-size:10px; color:#64748b; text-align:center; font-weight:600;">${cd.tasks}</div>
           </div>
         `).join("")}
       </div>
 
       <!-- Main Timed Calendar Grid Table -->
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.02); overflow:hidden; position:relative; box-sizing:border-box;">
+      <div style="flex:1; min-height:0; display:flex; flex-direction:column; background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; box-shadow:0 4px 16px rgba(0,0,0,0.02); overflow:hidden; position:relative; box-sizing:border-box;">
         
         <!-- Red Current Time Line Indicator -->
         <div style="position:absolute; top:${currentTimeTop}px; left:80px; right:0; height:2px; background:#ef4444; z-index:10; pointer-events:none;">
@@ -3623,22 +3805,22 @@ function renderCalendarAI() {
         </div>
 
         <!-- Day Columns Header -->
-        <div style="display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); border-bottom:1px solid #e2e8f0; background:#ffffff; box-sizing:border-box;">
-          <div style="padding:14px; font-size:11px; font-weight:700; color:#94a3b8; border-right:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; box-sizing:border-box;">
+        <div style="display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); border-bottom:1px solid #e2e8f0; background:#ffffff; box-sizing:border-box; flex-shrink:0;">
+          <div style="padding:10px; font-size:10.5px; font-weight:700; color:#94a3b8; border-right:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; box-sizing:border-box;">
             GMT+5:30
           </div>
           ${dayColumns.map((col, idx) => `
-            <div style="padding:14px; text-align:center; ${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; font-size:12.5px; font-weight:800; color:#334155; display:flex; align-items:center; justify-content:center; gap:6px; box-sizing:border-box; min-width:0;">
+            <div style="padding:10px; text-align:center; ${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; font-size:12px; font-weight:800; color:#334155; display:flex; align-items:center; justify-content:center; gap:5px; box-sizing:border-box; min-width:0;">
               <span>${col.day.split(" ")[0]}</span>
-              <span style="${col.active ? "background:#5b21b6; color:#ffffff; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;" : ""}">${col.dateNum}</span>
+              <span style="${col.active ? "background:#5b21b6; color:#ffffff; width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;" : ""}">${col.dateNum}</span>
             </div>
           `).join("")}
         </div>
 
         <!-- Hourly Schedule Canvas (9 AM to 6 PM) -->
-        <div style="display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); min-height:550px; box-sizing:border-box;">
+        <div style="flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); box-sizing:border-box;">
           <!-- Left Time Axis (9 AM to 6 PM) -->
-          <div style="border-right:1px solid #e2e8f0; background:#fafafa; display:grid; grid-template-rows: repeat(10, 55px); text-align:center; font-size:11px; font-weight:700; color:#94a3b8; padding-top:10px; box-sizing:border-box;">
+          <div style="border-right:1px solid #e2e8f0; background:#fafafa; display:grid; grid-template-rows: repeat(10, 48px); text-align:center; font-size:10.5px; font-weight:700; color:#94a3b8; padding-top:6px; box-sizing:border-box;">
             <div>9 AM</div>
             <div>10 AM</div>
             <div>11 AM</div>
@@ -3653,23 +3835,23 @@ function renderCalendarAI() {
 
           <!-- 7 Day Task Event Columns -->
           ${dayColumns.map((col, idx) => `
-            <div style="${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; padding:10px; display:flex; flex-direction:column; gap:10px; background:#ffffff; box-sizing:border-box; min-width:0;">
+            <div style="${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; padding:8px; display:flex; flex-direction:column; gap:8px; background:#ffffff; box-sizing:border-box; min-width:0;">
               ${col.events.map(evt => `
-                <div class="cal-event-card" data-title="${evt.title}" style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:10px; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer; min-width:0; box-sizing:border-box;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; min-width:0;">
-                    <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-                      <span style="font-size:12px; flex-shrink:0;">📄</span>
-                      <strong style="font-size:12px; color:${evt.textCol}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${evt.title}</strong>
+                <div class="cal-event-card" data-title="${evt.title}" style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:8px; padding:8px; box-shadow:0 1px 4px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer; min-width:0; box-sizing:border-box;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:5px; min-width:0;">
+                      <span style="font-size:11px; flex-shrink:0;">📄</span>
+                      <strong style="font-size:11px; color:${evt.textCol}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${evt.title}</strong>
                     </div>
-                    <span style="color:#94a3b8; font-size:12px; font-weight:800; cursor:pointer; flex-shrink:0;">⋮</span>
+                    <span style="color:#94a3b8; font-size:11px; font-weight:800; cursor:pointer; flex-shrink:0;">⋮</span>
                   </div>
-                  <div style="font-size:10.5px; color:${evt.textCol}; font-weight:700; margin-bottom:8px;">${evt.time}</div>
+                  <div style="font-size:10px; color:${evt.textCol}; font-weight:700; margin-bottom:6px;">${evt.time}</div>
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:4px;">
-                      <span style="width:18px; height:18px; border-radius:50%; background:#5b21b6; color:#fff; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">${(evt.owner||"K")[0]}</span>
-                      <span style="font-size:10.5px; font-weight:700; color:#334155;">${evt.owner}</span>
+                    <div style="display:flex; align-items:center; gap:3px;">
+                      <span style="width:16px; height:16px; border-radius:50%; background:#5b21b6; color:#fff; font-size:8.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">${(evt.owner||"K")[0]}</span>
+                      <span style="font-size:10px; font-weight:700; color:#334155;">${evt.owner}</span>
                     </div>
-                    <span style="font-size:9px; font-weight:900; padding:1px 5px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol}; flex-shrink:0;">${evt.priority}</span>
+                    <span style="font-size:8.5px; font-weight:900; padding:1px 4px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol}; flex-shrink:0;">${evt.priority}</span>
                   </div>
                 </div>
               `).join("")}
@@ -4266,291 +4448,510 @@ function renderDependencyGraph() {
 }
 
 function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, slaRisks) {
-  // helper — workload bar
-  const wBar = (load, color) => `<div style="height:7px;background:#f1f2f4;border-radius:999px;overflow:hidden;"><div style="width:${Math.min(96,Math.max(10,load))}%;height:100%;background:${color};border-radius:inherit;"></div></div>`;
+  const now = new Date();
+  const currentDateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
 
   return `
-    <div class="manager-dashboard-shell">
-      <!-- KPI row -->
-      <div class="mgr-kpi-row">
-        <div class="mgr-kpi-card accent-red">
-          <p class="eyebrow">SLA risks</p>
-          <span class="kpi-value" style="color:#de350b;">${slaRisks.length}</span>
-          <span class="kpi-label">P1 + due today</span>
+    <div id="managerDashboardShell" style="padding:24px; max-width:1440px; margin:0 auto; background:#f8fafc; font-family:'Inter', sans-serif;">
+
+      <!-- Header Row -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+        <div>
+          <p style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 4px 0;">${currentDateStr}</p>
+          <h1 style="margin:0; font-size:28px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Dashboard</h1>
+          <p style="font-size:13px; color:#64748b; margin:4px 0 0 0;">
+            Active Profile: Demo Manager (Manager) · <span style="color:#0284c7;">manager@taskpilot.dev</span>
+          </p>
         </div>
-        <div class="mgr-kpi-card accent-amber">
-          <p class="eyebrow">Blockers</p>
-          <span class="kpi-value" style="color:#974f0c;">${blockers.length}</span>
-          <span class="kpi-label">Need decisions</span>
-        </div>
-        <div class="mgr-kpi-card accent-green">
-          <p class="eyebrow">Clean tasks</p>
-          <span class="kpi-value" style="color:#216e4e;">${insights.ownerLoad.reduce((s,o)=>s+o.count,0)}</span>
-          <span class="kpi-label">After dedup</span>
-        </div>
-        <div class="mgr-kpi-card accent-blue">
-          <p class="eyebrow">Signals</p>
-          <span class="kpi-value">${state.flattened.length}</span>
-          <span class="kpi-label">Across ${sources.length} systems</span>
-        </div>
-        <div class="mgr-kpi-card accent-purple">
-          <p class="eyebrow">Posted today</p>
-          <span class="kpi-value">${managerTaskPosts.length}</span>
-          <span class="kpi-label">Manager assignments</span>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="calApproveHandoffBtn" style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+            Approve next handoff
+          </button>
+          <button id="calSimulateLoadBtn" style="padding:9px 16px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+            Simulate team load shift
+          </button>
         </div>
       </div>
 
-      <!-- Meetings & Connected Sources & Engineer Presence Intelligence -->
-      <div class="mgr-intel-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px; margin-bottom:14px;">
-        <!-- Meetings Card -->
-        <div class="mgr-panel" style="border-left: 4px solid #22a06b; display:flex; flex-direction:column; justify-content:space-between;">
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <h3 style="margin:0;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Meetings Intelligence</h3>
-              <button class="secondary" style="font-size:11px; padding:4px 10px;" data-nav="meetings">Go to Meetings →</button>
-            </div>
-            <div style="display:grid; gap:8px; max-height:220px; overflow-y:auto;">
-              ${meetingsList.slice(0, 3).map(m => `
-                <div style="padding:10px; border:1px solid #dfe3ea; border-radius:6px; background:#fafbfc; display:flex; justify-content:space-between; align-items:start;">
-                  <div>
-                    <strong style="color:#172b4d; font-size:13px;">${escapeHtml(m.title)}</strong>
-                    <div style="font-size:11px; color:#626f86; margin-top:2px;">
-                      ${m.suggestedDate} ${m.suggestedTime || ""} · ${m.attendees?.join(", ") || "No attendees"}
-                    </div>
-                    ${m.agenda ? `<div style="font-size:11px; color:#44546f; margin-top:4px; font-style:italic;">"${escapeHtml(m.agenda)}"</div>` : ""}
-                  </div>
-                  <span style="font-size:11px; padding:2px 7px; border-radius:10px; background:${m.priority === 'Critical' ? '#ffd5d2' : m.priority === 'High' ? '#fff0b3' : '#dcfff1'}; color:${m.priority === 'Critical' ? '#ae2a19' : m.priority === 'High' ? '#974f0c' : '#216e4e'}; font-weight:800;">
-                    ${m.priority}
-                  </span>
-                </div>
-              `).join("")}
-              ${meetingsList.length === 0 ? `<p style="color:#626f86; font-size:12px; font-style:italic;">No meetings detected.</p>` : ""}
-            </div>
-          </div>
+      <!-- Tier 1: 6 Metric Cards Row -->
+      <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-bottom:24px;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
+          <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">TOTAL TASKS</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">279</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 12% from last week</div>
         </div>
 
-        <!-- Connected Sources Card -->
-        <div class="mgr-panel" style="border-left: 4px solid #0c66e4; display:flex; flex-direction:column; justify-content:space-between;">
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <h3 style="margin:0;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>Connected Sources</h3>
-              <button class="secondary" style="font-size:11px; padding:4px 10px;" data-nav="inbox">All Sources →</button>
-            </div>
-            <div style="display:grid; gap:8px;">
-              ${[
-                { id: "mgr-jira",       name: "Jira Sprint Board",    srcId: "Jira",           color: "#0052CC", icon: "▦" },
-                { id: "mgr-github",     name: "GitHub PR Reviews",    srcId: "GitHub",         color: "#1a1a2e", icon: "⌁" },
-                { id: "mgr-servicenow", name: "ServiceNow Defects",   srcId: "ServiceNow",     color: "#c0392b", icon: "△" },
-                { id: "mgr-email",      name: "Outlook Inbox",        srcId: "Outlook",        color: "#0078D4", icon: "📧" },
-                { id: "mgr-slack",      name: "Slack Mentions",       srcId: "Slack",          color: "#4A154B", icon: "💬" },
-                { id: "meetings",       name: "Meetings",             srcId: "meetings",       color: "#1a7a4a", icon: "◷" }
-              ].slice(0, 5).map(src => {
-                const srcKey = { "mgr-jira":"jira","mgr-github":"github","mgr-servicenow":"servicenow","mgr-email":"email","mgr-slack":"slack","meetings":"notes" }[src.id] || "notes";
-                const srcLogo = SOURCE_LOGO_MAP[srcKey];
-                const isMeetings = src.id === "meetings";
-                const count = isMeetings
-                  ? meetingsList.length
-                  : state.prioritized.filter(t => t.sources.some(s => s.toLowerCase().includes(src.srcId.toLowerCase())) && !completedTaskIds.includes(t.id)).length;
-                const p1Count = isMeetings
-                  ? meetingsList.filter(m => m.priority === "Critical" || m.priority === "High").length
-                  : state.prioritized.filter(t => t.sources.some(s => s.toLowerCase().includes(src.srcId.toLowerCase())) && t.severity === "P1" && !completedTaskIds.includes(t.id)).length;
-                return `
-                  <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border:1px solid #dfe3ea; border-radius:6px; background:#fff; cursor:pointer;" data-nav="${src.id}">
-                    <div style="display:flex; align-items:center; gap:6px;">
-                      <span style="display:flex;width:20px;height:20px;align-items:center;justify-content:center;border-radius:4px;background:${srcLogo ? srcLogo.bg : src.color+'22'};">${srcLogo ? srcLogo.svg : src.icon}</span>
-                      <strong style="color:#172b4d; font-size:11px;">${src.name}</strong>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                      <span style="font-size:10px; padding:1px 5px; border-radius:8px; background:#f1f2f4; color:#44546f; font-weight:700;">${count}</span>
-                      ${p1Count > 0 ? `<span style="font-size:9.5px; padding:1px 4.5px; border-radius:3px; background:${isMeetings ? "#ede9fe" : "#ffd5d2"}; color:${isMeetings ? "#5b21b6" : "#ae2a19"}; font-weight:800;">${p1Count}</span>` : ""}
-                    </div>
-                  </div>
-                `;
-              }).join("")}
-            </div>
-          </div>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
+          <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">CRITICAL TASKS</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">132</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 8% from last week</div>
         </div>
 
-        <!-- Engineer Presence Tracker Card -->
-        <div class="mgr-panel" style="border-left: 4px solid #7c3aed; display:flex; flex-direction:column; justify-content:space-between;">
-          <div>
-            <h3 style="margin:0 0 12px 0;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Team Presence</h3>
-            
-            ${(() => {
-              // Build list of all engineers from presenceAllUsers + prioritized task owners
-              const knownEngineers = new Set(state.prioritized.map(t => t.owner).filter(Boolean));
-              Object.keys(presenceAllUsers).forEach(n => { if (presenceAllUsers[n].role !== "manager") knownEngineers.add(n); });
-              const engineerList = [...knownEngineers].slice(0, 8);
-              
-              if (engineerList.length === 0) {
-                return `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:12px;">No engineers connected yet.<br>Engineers appear here when they log in.</div>`;
-              }
-              
-              return engineerList.map(eng => {
-                const presence = getPresenceForUser(eng);
-                const status = presence.status;
-                const lastSeen = presence.lastSeen;
-                const statusColor = getStatusColor(status);
-                const statusLabel = getStatusLabel(status);
-                const initial = eng[0].toUpperCase();
-                
-                const engWorkingTaskIds = Object.values(presenceAllUsers).find(p => {
-                  const pName = Object.keys(presenceAllUsers).find(k => presenceAllUsers[k] === p);
-                  return pName === eng;
-                }) ? [] : workingTaskIds.filter(id => {
-                  const t = state.prioritized.find(x => x.id === id);
-                  return t?.owner === eng;
-                });
-                
-                const workingTasks = state.prioritized.filter(t => 
-                  workingTaskIds.includes(t.id) && t.owner === eng
-                );
-                
-                return `
-                  <div style="display:flex; align-items:center; gap:10px; padding:10px; background:#fafbfc; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:8px;">
-                    <div style="position:relative; flex-shrink:0;">
-                      <div style="width:38px; height:38px; border-radius:50%; background:#152238; color:#fff; display:grid; place-items:center; font-weight:800; font-size:15px;">${initial}</div>
-                      <div style="position:absolute; bottom:-2px; right:-2px; width:13px; height:13px; border-radius:50%; background:${statusColor}; border:2px solid #fff;"></div>
-                    </div>
-                    <div style="flex:1; min-width:0;">
-                      <div style="display:flex; align-items:center; gap:6px;">
-                        <strong style="font-size:12.5px; color:#172b4d;">${escapeHtml(eng)}</strong>
-                        <span style="font-size:10px; font-weight:700; color:${statusColor}; background:${statusColor}18; padding:1px 6px; border-radius:999px;">${statusLabel}</span>
-                      </div>
-                      <div style="font-size:10px; color:#94a3b8; margin-top:1px;">
-                        ${status === "online" || status === "dnd" ? `<span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:6px;height:6px;border-radius:50%;background:#22a06b;display:inline-block;"></span>Active now</span>` : `Last seen: ${formatLastSeen(lastSeen)}`}
-                        ${workingTasks.length > 0 ? ` · Working on ${workingTasks.length} task${workingTasks.length > 1 ? "s" : ""}` : ""}
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join("");
-            })()}
-          </div>
-          
-          <button class="secondary" style="font-size:11px; padding:6px 12px; margin-top:12px; width:100%; text-align:center; display:inline-flex; align-items:center; justify-content:center; gap:5px;" data-nav="chat"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>Open Chat with Engineer</button>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
+          <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">BLOCKED TASKS</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">75</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 5% from last week</div>
+        </div>
+
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
+          <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">SIGNALS</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">454</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 15% from last week</div>
+        </div>
+
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
+          <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">MEETINGS TODAY</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">5</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 3 upcoming</div>
+        </div>
+
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
+          <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">ENGINEERS ONLINE</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">8 / 12</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 2 away</div>
         </div>
       </div>
 
-      <!-- Main grid -->
-      <div class="manager-main-grid">
-        <!-- Left col: Kanban -->
-        <div style="display:grid;gap:14px;">
-          <div class="mgr-panel">
-            <h3>Team Execution Queue</h3>
-            <div class="mgr-kanban">
-              ${["P1","P2","P3"].map(sev => {
-                const col = {"P1":"#de350b","P2":"#ffab00","P3":"#22a06b"}[sev];
-                const tasks = state.prioritized.filter(t => t.severity === sev && !isTaskCompleted(t.id)).slice(0, 5);
-                return `
-                  <div class="mgr-lane">
-                    <div class="mgr-lane-head" style="color:${col};">
-                      ${sev} <span class="mgr-lane-count">${tasks.length}</span>
-                    </div>
-                    ${tasks.map(t=>`
-                      <div class="mgr-lane-card ${selectedTaskId===t.id?"selected":""}" data-task="${t.id}">
-                        <strong>${t.canonicalTitle}</strong>
-                        <span>${t.owner||"Unassigned"} · ${t.sources.length} src</span>
-                        <div class="card-actions">
-                          <button class="card-action-btn" data-assign-lane-task="${t.id}">Assign</button>
-                          <button class="card-action-btn" data-task="${t.id}">Select</button>
-                        </div>
-                      </div>`).join("")}
-                  </div>`;
-              }).join("")}
+      <!-- Tier 1 Main Row: Sprint Velocity Chart & Engineer Leaderboard -->
+      <div style="display:grid; grid-template-columns:1.8fr 1fr; gap:20px; margin-bottom:24px;">
+        <!-- Left: Sprint Velocity & AI Performance Chart Card -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+              <div>
+                <h3 style="margin:0; font-size:18px; font-weight:800; color:#0f172a;">Sprint Velocity & AI Performance</h3>
+                <p style="margin:4px 0 0 0; font-size:12.5px; color:#64748b;">Real-time task resolution trends and AI auto-allocation efficiency</p>
+              </div>
+              <select style="padding:6px 12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; color:#334155; cursor:pointer;">
+                <option>This Sprint</option>
+                <option>Last Sprint</option>
+              </select>
+            </div>
+
+            <!-- Legend Row -->
+            <div style="display:flex; gap:20px; margin-bottom:16px; font-size:12px; font-weight:700; color:#475569;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:10px; height:10px; border-radius:50%; background:#6366f1;"></span>
+                <span>Resolved Sprint Tasks</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:10px; height:10px; border-radius:50%; background:#c7d2fe;"></span>
+                <span>AI Auto-Allocated</span>
+              </div>
+            </div>
+
+            <!-- SVG Wave Chart Container with Overlay Badge -->
+            <div style="position:relative; width:100%; height:200px; margin-bottom:16px;">
+              <!-- Tooltip callout badge on chart peak -->
+              <div style="position:absolute; top:32px; left:52%; transform:translateX(-50%); background:#1e1b4b; color:#ffffff; padding:6px 14px; border-radius:12px; box-shadow:0 6px 16px rgba(30,27,75,0.4); text-align:center; z-index:5;">
+                <div style="font-size:12px; font-weight:900;">+24% AI Velocity</div>
+                <div style="font-size:10px; color:#c7d2fe; font-weight:600;">Optimal Sprint Balance</div>
+              </div>
+
+              <!-- SVG Dual Wave Chart -->
+              <svg width="100%" height="100%" viewBox="0 0 600 200" preserveAspectRatio="none" style="overflow:visible;">
+                <defs>
+                  <linearGradient id="gradTopWave" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0"/>
+                  </linearGradient>
+                  <linearGradient id="gradLowWave" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#c7d2fe" stop-opacity="0.2"/>
+                    <stop offset="100%" stop-color="#c7d2fe" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
+
+                <!-- Grid horizontal lines -->
+                <line x1="40" y1="20" x2="590" y2="20" stroke="#f1f5f9" stroke-dasharray="4"/>
+                <line x1="40" y1="70" x2="590" y2="70" stroke="#f1f5f9" stroke-dasharray="4"/>
+                <line x1="40" y1="120" x2="590" y2="120" stroke="#f1f5f9" stroke-dasharray="4"/>
+                <line x1="40" y1="170" x2="590" y2="170" stroke="#e2e8f0"/>
+
+                <!-- Y-Axis labels -->
+                <text x="5" y="24" fill="#94a3b8" font-size="11" font-weight="700">100%</text>
+                <text x="12" y="74" fill="#94a3b8" font-size="11" font-weight="700">80%</text>
+                <text x="12" y="124" fill="#94a3b8" font-size="11" font-weight="700">60%</text>
+                <text x="12" y="174" fill="#94a3b8" font-size="11" font-weight="700">40%</text>
+
+                <!-- Lighter Lower Area Wave -->
+                <path d="M 40 160 Q 150 110, 250 120 T 450 120 T 590 140 L 590 170 L 40 170 Z" fill="url(#gradLowWave)"/>
+                <path d="M 40 160 Q 150 110, 250 120 T 450 120 T 590 140" fill="none" stroke="#a5b4fc" stroke-width="2.5"/>
+
+                <!-- Darker Upper Primary Wave -->
+                <path d="M 40 130 Q 140 60, 240 80 T 450 50 T 590 100 L 590 170 L 40 170 Z" fill="url(#gradTopWave)"/>
+                <path d="M 40 130 Q 140 60, 240 80 T 450 50 T 590 100" fill="none" stroke="#6366f1" stroke-width="3"/>
+
+                <!-- Highlight dot on peak -->
+                <circle cx="450" cy="50" r="5" fill="#1e1b4b" stroke="#ffffff" stroke-width="2"/>
+              </svg>
+
+              <!-- X-Axis Labels -->
+              <div style="display:flex; justify-content:space-between; margin-left:40px; font-size:11px; font-weight:700; color:#94a3b8; margin-top:4px;">
+                <span>Week 1</span>
+                <span>Week 2</span>
+                <span>Week 3</span>
+                <span>Week 4 (Current)</span>
+              </div>
             </div>
           </div>
 
-          <div class="mgr-panel team-health">
-            <h3 style="display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>Team Workload Distribution</h3>
-            ${renderWorkloadChart(insights.ownerLoad)}
-          </div>
-
-          <!-- Dependency Graph Panel -->
-          <div class="mgr-panel" style="border-left:4px solid #6554c0;">
-            <h3 style="display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>Dependency Graph · Blocking Relationships</h3>
-            ${renderDependencyGraph()}
+          <!-- Bottom Chart Footer Stats -->
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; margin-top:8px; padding-top:12px;">
+            <div style="display:flex; gap:32px;">
+              <div>
+                <span style="font-size:20px; font-weight:900; color:#0f172a;">14.0h</span>
+                <span style="font-size:12px; color:#64748b; font-weight:700; margin-left:6px;">Sprint Time Logged</span>
+              </div>
+              <div>
+                <span style="font-size:20px; font-weight:900; color:#0f172a;">12375</span>
+                <span style="font-size:12px; color:#64748b; font-weight:700; margin-left:6px;">Task Velocity Points</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">⤢</button>
+              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">📊</button>
+              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">📥</button>
+            </div>
           </div>
         </div>
 
-        <!-- Right col: Assign + Portal -->
-        <div style="display:grid;gap:14px;align-content:start;">
-          <!-- Assign task form -->
-          <div class="mgr-panel assign-panel">
-            <h3 style="display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>Post Job Update · Assign via TaskPilot AI</h3>
-            <div class="mgr-assign-form">
-              <div class="mgr-form-row">
-                <label>Task title *</label>
-                <input type="text" id="mgrAssignTitle" placeholder="e.g. Fix auth token expiry bug in prod" value="${escapeHtml(assignForm.title)}">
+        <!-- Right: Engineer Leaderboard Card -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+              <div>
+                <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Engineer Leaderboard</h3>
+                <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Top velocity & task resolution rankings</p>
               </div>
-              <div class="mgr-form-row">
-                <label>Description</label>
-                <textarea id="mgrAssignDesc" rows="2" placeholder="Context, acceptance criteria, relevant links...">${escapeHtml(assignForm.description)}</textarea>
-              </div>
-              <div class="mgr-form-2col">
-                <div class="mgr-form-row">
-                  <label>Priority</label>
-                  <select id="mgrAssignPriority">
-                    ${["P1","P2","P3","P4"].map(p=>`<option value="${p}" ${assignForm.priority===p?"selected":""}>${p}</option>`).join("")}
-                  </select>
-                </div>
-                <div class="mgr-form-row">
-                  <label>Deadline</label>
-                  <input type="date" id="mgrAssignDeadline" value="${assignForm.deadline}">
-                </div>
-              </div>
-              <div class="mgr-form-row">
-                <label>Team / Squad</label>
-                <input type="text" id="mgrAssignTeam" placeholder="Platform Apps" value="${escapeHtml(assignForm.team)}">
-              </div>
-              <button class="mgr-assign-btn" id="mgrPostAssignBtn" ${assignmentLoading?"disabled":""} style="display:inline-flex;align-items:center;justify-content:center;gap:7px;">
-                ${assignmentLoading
-                  ? `<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span>Analyzing…`
-                  : `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>Analyze &amp; Assign with TaskPilot AI`
-                }
+              <button id="dashViewScheduleBtn" style="padding:5px 10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">
+                View Schedule ›
               </button>
             </div>
 
-            <!-- Assignment result -->
-            <div class="mgr-assignment-result ${assignmentResult?"":"hidden"}" id="mgrAssignResult">
-              ${assignmentResult ? renderAssignmentResult(assignmentResult) : ""}
+            <!-- Leaderboard List -->
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              ${[
+                { name: "Riya", pts: "3150 pts", hours: "115.5h", avatarBg: "#eff6ff", textCol: "#2563eb" },
+                { name: "Vikram", pts: "3120 pts", hours: "117.0h", avatarBg: "#fdf2f8", textCol: "#db2777" },
+                { name: "Aisha", pts: "3090 pts", hours: "112.5h", avatarBg: "#f0fdf4", textCol: "#16a34a" },
+                { name: "Rohan", pts: "2970 pts", hours: "109.5h", avatarBg: "#f3e8ff", textCol: "#9333ea" },
+                { name: "Karan", pts: "2820 pts", hours: "105.0h", avatarBg: "#fffbeb", textCol: "#d97706" },
+                { name: "Arjun", pts: "2730 pts", hours: "99.0h", avatarBg: "#ecfeff", textCol: "#0891b2" }
+              ].map(eng => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:1px solid #f1f5f9; border-radius:10px; background:#fafafa;">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:30px; height:30px; border-radius:50%; background:${eng.avatarBg}; color:${eng.textCol}; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center;">${eng.name[0]}</div>
+                    <div>
+                      <div style="font-size:13px; font-weight:800; color:#0f172a;">${eng.name}</div>
+                      <div style="font-size:11px; color:#64748b; font-weight:600;">★ ${eng.pts} · ⏱ ${eng.hours}</div>
+                    </div>
+                  </div>
+                  <button class="dash-leader-assign-btn" data-engineer="${eng.name}" style="padding:4px 12px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">Assign</button>
+                </div>
+              `).join("")}
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Team portal posts -->
-          <div class="mgr-panel portal-panel">
-            <h3 style="display:flex;justify-content:space-between;align-items:center;">
-              Team Portal <span style="font-size:12px;color:#626f86;font-weight:500;">${managerTaskPosts.length} posted</span>
-            </h3>
-            <!-- Live activity feed -->
-            ${managerActivityFeed.length > 0 ? `
-              <div style="margin-bottom:12px; border-bottom:1px solid #f1f2f4; padding-bottom:12px;">
-                <p class="eyebrow" style="margin-bottom:6px; font-size:10px; color:#22a06b; display:flex; align-items:center; gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:#22a06b;display:inline-block;"></span>LIVE UPDATES</p>
-                <div style="display:grid; gap:5px; max-height:120px; overflow-y:auto;">
-                  ${managerActivityFeed.slice(0, 5).map(e => `
-                    <div style="display:flex; align-items:flex-start; gap:7px; padding:6px 8px; background:#f4fff9; border:1px solid #b7e4ce; border-radius:6px;">
-                      <span style="width:7px; height:7px; border-radius:50%; background:${e.color || "#22a06b"}; flex-shrink:0; margin-top:4px;"></span>
-                      <div style="flex:1; min-width:0;">
-                        <div style="font-size:12px; color:#172b4d; font-weight:600;">${escapeHtml(e.message)}</div>
-                        <div style="font-size:10px; color:#626f86;">${e.time}</div>
-                      </div>
-                    </div>`).join("")}
+      <!-- Tier 2 Main Row: Team Execution Queue & Post Job Update -->
+      <div style="display:grid; grid-template-columns:2.2fr 1fr; gap:20px; margin-bottom:24px;">
+        <!-- Left: Team Execution Queue -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); overflow:hidden;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:18px; font-weight:800; color:#0f172a;">Team Execution Queue</h3>
+            <span style="font-size:12px; color:#64748b; font-weight:600;">AI-prioritized tasks across the team</span>
+          </div>
+
+          <!-- 4 Kanban Columns -->
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+            <!-- Column P1 -->
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:12px; font-weight:800; color:#be123c;">● P1 Critical</span>
+                <span style="background:#ffe4e6; color:#be123c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">5</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
+                  <strong style="color:#0f172a; font-size:11.5px;">Executive request: weekly delivery risk update</strong>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
+                    <span style="color:#64748b; font-weight:700;">👤 Rohan (Backend)</span>
+                    <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
+                  </div>
+                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:55%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+                    <span style="color:#94a3b8;">🗎 2</span>
+                    <div style="display:flex; gap:4px;">
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
+                  <strong style="color:#0f172a; font-size:11.5px;">From VP Product: Sprint risk review — leadership concerned about Q2 delivery</strong>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
+                    <span style="color:#64748b; font-weight:700;">👤 Karan (DevOps)</span>
+                    <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
+                  </div>
+                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:74%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+                    <span style="color:#94a3b8;">🗎 2</span>
+                    <div style="display:flex; gap:4px;">
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
+                  <strong style="color:#0f172a; font-size:11.5px;">Resolve OAuth token refresh failures</strong>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
+                    <span style="color:#64748b; font-weight:700;">👤 Rohan (Backend)</span>
+                    <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
+                  </div>
+                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:38%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+                    <span style="color:#94a3b8;">🗎 2</span>
+                    <div style="display:flex; gap:4px;">
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ` : ""}
-            <div class="mgr-portal-list">
-              ${managerTaskPosts.length === 0
-                ? `<p style="color:#626f86;font-size:13px;text-align:center;padding:20px 0;">No tasks posted yet. Use TaskPilot AI Assign above.</p>`
-                : managerTaskPosts.map(post => renderPortalPost(post)).join("")
-              }
+            </div>
+
+            <!-- Column P2 -->
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:12px; font-weight:800; color:#c2410c;">● P2 High</span>
+                <span style="background:#ffedd5; color:#c2410c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">5</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
+                  <strong style="color:#0f172a; font-size:11.5px;">Investigate cache invalidation bug</strong>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
+                    <span style="color:#64748b; font-weight:700;">👤 Karan (DevOps)</span>
+                    <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">2 days</span>
+                  </div>
+                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:65%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+                    <span style="color:#94a3b8;">🗎 2</span>
+                    <div style="display:flex; gap:4px;">
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
+                  <strong style="color:#0f172a; font-size:11.5px;">Fix stale analytics cache</strong>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
+                    <span style="color:#64748b; font-weight:700;">👤 Neha (Data)</span>
+                    <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">4 days</span>
+                  </div>
+                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:50%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+                    <span style="color:#94a3b8;">🗎 2</span>
+                    <div style="display:flex; gap:4px;">
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column P3 -->
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:12px; font-weight:800; color:#1d4ed8;">● P3 Medium</span>
+                <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">5</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
+                  <strong style="color:#0f172a; font-size:11.5px;">Automate code ownership validation</strong>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
+                    <span style="color:#64748b; font-weight:700;">👤 Sanya (DevOps)</span>
+                    <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">14 days</span>
+                  </div>
+                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:40%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+                    <span style="color:#94a3b8;">🗎 2</span>
+                    <div style="display:flex; gap:4px;">
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
+                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column P4 -->
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px;">
+              <div style="font-size:12px; font-weight:800; color:#15803d; width:100%; display:flex; justify-content:space-between; margin-bottom:20px;">
+                <span>● P4 Low</span>
+                <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">0</span>
+              </div>
+              <div style="font-size:24px; margin-bottom:6px;">📱</div>
+              <div style="font-size:11px; color:#64748b; font-weight:700;">No pending tasks</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Post Job Update Form (with solid blue left border) -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #4f46e5; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <h3 style="margin:0 0 14px 0; font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+              <span>⍛</span> Post Job Update
+            </h3>
+
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">TASK TITLE *</label>
+                <input type="text" id="mgrPostTitle" placeholder="e.g. Fix OAuth token expiry bug in production" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
+              </div>
+
+              <div>
+                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">DESCRIPTION</label>
+                <textarea id="mgrPostDesc" placeholder="Context, acceptance criteria, relevant links..." style="width:100%; height:70px; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; font-family:inherit; resize:none;"></textarea>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                  <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">PRIORITY</label>
+                  <select id="mgrPostPriority" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff;">
+                    <option value="P1">P1</option>
+                    <option value="P2" selected>P2</option>
+                    <option value="P3">P3</option>
+                    <option value="P4">P4</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">DEADLINE</label>
+                  <input type="date" id="mgrPostDeadline" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
+                </div>
+              </div>
+
+              <div>
+                <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">TEAM / SQUAD</label>
+                <input type="text" id="mgrPostSquad" value="Platform Apps" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
+              </div>
+
+              <button id="mgrSubmitJobBtn" style="width:100%; padding:12px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.3); margin-top:4px;">
+                + Analyze & Assign with TaskPilot AI
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tier 3 Main Row: Team Portal & Ask TaskPilot AI -->
+      <div style="display:grid; grid-template-columns:1fr 1.2fr; gap:20px;">
+        <!-- Left: Team Portal -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:18px;">💬</span>
+                <div>
+                  <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Team Portal</h3>
+                  <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Live updates and team activity</p>
+                </div>
+              </div>
+              <button id="dashViewAllPortalBtn" style="padding:4px 10px; background:none; border:none; font-size:12px; font-weight:800; color:#6366f1; cursor:pointer;">View all</button>
+            </div>
+
+            <!-- Activity Items -->
+            <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:16px;">
+              <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid #818cf8; padding-left:12px;">
+                <span style="width:20px; height:20px; border-radius:50%; background:#e0e7ff; color:#4f46e5; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">+</span>
+                <div style="flex:1;">
+                  <div style="font-size:12.5px; font-weight:700; color:#0f172a;">AI reassigned "CSV Upload Timeout" from Arjun to Rohan</div>
+                  <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
+                    <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:1px 6px; border-radius:6px;">Saved 2.3h</span>
+                    <span style="font-size:11px; color:#94a3b8;">10:24 AM</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid #22c55e; padding-left:12px;">
+                <span style="width:20px; height:20px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">↻</span>
+                <div style="flex:1;">
+                  <div style="font-size:12.5px; font-weight:700; color:#0f172a;">Sprint rebalanced by AI (18 tasks optimized across 8 engineers)</div>
+                  <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
+                    <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:1px 6px; border-radius:6px;">+14% Velocity</span>
+                    <span style="font-size:11px; color:#94a3b8;">10:17 AM</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Ask TaskPilot -->
-          <div class="mgr-panel">
-            <h3>Ask TaskPilot AI</h3>
-            ${renderManagerQueries()}
-            <div class="answer" id="answerBox" style="margin-top:8px;max-height:120px;overflow-y:auto;font-size:12px;">${lastAnswer}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:12px;">
+            <span style="font-size:11.5px; color:#64748b; font-weight:600;">Showing recent activity across 4 channels</span>
+            <button id="dashOpenPortalBtn" style="padding:6px 12px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">
+              Open Full Portal ›
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Ask TaskPilot AI -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:18px;">🤖</span>
+                <div>
+                  <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Ask TaskPilot AI</h3>
+                  <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Instant insights, query team workload & sprint risks</p>
+                </div>
+              </div>
+              <span style="background:#dcfce7; color:#15803d; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:10px; display:inline-flex; align-items:center; gap:4px;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#22c55e;"></span> AI Active
+              </span>
+            </div>
+
+            <!-- Quick Queries Row -->
+            <div style="margin-bottom:12px;">
+              <div style="font-size:10px; font-weight:800; color:#94a3b8; letter-spacing:0.06em; margin-bottom:6px;">QUICK QUERIES</div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="dash-quick-query-btn" data-query="Who is overloaded?" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">⚡ Who is overloaded?</button>
+                <button class="dash-quick-query-btn" data-query="Show blockers" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">🚧 Show blockers</button>
+                <button class="dash-quick-query-btn" data-query="Sprint risk summary" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">📈 Sprint risk summary</button>
+                <button class="dash-quick-query-btn" data-query="Recommend reallocations" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">🎯 Recommend reallocations</button>
+              </div>
+            </div>
+
+            <!-- Prompt Input Bar -->
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+              <input type="text" id="dashAskAiInput" placeholder="Ask anything... e.g. 'Reassign Rohan\'s P1 task to Utkarsh'" style="flex:1; padding:10px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:12.5px; background:#fafafa; box-sizing:border-box;" />
+              <button id="dashAskAiSubmitBtn" style="padding:10px 16px; background:linear-gradient(135deg, #6366f1, #4f46e5); color:#ffffff; border:none; border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; box-shadow:0 3px 10px rgba(79,70,229,0.3);">➔</button>
+            </div>
+
+            <!-- 4 Mini Insight Cards Grid -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">⚠️ Capacity Alerts</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">2 engineers currently exceeding capacity limits</div>
+              </div>
+
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">🚧 Blocker Chain</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">13 blocking dependencies requiring manager approval</div>
+              </div>
+
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">📊 Velocity Forecast</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">On track for 92% completion rate this sprint</div>
+              </div>
+
+              <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">💡 AI Smart Shift</div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Suggest 3 tasks for load rebalancing</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -9376,12 +9777,12 @@ function bindEvents() {
   }
 
   // ─── Manager: Assign task via Gemini ─────────────────────────────────────
-  document.querySelector("#mgrPostAssignBtn")?.addEventListener("click", async () => {
-    const title = document.querySelector("#mgrAssignTitle")?.value.trim();
-    const description = document.querySelector("#mgrAssignDesc")?.value.trim();
-    const priority = document.querySelector("#mgrAssignPriority")?.value || "P2";
-    const deadline = document.querySelector("#mgrAssignDeadline")?.value || "";
-    const team = document.querySelector("#mgrAssignTeam")?.value.trim() || "Platform Apps";
+  const handleAssignSubmit = async (titleId, descId, priorityId, deadlineId, teamId) => {
+    const title = document.querySelector(titleId)?.value.trim();
+    const description = document.querySelector(descId)?.value.trim();
+    const priority = document.querySelector(priorityId)?.value || "P2";
+    const deadline = document.querySelector(deadlineId)?.value || "";
+    const team = document.querySelector(teamId)?.value.trim() || "Platform Apps";
 
     if (!title) { alert("Please enter a task title."); return; }
 
@@ -9432,6 +9833,62 @@ function bindEvents() {
     } finally {
       assignmentLoading = false;
       render();
+    }
+  };
+
+  document.querySelector("#mgrPostAssignBtn")?.addEventListener("click", () => {
+    handleAssignSubmit("#mgrAssignTitle", "#mgrAssignDesc", "#mgrAssignPriority", "#mgrAssignDeadline", "#mgrAssignTeam");
+  });
+
+  document.querySelector("#mgrSubmitJobBtn")?.addEventListener("click", () => {
+    handleAssignSubmit("#mgrPostTitle", "#mgrPostDesc", "#mgrPostPriority", "#mgrPostDeadline", "#mgrPostSquad");
+  });
+
+  document.querySelector("#dashViewScheduleBtn")?.addEventListener("click", () => {
+    activePage = "calendar-ai";
+    render();
+  });
+
+  document.querySelector("#dashViewAllPortalBtn")?.addEventListener("click", () => {
+    activePage = "team-portal";
+    render();
+  });
+
+  document.querySelector("#dashOpenPortalBtn")?.addEventListener("click", () => {
+    activePage = "team-portal";
+    render();
+  });
+
+  document.querySelectorAll(".dash-leader-assign-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const eng = btn.dataset.engineer;
+      const titleInput = document.querySelector("#mgrPostTitle");
+      if (titleInput) {
+        titleInput.value = `Assign task to ${eng}: `;
+        titleInput.focus();
+      }
+    });
+  });
+
+  const handleDashAskAi = () => {
+    const inputEl = document.querySelector("#dashAskAiInput");
+    if (!inputEl) return;
+    const query = inputEl.value.trim();
+    if (!query) return;
+    const answer = answerQuery(query, state);
+    lastAnswer = answer;
+    pushCompanion("user", query, false);
+    pushCompanion("agent", answer, false);
+    inputEl.value = "";
+    render();
+  };
+
+  document.querySelector("#dashAskAiSubmitBtn")?.addEventListener("click", handleDashAskAi);
+  
+  // Also support pressing Enter key in input field
+  document.addEventListener("keydown", (e) => {
+    if (e.target && e.target.id === "dashAskAiInput" && e.key === "Enter") {
+      handleDashAskAi();
     }
   });
 
