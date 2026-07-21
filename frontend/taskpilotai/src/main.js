@@ -4451,6 +4451,55 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
   const now = new Date();
   const currentDateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
 
+  const activeTasks = state.prioritized.filter(t => !isTaskCompleted(t.id));
+  const p1List = activeTasks.filter(t => t.severity === "P1");
+  const p2List = activeTasks.filter(t => t.severity === "P2");
+  const p3List = activeTasks.filter(t => t.severity === "P3");
+  const p4List = activeTasks.filter(t => t.severity === "P4");
+
+  const totalCount = state.prioritized.length;
+  const criticalCount = activeTasks.filter(t => t.severity === "P1").length;
+  const blockedCount = activeTasks.filter(t => t.dependencies.some(d => /block|waiting|approval|eta|coordinate/i.test(d))).length;
+  const signalCount = state.prioritized.reduce((acc, t) => acc + (t.sources || []).length, 0);
+  const meetingsCount = meetingsList.length;
+  const pendingMeetingsCount = meetingsList.filter(m => m.status === 'Pending').length;
+  const uniqueOwners = [...new Set(state.prioritized.map(t => t.owner).filter(Boolean))].length;
+
+  const renderLaneTasks = (list) => {
+    if (list.length === 0) {
+      return `
+        <div style="font-size:11px; color:#64748b; font-weight:700; text-align:center; padding:20px 0;">
+          No pending tasks
+        </div>
+      `;
+    }
+    return list.slice(0, 5).map(t => {
+      const score = t.score || Math.round(t.priorityScore) || 50;
+      const col = { P1: "#be123c", P2: "#c2410c", P3: "#1d4ed8", P4: "#15803d" }[t.severity] || "#64748b";
+      const bgCol = { P1: "#ffe4e6", P2: "#ffedd5", P3: "#dbeafe", P4: "#dcfce7" }[t.severity] || "#e2e8f0";
+      const isSelected = selectedTaskId === t.id;
+      return `
+        <div class="kanban-task-card" style="background:#fff; border:${isSelected ? '2px solid #6366f1' : '1px solid #e2e8f0'}; border-radius:8px; padding:8px; font-size:11.5px; margin-bottom:8px; box-shadow: ${isSelected ? '0 0 8px rgba(99,102,241,0.15)' : 'none'};">
+          <strong style="color:#0f172a; font-size:11.5px; display:block; margin-bottom:4px;">${escapeHtml(t.canonicalTitle)}</strong>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
+            <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:2px;">👤 ${escapeHtml(t.owner || "Unassigned")}</span>
+            <span style="background:${bgCol}; color:${col}; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">${escapeHtml(t.due || "Sprint")}</span>
+          </div>
+          <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;">
+            <div style="width:${score}%; height:100%; background:#22c55e; border-radius:2px;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+            <span style="color:#94a3b8;">🗎 ${(t.sources || []).length || 1}</span>
+            <div style="display:flex; gap:4px;">
+              <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
+              <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  };
+
   return `
     <div id="managerDashboardShell" style="padding:24px; max-width:1440px; margin:0 auto; background:#f8fafc; font-family:'Inter', sans-serif;">
 
@@ -4477,38 +4526,38 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
       <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-bottom:24px;">
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
           <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">TOTAL TASKS</div>
-          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">279</div>
-          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 12% from last week</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">${totalCount}</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">Active: ${activeTasks.length}</div>
         </div>
 
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
           <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">CRITICAL TASKS</div>
-          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">132</div>
-          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 8% from last week</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">${criticalCount}</div>
+          <div style="font-size:11px; font-weight:700; color:#de350b;">P1 Escalations</div>
         </div>
 
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
           <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">BLOCKED TASKS</div>
-          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">75</div>
-          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 5% from last week</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">${blockedCount}</div>
+          <div style="font-size:11px; font-weight:700; color:#974f0c;">Need approvals</div>
         </div>
 
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
           <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">SIGNALS</div>
-          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">454</div>
-          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 15% from last week</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">${signalCount}</div>
+          <div style="font-size:11px; font-weight:700; color:#0284c7;">Integrated sources</div>
         </div>
 
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
           <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">MEETINGS TODAY</div>
-          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">5</div>
-          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 3 upcoming</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">${meetingsCount}</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">${pendingMeetingsCount} pending</div>
         </div>
 
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.015);">
           <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">ENGINEERS ONLINE</div>
-          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">8 / 12</div>
-          <div style="font-size:11px; font-weight:700; color:#16a34a;">▲ 2 away</div>
+          <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">${uniqueOwners} / 12</div>
+          <div style="font-size:11px; font-weight:700; color:#16a34a;">Active owners</div>
         </div>
       </div>
 
@@ -4669,56 +4718,10 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span style="font-size:12px; font-weight:800; color:#be123c;">● P1 Critical</span>
-                <span style="background:#ffe4e6; color:#be123c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">5</span>
+                <span style="background:#ffe4e6; color:#be123c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p1List.length}</span>
               </div>
               <div style="display:flex; flex-direction:column; gap:8px;">
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
-                  <strong style="color:#0f172a; font-size:11.5px;">Executive request: weekly delivery risk update</strong>
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700;">👤 Rohan (Backend)</span>
-                    <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
-                  </div>
-                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:55%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8;">🗎 2</span>
-                    <div style="display:flex; gap:4px;">
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
-                  <strong style="color:#0f172a; font-size:11.5px;">From VP Product: Sprint risk review — leadership concerned about Q2 delivery</strong>
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700;">👤 Karan (DevOps)</span>
-                    <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
-                  </div>
-                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:74%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8;">🗎 2</span>
-                    <div style="display:flex; gap:4px;">
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
-                  <strong style="color:#0f172a; font-size:11.5px;">Resolve OAuth token refresh failures</strong>
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700;">👤 Rohan (Backend)</span>
-                    <span style="background:#ffedd5; color:#c2410c; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">Tomorrow</span>
-                  </div>
-                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:38%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8;">🗎 2</span>
-                    <div style="display:flex; gap:4px;">
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
-                    </div>
-                  </div>
-                </div>
+                ${renderLaneTasks(p1List)}
               </div>
             </div>
 
@@ -4726,40 +4729,10 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span style="font-size:12px; font-weight:800; color:#c2410c;">● P2 High</span>
-                <span style="background:#ffedd5; color:#c2410c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">5</span>
+                <span style="background:#ffedd5; color:#c2410c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p2List.length}</span>
               </div>
               <div style="display:flex; flex-direction:column; gap:8px;">
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
-                  <strong style="color:#0f172a; font-size:11.5px;">Investigate cache invalidation bug</strong>
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700;">👤 Karan (DevOps)</span>
-                    <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">2 days</span>
-                  </div>
-                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:65%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8;">🗎 2</span>
-                    <div style="display:flex; gap:4px;">
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
-                  <strong style="color:#0f172a; font-size:11.5px;">Fix stale analytics cache</strong>
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700;">👤 Neha (Data)</span>
-                    <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">4 days</span>
-                  </div>
-                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:50%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8;">🗎 2</span>
-                    <div style="display:flex; gap:4px;">
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
-                    </div>
-                  </div>
-                </div>
+                ${renderLaneTasks(p2List)}
               </div>
             </div>
 
@@ -4767,35 +4740,22 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span style="font-size:12px; font-weight:800; color:#1d4ed8;">● P3 Medium</span>
-                <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">5</span>
+                <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p3List.length}</span>
               </div>
               <div style="display:flex; flex-direction:column; gap:8px;">
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:11.5px;">
-                  <strong style="color:#0f172a; font-size:11.5px;">Automate code ownership validation</strong>
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-                    <span style="color:#64748b; font-weight:700;">👤 Sanya (DevOps)</span>
-                    <span style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">14 days</span>
-                  </div>
-                  <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;"><div style="width:40%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-                    <span style="color:#94a3b8;">🗎 2</span>
-                    <div style="display:flex; gap:4px;">
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-                      <button style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
-                    </div>
-                  </div>
-                </div>
+                ${renderLaneTasks(p3List)}
               </div>
             </div>
 
             <!-- Column P4 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px;">
-              <div style="font-size:12px; font-weight:800; color:#15803d; width:100%; display:flex; justify-content:space-between; margin-bottom:20px;">
-                <span>● P4 Low</span>
-                <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">0</span>
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:12px; font-weight:800; color:#15803d;">● P4 Low</span>
+                <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p4List.length}</span>
               </div>
-              <div style="font-size:24px; margin-bottom:6px;">📱</div>
-              <div style="font-size:11px; color:#64748b; font-weight:700;">No pending tasks</div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                ${renderLaneTasks(p4List)}
+              </div>
             </div>
           </div>
         </div>
@@ -4865,27 +4825,29 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
 
             <!-- Activity Items -->
             <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:16px;">
-              <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid #818cf8; padding-left:12px;">
-                <span style="width:20px; height:20px; border-radius:50%; background:#e0e7ff; color:#4f46e5; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">+</span>
-                <div style="flex:1;">
-                  <div style="font-size:12.5px; font-weight:700; color:#0f172a;">AI reassigned "CSV Upload Timeout" from Arjun to Rohan</div>
-                  <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
-                    <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:1px 6px; border-radius:6px;">Saved 2.3h</span>
-                    <span style="font-size:11px; color:#94a3b8;">10:24 AM</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid #22c55e; padding-left:12px;">
-                <span style="width:20px; height:20px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">↻</span>
-                <div style="flex:1;">
-                  <div style="font-size:12.5px; font-weight:700; color:#0f172a;">Sprint rebalanced by AI (18 tasks optimized across 8 engineers)</div>
-                  <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
-                    <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:1px 6px; border-radius:6px;">+14% Velocity</span>
-                    <span style="font-size:11px; color:#94a3b8;">10:17 AM</span>
-                  </div>
-                </div>
-              </div>
+              ${managerActivityFeed.length === 0
+                ? `<p style="color:#64748b; font-size:12.5px; font-style:italic; text-align:center; padding:20px 0; margin:0;">No activity updates recorded yet.</p>`
+                : managerActivityFeed.slice(0, 4).map(e => {
+                    const isReassignment = /reassign/i.test(e.message || "");
+                    const isStandup = /standup/i.test(e.message || "");
+                    const indicator = isReassignment ? "↻" : isStandup ? "🗎" : "+";
+                    const bg = isReassignment ? "#dcfce7" : isStandup ? "#fffbeb" : "#e0e7ff";
+                    const col = isReassignment ? "#15803d" : isStandup ? "#d97706" : "#4f46e5";
+                    const borderCol = isReassignment ? "#22c55e" : isStandup ? "#f59e0b" : "#818cf8";
+                    return `
+                      <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid ${borderCol}; padding-left:12px;">
+                        <span style="width:20px; height:20px; border-radius:50%; background:${bg}; color:${col}; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${indicator}</span>
+                        <div style="flex:1;">
+                          <div style="font-size:12.5px; font-weight:700; color:#0f172a;">${escapeHtml(e.message || "")}</div>
+                          <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
+                            ${e.rebalanced ? `<span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:1px 6px; border-radius:6px;">+14% Velocity</span>` : ""}
+                            <span style="font-size:11px; color:#94a3b8;">${escapeHtml(e.time || "Just now")}</span>
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  }).join("")
+              }
             </div>
           </div>
 
@@ -9867,6 +9829,26 @@ function bindEvents() {
         titleInput.value = `Assign task to ${eng}: `;
         titleInput.focus();
       }
+    });
+  });
+
+  document.querySelectorAll(".dash-card-assign-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const taskId = btn.dataset.taskId;
+      const title = btn.dataset.taskTitle;
+      const titleInput = document.querySelector("#mgrPostTitle");
+      if (titleInput) {
+        titleInput.value = `Reassign task ${taskId} ("${title}") to `;
+        titleInput.focus();
+      }
+    });
+  });
+
+  document.querySelectorAll(".dash-card-select-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const taskId = btn.dataset.taskId;
+      selectedTaskId = taskId;
+      render();
     });
   });
 
