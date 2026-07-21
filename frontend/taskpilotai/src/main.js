@@ -7858,25 +7858,192 @@ function renderEngineerAnalyticsManager() {
 
 // ─── Workload analytics (old analytics page - now used for team overview) ─────
 function renderWorkloadAnalyticsPage() {
-  const insights = datasetInsights();
-  return `
-    <div style="padding:18px;display:grid;gap:16px;max-width:1100px;">
-      <div>
-        <p class="eyebrow">Team Analytics</p>
-        <h2 style="margin:2px 0;">Team Workload Overview</h2>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          ${renderWorkloadChart(insights.ownerLoad)}
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          ${renderDependencyGraph()}
-        </div>
-      </div>
-    </div>`;
-}
+  // Translucent Light Lavender and Light Orange
+  const pastelLavender = "rgba(167, 139, 250, 0.7)"; // Translucent Lavender
+  const pastelOrange = "rgba(251, 167, 108, 0.7)";   // Translucent Orange
 
-// Page: Execution Plan
+  const p1BarColor = pastelLavender;
+  const blockerBarColor = pastelOrange;
+
+  const workloadData = [
+    { name: "Rohan", p1: 16, blockers: 12 },
+    { name: "Vikram", p1: 22, blockers: 17 },
+    { name: "Riya", p1: 21, blockers: 13 },
+    { name: "Neha", p1: 4, blockers: 5 }
+  ];
+
+  const maxVal = 45;
+
+  return `
+    <div style="background: #fdfbfa; padding: 24px; max-width: 1300px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; height: calc(100vh - 110px); overflow-y: auto; color: #334155;">
+      
+      <!-- Header & Action Row -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0;">
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: ${pastelLavender}; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">TEAM TELEMETRY</div>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px;">Team workload and dependencies</h1>
+          <p style="margin: 3px 0 0; font-size: 13px; color: #64748b; font-weight: 500;">Real-time capacity, blockers, and what to unblock first</p>
+        </div>
+
+        <button id="analyticsApproveHandoffBtn" style="padding: 8px 16px; background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)'">
+          Approve next handoff
+        </button>
+      </div>
+
+      <!-- AI Summary Banner at the top -->
+      <div style="background: linear-gradient(135deg, rgba(245, 243, 255, 0.9) 0%, rgba(254, 243, 199, 0.5) 100%); border: 1px solid rgba(167, 139, 250, 0.15); border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 15px rgba(167, 139, 250, 0.03); flex-shrink: 0;">
+        <div style="width: 28px; height: 28px; border-radius: 8px; background: rgba(167, 139, 250, 0.15); display: flex; align-items: center; justify-content: center; color: ${pastelLavender}; font-weight: bold; font-size: 14px;">
+          ✦
+        </div>
+        <div style="font-size: 13px; font-weight: 600; color: #5b21b6; line-height: 1.45;">
+          Rohan and Vikram are blocking 12 downstream tasks. Resolving their items first unblocks the most work.
+        </div>
+      </div>
+
+      <!-- Elegant KPI Cards with mini sparklines -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; flex-shrink: 0;">
+        
+        <!-- KPI 1 -->
+        <div style="background: #ffffff; border: 1px solid #e8e3f5; border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.015); display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; tracking-wider;">SUCCESS RATE</span>
+            <span style="font-size: 22px; font-weight: 700; color: #0f172a; display: block; margin-top: 4px;">99.8%</span>
+          </div>
+          <!-- Sparkline (Lavender) -->
+          <svg width="60" height="24" viewBox="0 0 60 24" style="overflow: visible;">
+            <path d="M0 20 Q 15 5, 30 18 T 60 2" fill="none" stroke="${pastelLavender}" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
+        </div>
+
+        <!-- KPI 2 -->
+        <div style="background: #ffffff; border: 1px solid #fcefe6; border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.015); display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; tracking-wider;">AVG LATENCY</span>
+            <span style="font-size: 22px; font-weight: 700; color: #0f172a; display: block; margin-top: 4px;">18.2ms</span>
+          </div>
+          <!-- Sparkline (Orange) -->
+          <svg width="60" height="24" viewBox="0 0 60 24" style="overflow: visible;">
+            <path d="M0 18 Q 15 22, 30 6 T 60 10" fill="none" stroke="${pastelOrange}" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
+        </div>
+
+        <!-- KPI 3 -->
+        <div style="background: #ffffff; border: 1px solid #e8e3f5; border-radius: 12px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.015); display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; tracking-wider;">ACTIVE CAPACITY</span>
+            <span style="font-size: 22px; font-weight: 700; color: #0f172a; display: block; margin-top: 4px;">75% LOAD</span>
+          </div>
+          <!-- Sparkline (Lavender) -->
+          <svg width="60" height="24" viewBox="0 0 60 24" style="overflow: visible;">
+            <path d="M0 8 Q 15 2, 30 18 T 60 4" fill="none" stroke="${pastelLavender}" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
+        </div>
+
+      </div>
+
+      <!-- Main Columns Grid Layout -->
+      <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 20px; flex: 1; min-height: 0;">
+        
+        <!-- Left: Workload by Person -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.015); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h2 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Workload by person</h2>
+              <span style="font-size: 12px; color: #64748b; font-weight: 600;">This week</span>
+            </div>
+
+            <!-- Stacked Workload Bar Rows -->
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              ${workloadData.map(eng => {
+                const p1Pct = (eng.p1 / maxVal) * 100;
+                const blockerPct = (eng.blockers / maxVal) * 100;
+                return `
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12.5px;">
+                      <span style="font-weight: 600; color: #334155;">${eng.name}</span>
+                      <span style="font-size: 11.5px; font-weight: 600; color: #64748b;">${eng.p1} P1 &bull; ${eng.blockers} blockers</span>
+                    </div>
+
+                    <!-- Smooth Rounded Bar Track -->
+                    <div style="height: 10px; background: #f8f6f5; border-radius: 5px; overflow: hidden; display: flex; align-items: center; width: 100%;">
+                      <div style="width: ${p1Pct}%; height: 100%; background: ${p1BarColor}; border-top-left-radius: 5px; border-bottom-left-radius: 5px;" title="P1: ${eng.p1}"></div>
+                      <div style="width: ${blockerPct}%; height: 100%; background: ${blockerBarColor}; border-top-right-radius: 5px; border-bottom-right-radius: 5px;" title="Blockers: ${eng.blockers}"></div>
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+
+          <!-- Legend list -->
+          <div style="display: flex; gap: 18px; align-items: center; padding-top: 14px; border-top: 1px solid #f1f5f9; font-size: 11.5px; color: #64748b; font-weight: 600; margin-top: 20px;">
+            <span style="display: flex; align-items: center; gap: 5px;">
+              <span style="width: 10px; height: 10px; background: ${p1BarColor}; border-radius: 3px;"></span>
+              P1 tasks
+            </span>
+            <span style="display: flex; align-items: center; gap: 5px;">
+              <span style="width: 10px; height: 10px; background: ${blockerBarColor}; border-radius: 3px;"></span>
+              Blockers (severity shows in shade)
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Right: Blocked waiting on decisions -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.015); display: flex; flex-direction: column; justify-content: space-between;">
+          
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h2 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Blocked &middot; waiting on decisions</h2>
+              <span style="font-size: 12px; color: #64748b; font-weight: 600;">75 total</span>
+            </div>
+
+            <!-- Filter Dots row -->
+            <div style="display: flex; gap: 14px; align-items: center; font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 16px;">
+              <span style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 8px; height: 8px; background: ${pastelOrange}; border-radius: 50%;"></span> Critical
+              </span>
+              <span style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 8px; height: 8px; background: #fcd34d; border-radius: 50%;"></span> High
+              </span>
+              <span style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 8px; height: 8px; background: ${pastelLavender}; border-radius: 50%;"></span> Standard
+              </span>
+            </div>
+
+            <!-- Dependency list cards -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${[
+                { title: "VP Product: sprint risk review", owner: "Karan", note: "Needs schema approval", severity: "Critical", border: pastelOrange, pillBg: "#fff7ed", pillColor: "#c2410c" },
+                { title: "Resolve OAuth token refresh failures", owner: "Rohan", note: "Waiting on auth logs", severity: "High", border: "#fcd34d", pillBg: "#fffbeb", pillColor: "#b45309" },
+                { title: "Fix partner API schema mismatch", owner: "Neha", note: "Waiting for sandbox access", severity: "Standard", border: pastelLavender, pillBg: "#f5f3ff", pillColor: "#6d28d9" }
+              ].map(task => `
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid ${task.border}; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 2px;">${task.title}</div>
+                    <div style="font-size: 11px; color: #64748b; font-weight: 500;">${task.owner} &bull; ${task.note}</div>
+                  </div>
+
+                  <span style="background: ${task.pillBg}; color: ${task.pillColor}; font-size: 9.5px; font-weight: 700; padding: 2.5px 8px; border-radius: 4px;">
+                    ${task.severity}
+                  </span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+
+          <!-- Bottom Footer stats -->
+          <div style="font-size: 11px; color: #64748b; font-weight: 600; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 14px; margin-top: 20px;">
+            ❇ Resolving blockers first will cascade <strong style="color: #6366f1;">0 items</strong> into action.
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  `;
+}
 function renderExecutionPlan(selected, executionBrief) {
   if (!selected) {
     return `<section class="panel"><h2>No Active task select</h2></section>`;

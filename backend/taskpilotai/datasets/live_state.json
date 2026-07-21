@@ -1,5 +1,10 @@
 {
-  "completedTaskIds": [],
+  "completedTaskIds": [
+    "task-1",
+    "task-141",
+    "task-139",
+    "task-33"
+  ],
   "workingTaskIds": [],
   "taskTimeLogs": {
     "task-1": {
@@ -7,7 +12,7 @@
       "severity": "P1",
       "source": "Jira Sprint Board + ServiceNow Defects + Outlook Emails + Slack Mentions",
       "startTime": "2026-06-22T12:56:00.605Z",
-      "endTime": "2026-06-22T13:26:00.605Z"
+      "endTime": "2026-07-21T08:16:29.142Z"
     },
     "task-171": {
       "title": "Customer escalation: API rate limit increase request",
@@ -22,9 +27,69 @@
       "source": "GitHub",
       "startTime": "2026-06-22T13:10:06.546Z",
       "endTime": "2026-06-22T13:40:06.546Z"
+    },
+    "task-141": {
+      "title": "Fix payment webhook retry storm",
+      "severity": "P1",
+      "source": "GitHub",
+      "startTime": "2026-07-21T07:49:18.206Z",
+      "endTime": "2026-07-21T08:19:18.206Z"
+    },
+    "task-139": {
+      "title": "Security review blocking identity release",
+      "severity": "P1",
+      "source": "Slack Mentions + Outlook Emails + GitHub",
+      "startTime": "2026-07-21T07:50:30.512Z",
+      "endTime": "2026-07-21T08:20:30.512Z"
+    },
+    "task-33": {
+      "title": "Notification service queue depth increasing rapidly",
+      "severity": "P1",
+      "source": "ServiceNow Defects + Slack Mentions + Jira Sprint Board",
+      "startTime": "2026-07-21T07:52:03.415Z",
+      "endTime": "2026-07-21T08:22:03.415Z"
     }
   },
   "managerActivityFeed": [
+    {
+      "message": "Reassigned \"Platform team blocked by API gateway errors\" from Utkarsh to Karan (balanced: Utkarsh count 27, Karan count 27)",
+      "time": "1:52:45 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "✓ Demo Manager completed \"Notification service queue depth increasing rapidly\" (P1)",
+      "color": "#22a06b",
+      "time": "01:52 PM",
+      "taskId": "task-33"
+    },
+    {
+      "message": "✓ Demo Manager completed \"Security review blocking identity release\" (P1)",
+      "color": "#22a06b",
+      "time": "01:50 PM",
+      "taskId": "task-139"
+    },
+    {
+      "message": "✓ Demo Manager completed \"Fix payment webhook retry storm\" (P1)",
+      "color": "#22a06b",
+      "time": "01:49 PM",
+      "taskId": "task-141"
+    },
+    {
+      "message": "✓ Demo Manager completed \"Fix CSV upload timeout for enterprise imports\" (P1)",
+      "color": "#22a06b",
+      "time": "01:46 PM",
+      "taskId": "task-1"
+    },
+    {
+      "message": "Reassigned \"Fix CSV upload timeout for enterprise imports\" from Riya to Rohan (balanced: Riya count 28, Rohan count 28)",
+      "time": "11:26:05 PM",
+      "color": "#0c66e4"
+    },
+    {
+      "message": "Auto-assigned \"Fix CSV upload timeout for enterprise imports\" (P1) to Riya — workload: 23.5h",
+      "time": "10:59:17 PM",
+      "color": "#22a06b"
+    },
     {
       "message": "Reassigned \"Infrastructure auto-scaling not responding to load spikes\" from Sanya to Vikram (balanced: Sanya count 28, Vikram count 28)",
       "time": "7:15:12 PM",
@@ -98,6 +163,72 @@
   ],
   "managerTaskPosts": [
     {
+      "id": "DONE-task-33",
+      "title": "Notification service queue depth increasing rapidly",
+      "description": "Completed by Demo Manager at 01:52 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T08:22:03.415Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-139",
+      "title": "Security review blocking identity release",
+      "description": "Completed by Demo Manager at 01:50 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T08:20:30.512Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-141",
+      "title": "Fix payment webhook retry storm",
+      "description": "Completed by Demo Manager at 01:49 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T08:19:18.206Z",
+      "type": "completion"
+    },
+    {
+      "id": "DONE-task-1",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Completed by Demo Manager at 01:46 PM",
+      "priority": "P1",
+      "status": "Completed",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T08:16:29.142Z",
+      "type": "completion"
+    },
+    {
+      "id": "MGR-33808",
+      "title": "Security review blocking identity release",
+      "description": "@Karan security team is waiting for validation results before approving the authentication deployment.",
+      "priority": "P1",
+      "deadline": "2026-06-21",
+      "team": "Identity",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T08:10:33.808Z",
+      "assignment": {
+        "recommendedAssignee": "Karan",
+        "alternativeAssignees": [
+          "Riya",
+          "Vikram"
+        ],
+        "assignmentReasoning": "Karan has the lowest current task load.",
+        "priorityScore": 92,
+        "estimatedHours": 4,
+        "riskLevel": "Critical",
+        "teamUpdate": "\"Security review blocking identity release\" assigned to Karan — P1 priority, deadline 2026-06-21.",
+        "engineerPortalNote": "You've been assigned: Security review blocking identity release. Priority P1. Deadline: 2026-06-21.",
+        "suggestedDeadline": "2026-06-21",
+        "dependencyWarnings": []
+      },
+      "status": "Posted"
+    },
+    {
       "id": "MGR-78107",
       "title": "Fix CSV upload timeout for enterprise imports",
       "description": "P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.",
@@ -155,6 +286,34 @@
     }
   ],
   "engineerPortalPosts": [
+    {
+      "id": "MGR-33808",
+      "title": "Security review blocking identity release",
+      "description": "@Karan security team is waiting for validation results before approving the authentication deployment.",
+      "priority": "P1",
+      "deadline": "2026-06-21",
+      "team": "Identity",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T08:10:33.808Z",
+      "assignment": {
+        "recommendedAssignee": "Karan",
+        "alternativeAssignees": [
+          "Riya",
+          "Vikram"
+        ],
+        "assignmentReasoning": "Karan has the lowest current task load.",
+        "priorityScore": 92,
+        "estimatedHours": 4,
+        "riskLevel": "Critical",
+        "teamUpdate": "\"Security review blocking identity release\" assigned to Karan — P1 priority, deadline 2026-06-21.",
+        "engineerPortalNote": "You've been assigned: Security review blocking identity release. Priority P1. Deadline: 2026-06-21.",
+        "suggestedDeadline": "2026-06-21",
+        "dependencyWarnings": []
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You've been assigned: Security review blocking identity release. Priority P1. Deadline: 2026-06-21."
+    },
     {
       "id": "MGR-78107",
       "title": "Fix CSV upload timeout for enterprise imports",
@@ -231,6 +390,7 @@
     "MAIL-944": "Rohan",
     "INC-7880": "Vikram",
     "SLACK-75": "Vikram",
-    "SLACK-92": "Vikram"
+    "SLACK-92": "Vikram",
+    "SLACK-117": "Karan"
   }
 }
