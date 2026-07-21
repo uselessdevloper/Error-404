@@ -4482,17 +4482,17 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
         <div class="kanban-task-card" style="background:#fff; border:${isSelected ? '2px solid #6366f1' : '1px solid #e2e8f0'}; border-radius:8px; padding:8px; font-size:11.5px; margin-bottom:8px; box-shadow: ${isSelected ? '0 0 8px rgba(99,102,241,0.15)' : 'none'};">
           <strong style="color:#0f172a; font-size:11.5px; display:block; margin-bottom:4px;">${escapeHtml(t.canonicalTitle)}</strong>
           <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-            <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:2px;">👤 ${escapeHtml(t.owner || "Unassigned")}</span>
+            <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:2px;">Owner: ${escapeHtml(t.owner || "Unassigned")}</span>
             <span style="background:${bgCol}; color:${col}; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">${escapeHtml(t.due || "Sprint")}</span>
           </div>
           <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;">
             <div style="width:${score}%; height:100%; background:#22c55e; border-radius:2px;"></div>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-            <span style="color:#94a3b8;">🗎 ${(t.sources || []).length || 1}</span>
+            <span style="color:#94a3b8;">Sources: ${(t.sources || []).length || 1}</span>
             <div style="display:flex; gap:4px;">
               <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-              <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select ⚡</button>
+              <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
             </div>
           </div>
         </div>
@@ -4692,7 +4692,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                     <div style="width:30px; height:30px; border-radius:50%; background:${eng.avatarBg}; color:${eng.textCol}; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center;">${eng.name[0]}</div>
                     <div>
                       <div style="font-size:13px; font-weight:800; color:#0f172a;">${eng.name}</div>
-                      <div style="font-size:11px; color:#64748b; font-weight:600;">★ ${eng.pts} · ⏱ ${eng.hours}</div>
+                      <div style="font-size:11px; color:#64748b; font-weight:600;">${eng.pts} · ${eng.hours}</div>
                     </div>
                   </div>
                   <button class="dash-leader-assign-btn" data-engineer="${eng.name}" style="padding:4px 12px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">Assign</button>
@@ -4763,8 +4763,8 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
         <!-- Right: Post Job Update Form (with solid blue left border) -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #4f46e5; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
           <div>
-            <h3 style="margin:0 0 14px 0; font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
-              <span>⍛</span> Post Job Update
+            <h3 style="margin:0 0 14px 0; font-size:17px; font-weight:800; color:#0f172a;">
+              Post Job Update
             </h3>
 
             <div style="display:flex; flex-direction:column; gap:12px;">
@@ -4799,9 +4799,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <input type="text" id="mgrPostSquad" value="Platform Apps" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
               </div>
 
-              <button id="mgrSubmitJobBtn" style="width:100%; padding:12px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.3); margin-top:4px;">
-                + Analyze & Assign with TaskPilot AI
+              <button id="mgrSubmitJobBtn" style="width:100%; padding:12px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.3); margin-top:4px;" ${assignmentLoading ? "disabled" : ""}>
+                ${assignmentLoading ? "Analyzing..." : "Analyze & Assign with TaskPilot AI"}
               </button>
+
+              ${assignmentResult ? `
+                <div style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px;" id="mgrAssignResult">
+                  ${renderAssignmentResult(assignmentResult)}
+                </div>
+              ` : ""}
             </div>
           </div>
         </div>
@@ -4814,7 +4820,6 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           <div>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:18px;">💬</span>
                 <div>
                   <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Team Portal</h3>
                   <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Live updates and team activity</p>
@@ -4825,23 +4830,24 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
 
             <!-- Activity Items -->
             <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:16px;">
-              ${managerActivityFeed.length === 0
-                ? `<p style="color:#64748b; font-size:12.5px; font-style:italic; text-align:center; padding:20px 0; margin:0;">No activity updates recorded yet.</p>`
-                : managerActivityFeed.slice(0, 4).map(e => {
-                    const isReassignment = /reassign/i.test(e.message || "");
-                    const isStandup = /standup/i.test(e.message || "");
-                    const indicator = isReassignment ? "↻" : isStandup ? "🗎" : "+";
-                    const bg = isReassignment ? "#dcfce7" : isStandup ? "#fffbeb" : "#e0e7ff";
-                    const col = isReassignment ? "#15803d" : isStandup ? "#d97706" : "#4f46e5";
-                    const borderCol = isReassignment ? "#22c55e" : isStandup ? "#f59e0b" : "#818cf8";
+              ${managerTaskPosts.length === 0
+                ? `<p style="color:#64748b; font-size:12.5px; font-style:italic; text-align:center; padding:20px 0; margin:0;">No updates posted to Team Portal yet.</p>`
+                : managerTaskPosts.slice(0, 4).map(post => {
+                    const sev = post.priority || "P2";
+                    const sevColor = {"P1":"#de350b","P2":"#c2410c","P3":"#1d4ed8","P4":"#15803d"}[sev]||"#64748b";
+                    const sevBg = {"P1":"#ffe4e6","P2":"#ffedd5","P3":"#dbeafe","P4":"#dcfce7"}[sev]||"#e2e8f0";
                     return `
-                      <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid ${borderCol}; padding-left:12px;">
-                        <span style="width:20px; height:20px; border-radius:50%; background:${bg}; color:${col}; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${indicator}</span>
+                      <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid #818cf8; padding-left:12px;">
+                        <span style="width:20px; height:20px; border-radius:50%; background:#e0e7ff; color:#4f46e5; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">+</span>
                         <div style="flex:1;">
-                          <div style="font-size:12.5px; font-weight:700; color:#0f172a;">${escapeHtml(e.message || "")}</div>
-                          <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
-                            ${e.rebalanced ? `<span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:1px 6px; border-radius:6px;">+14% Velocity</span>` : ""}
-                            <span style="font-size:11px; color:#94a3b8;">${escapeHtml(e.time || "Just now")}</span>
+                          <div style="font-size:12.5px; font-weight:700; color:#0f172a; display:flex; justify-content:space-between;">
+                            <span>${escapeHtml(post.title)}</span>
+                            <span style="padding:1px 6px; border-radius:4px; background:${sevBg}; color:${sevColor}; font-size:9.5px; font-weight:800;">${sev}</span>
+                          </div>
+                          <div style="display:flex; gap:10px; align-items:center; margin-top:4px; font-size:11px; color:#64748b;">
+                            <span>Assignee: ${escapeHtml(post.assignment?.recommendedAssignee||"Unassigned")}</span>
+                            <span>Deadline: ${escapeHtml(post.deadline||"TBD")}</span>
+                            <span style="font-size:11px; color:#94a3b8;">${new Date(post.postedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>
                           </div>
                         </div>
                       </div>
@@ -4864,7 +4870,6 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           <div>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:18px;">🤖</span>
                 <div>
                   <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a;">Ask TaskPilot AI</h3>
                   <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Instant insights, query team workload & sprint risks</p>
@@ -4879,10 +4884,10 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <div style="margin-bottom:12px;">
               <div style="font-size:10px; font-weight:800; color:#94a3b8; letter-spacing:0.06em; margin-bottom:6px;">QUICK QUERIES</div>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="dash-quick-query-btn" data-query="Who is overloaded?" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">⚡ Who is overloaded?</button>
-                <button class="dash-quick-query-btn" data-query="Show blockers" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">🚧 Show blockers</button>
-                <button class="dash-quick-query-btn" data-query="Sprint risk summary" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">📈 Sprint risk summary</button>
-                <button class="dash-quick-query-btn" data-query="Recommend reallocations" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">🎯 Recommend reallocations</button>
+                <button class="dash-quick-query-btn" data-query="Who is overloaded?" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Who is overloaded?</button>
+                <button class="dash-quick-query-btn" data-query="Show blockers" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Show blockers</button>
+                <button class="dash-quick-query-btn" data-query="Sprint risk summary" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Sprint risk summary</button>
+                <button class="dash-quick-query-btn" data-query="Recommend reallocations" style="padding:5px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer;">Recommend reallocations</button>
               </div>
             </div>
 
@@ -4895,22 +4900,22 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <!-- 4 Mini Insight Cards Grid -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
               <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
-                <div style="font-size:12px; font-weight:800; color:#0f172a;">⚠️ Capacity Alerts</div>
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">Capacity Alerts</div>
                 <div style="font-size:10.5px; color:#64748b; margin-top:2px;">2 engineers currently exceeding capacity limits</div>
               </div>
 
               <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
-                <div style="font-size:12px; font-weight:800; color:#0f172a;">🚧 Blocker Chain</div>
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">Blocker Chain</div>
                 <div style="font-size:10.5px; color:#64748b; margin-top:2px;">13 blocking dependencies requiring manager approval</div>
               </div>
 
               <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
-                <div style="font-size:12px; font-weight:800; color:#0f172a;">📊 Velocity Forecast</div>
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">Velocity Forecast</div>
                 <div style="font-size:10.5px; color:#64748b; margin-top:2px;">On track for 92% completion rate this sprint</div>
               </div>
 
               <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
-                <div style="font-size:12px; font-weight:800; color:#0f172a;">💡 AI Smart Shift</div>
+                <div style="font-size:12px; font-weight:800; color:#0f172a;">AI Smart Shift</div>
                 <div style="font-size:10.5px; color:#64748b; margin-top:2px;">Suggest 3 tasks for load rebalancing</div>
               </div>
             </div>
@@ -5528,11 +5533,11 @@ function renderAssignmentResult(result) {
     ${result.alternativeAssignees?.length > 0 ? `
       <div style="margin-top:8px;font-size:11px;color:#626f86;">Also consider:</div>
       <div class="mgr-alt-assignees">
-        ${result.alternativeAssignees.map(n=>`<span class="mgr-alt-chip">👤 ${escapeHtml(n)}</span>`).join("")}
+        ${result.alternativeAssignees.map(n=>`<span class="mgr-alt-chip">Engineer: ${escapeHtml(n)}</span>`).join("")}
       </div>` : ""}
     <div style="display:flex;gap:8px;margin-top:10px;">
-      <button class="secondary" style="font-size:12px;" id="mgrConfirmAssignBtn">✓ Confirm &amp; Post to Portal</button>
-      <button class="secondary" style="font-size:12px;color:#de350b;border-color:#ffd5d2;" id="mgrCancelAssignBtn">✕ Discard</button>
+      <button class="secondary" style="font-size:12px;" id="mgrConfirmAssignBtn">Confirm &amp; Post to Portal</button>
+      <button class="secondary" style="font-size:12px;color:#de350b;border-color:#ffd5d2;" id="mgrCancelAssignBtn">Discard</button>
     </div>
   `;
 }
@@ -5550,7 +5555,7 @@ function renderPortalPost(post) {
         <span style="font-size:10px;color:#626f86;">${new Date(post.postedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>
       </div>
       <div class="post-meta">Team: ${escapeHtml(post.team||"")} · Deadline: ${escapeHtml(post.deadline||"TBD")} · Score: ${post.assignment?.priorityScore||"—"}</div>
-      <span class="post-assignee">👤 ${escapeHtml(post.assignment?.recommendedAssignee||"Unassigned")}</span>
+      <span class="post-assignee">Assignee: ${escapeHtml(post.assignment?.recommendedAssignee||"Unassigned")}</span>
       ${post.assignment?.riskLevel ? `<span class="mgr-risk-badge ${post.assignment.riskLevel}" style="margin-left:6px;">${post.assignment.riskLevel}</span>` : ""}
     </div>
   `;
