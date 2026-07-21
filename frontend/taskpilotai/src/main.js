@@ -367,6 +367,7 @@ function getWorkspaceActiveSource() {
 // Initialize task state
 let state = buildState(sources, calendarBlocks);
 let selectedTaskId = state.prioritized[0]?.id;
+let activeSelectTaskDropdownId = null;
 
 // ─── Today's Smart Queue — initialized after settingsProfile is declared ──────
 // Will be rebuilt with the real user name in loadBackendConfig().finally(...)
@@ -4465,11 +4466,16 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
   const pendingMeetingsCount = meetingsList.filter(m => m.status === 'Pending').length;
   const uniqueOwners = [...new Set(state.prioritized.map(t => t.owner).filter(Boolean))].length;
 
-  const renderLaneTasks = (list) => {
+  const renderLaneTasks = (list, severity) => {
     if (list.length === 0) {
+      const emptyColor = { P1: "#be123c", P2: "#c2410c", P3: "#1d4ed8", P4: "#15803d" }[severity] || "#64748b";
       return `
-        <div style="font-size:11px; color:#64748b; font-weight:700; text-align:center; padding:20px 0;">
-          No pending tasks
+        <div style="border: 1px dashed #cbd5e1; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 16px; min-height:180px; text-align:center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${emptyColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px; opacity:0.8;">
+            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+          </svg>
+          <div style="font-size:11.5px; color:#64748b; font-weight:700;">No pending tasks</div>
         </div>
       `;
     }
@@ -4478,21 +4484,89 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
       const col = { P1: "#be123c", P2: "#c2410c", P3: "#1d4ed8", P4: "#15803d" }[t.severity] || "#64748b";
       const bgCol = { P1: "#ffe4e6", P2: "#ffedd5", P3: "#dbeafe", P4: "#dcfce7" }[t.severity] || "#e2e8f0";
       const isSelected = selectedTaskId === t.id;
+
+      // Determine badge color for due date
+      const isP1 = t.severity === "P1";
+      const badgeBg = isP1 ? "#ffedd5" : "#dbeafe";
+      const badgeText = isP1 ? "#c2410c" : "#1e40af";
+      const dueLabel = t.due || (isP1 ? "Tomorrow" : "Sprint");
+
+      // Generate avatar circle style
+      const ownerName = t.owner || "Unassigned";
+      const squad = t.team || "Platform";
+      const initials = ownerName.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
+      const avatarColors = {
+        "Rohan": { bg: "#eff6ff", text: "#2563eb" },
+        "Karan": { bg: "#fffbeb", text: "#d97706" },
+        "Sanya": { bg: "#f0fdf4", text: "#16a34a" },
+        "Neha": { bg: "#fdf2f8", text: "#db2777" },
+        "Meera": { bg: "#f3e8ff", text: "#9333ea" },
+        "Aisha": { bg: "#ecfeff", text: "#0891b2" },
+        "Utkarsh": { bg: "#e0f2fe", text: "#0284c7" },
+        "Vikram": { bg: "#eff6ff", text: "#1d4ed8" }
+      };
+      const av = avatarColors[ownerName] || { bg: "#f1f5f9", text: "#475569" };
+
       return `
-        <div class="kanban-task-card" style="background:#fff; border:${isSelected ? '2px solid #6366f1' : '1px solid #e2e8f0'}; border-radius:8px; padding:8px; font-size:11.5px; margin-bottom:8px; box-shadow: ${isSelected ? '0 0 8px rgba(99,102,241,0.15)' : 'none'};">
-          <strong style="color:#0f172a; font-size:11.5px; display:block; margin-bottom:4px;">${escapeHtml(t.canonicalTitle)}</strong>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0;">
-            <span style="color:#64748b; font-weight:700; display:inline-flex; align-items:center; gap:2px;">Owner: ${escapeHtml(t.owner || "Unassigned")}</span>
-            <span style="background:${bgCol}; color:${col}; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:4px;">${escapeHtml(t.due || "Sprint")}</span>
+        <div class="kanban-task-card" style="background:#ffffff; border:${isSelected ? '2px solid #6366f1' : '1px solid #e2e8f0'}; border-radius:12px; padding:12px; margin-bottom:12px; box-shadow: ${isSelected ? '0 4px 12px rgba(99,102,241,0.12)' : '0 1px 3px rgba(0,0,0,0.02)'}; transition: all 0.2s ease;">
+          <!-- Card Title -->
+          <div style="font-size:12.5px; font-weight:700; color:#1e293b; line-height:1.4; margin-bottom:10px;">
+            ${escapeHtml(t.canonicalTitle)}
           </div>
-          <div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:6px;">
-            <div style="width:${score}%; height:100%; background:#22c55e; border-radius:2px;"></div>
+
+          <!-- Owner & Deadline Row -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <!-- Avatar Circle -->
+              <div style="width:24px; height:24px; border-radius:50%; background:${av.bg}; color:${av.text}; font-size:9.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; border: 1px solid #e2e8f0;">
+                ${initials}
+              </div>
+              <div style="line-height:1.2;">
+                <div style="font-size:11px; font-weight:700; color:#334155;">${escapeHtml(ownerName)}</div>
+                <div style="font-size:9.5px; color:#64748b; font-weight:500;">${escapeHtml(squad)}</div>
+              </div>
+            </div>
+            <!-- Due Badge -->
+            <span style="background:${badgeBg}; color:${badgeText}; font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; text-transform:capitalize;">
+              ${escapeHtml(dueLabel)}
+            </span>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-            <span style="color:#94a3b8;">Sources: ${(t.sources || []).length || 1}</span>
-            <div style="display:flex; gap:4px;">
-              <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Assign</button>
-              <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:2px 6px; background:#fff; border:1px solid #cbd5e1; border-radius:4px; font-weight:700; cursor:pointer;">Select</button>
+
+          <!-- Progress Bar & Pct Row -->
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <div style="flex:1; height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
+              <div style="width:${score}%; height:100%; background:#22c55e; border-radius:3px;"></div>
+            </div>
+            <span style="font-size:10px; font-weight:700; color:#64748b; flex-shrink:0;">${score}%</span>
+          </div>
+
+          <!-- Card Footer (Actions & Meta) -->
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px solid #f1f5f9;">
+            <!-- Document / Source Indicator -->
+            <div style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:#94a3b8; font-weight:700;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <span>${(t.sources || []).length || 1}</span>
+            </div>
+            <!-- Action buttons and Star -->
+            <div style="display:flex; align-items:center; gap:6px; position:relative;">
+              <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="padding:4px 8px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Assign</button>
+              <div style="position:relative; display:inline-block;">
+                <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:4px 8px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Select</button>
+                ${activeSelectTaskDropdownId === t.id ? `
+                  <div class="engineer-selector-dropdown" style="position:absolute; right:0; top:100%; margin-top:4px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999; min-width:140px; padding:6px 0; max-height:220px; overflow-y:auto;">
+                    <div style="font-size:10px; font-weight:800; color:#94a3b8; padding:4px 12px; border-bottom:1px solid #f1f5f9; letter-spacing:0.05em; text-transform:uppercase;">Select Engineer</div>
+                    ${["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"].map(name => `
+                      <div class="eng-dropdown-item" data-task-id="${t.id}" data-engineer="${name}" style="padding:6px 12px; font-size:11.5px; font-weight:600; color:#334155; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.1s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                        <span>${name}</span>
+                      </div>
+                    `).join("")}
+                  </div>
+                ` : ""}
+              </div>
+              <span style="color:#f59e0b; font-size:12px; margin-left:2px; font-weight:bold; cursor:default;">✦</span>
             </div>
           </div>
         </div>
@@ -4715,57 +4789,73 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           <!-- 4 Kanban Columns -->
           <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
             <!-- Column P1 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span style="font-size:12px; font-weight:800; color:#be123c;">● P1 Critical</span>
-                <span style="background:#ffe4e6; color:#be123c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p1List.length}</span>
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <span style="font-size:12px; font-weight:800; color:#be123c;">● P1 Critical</span>
+                  <span style="background:#ffe4e6; color:#be123c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p1List.length}</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  ${renderLaneTasks(p1List, 'P1')}
+                </div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                ${renderLaneTasks(p1List)}
-              </div>
+              <button class="dash-add-task-btn" data-priority="P1" style="width:100%; border:none; background:none; color:#be123c; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
             </div>
 
             <!-- Column P2 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span style="font-size:12px; font-weight:800; color:#c2410c;">● P2 High</span>
-                <span style="background:#ffedd5; color:#c2410c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p2List.length}</span>
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <span style="font-size:12px; font-weight:800; color:#c2410c;">● P2 High</span>
+                  <span style="background:#ffedd5; color:#c2410c; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p2List.length}</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  ${renderLaneTasks(p2List, 'P2')}
+                </div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                ${renderLaneTasks(p2List)}
-              </div>
+              <button class="dash-add-task-btn" data-priority="P2" style="width:100%; border:none; background:none; color:#c2410c; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
             </div>
 
             <!-- Column P3 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span style="font-size:12px; font-weight:800; color:#1d4ed8;">● P3 Medium</span>
-                <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p3List.length}</span>
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <span style="font-size:12px; font-weight:800; color:#1d4ed8;">● P3 Medium</span>
+                  <span style="background:#dbeafe; color:#1e40af; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p3List.length}</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  ${renderLaneTasks(p3List, 'P3')}
+                </div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                ${renderLaneTasks(p3List)}
-              </div>
+              <button class="dash-add-task-btn" data-priority="P3" style="width:100%; border:none; background:none; color:#1d4ed8; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
             </div>
 
             <!-- Column P4 -->
-            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span style="font-size:12px; font-weight:800; color:#15803d;">● P4 Low</span>
-                <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p4List.length}</span>
+            <div style="background:#fafafa; border:1px solid #f1f5f9; border-radius:12px; padding:10px; display:flex; flex-direction:column; justify-content:space-between; min-height:360px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <span style="font-size:12px; font-weight:800; color:#15803d;">● P4 Low</span>
+                  <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px;">${p4List.length}</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  ${renderLaneTasks(p4List, 'P4')}
+                </div>
               </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                ${renderLaneTasks(p4List)}
-              </div>
+              <button class="dash-add-task-btn" data-priority="P4" style="width:100%; border:none; background:none; color:#15803d; font-weight:800; font-size:12px; padding:8px 0 0 0; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:12px;">+ Add Task</button>
             </div>
           </div>
         </div>
 
         <!-- Right: Post Job Update Form (with solid blue left border) -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #4f46e5; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-direction:column; justify-content:space-between;" id="mgrPostFormContainer">
           <div>
-            <h3 style="margin:0 0 14px 0; font-size:17px; font-weight:800; color:#0f172a;">
-              Post Job Update
-            </h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                <span style="color:#8b5cf6; font-size:20px;">✦</span> Post Job Update
+              </h3>
+              <button style="border:none; background:none; color:#64748b; cursor:pointer; padding:4px;" title="Expand">⤢</button>
+            </div>
+            <p style="margin:0 0 14px 0; font-size:12px; color:#64748b; font-weight:500;">Update details and assign via TaskPilot AI</p>
 
             <div style="display:flex; flex-direction:column; gap:12px;">
               <div>
@@ -4781,26 +4871,33 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div>
                   <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">PRIORITY</label>
-                  <select id="mgrPostPriority" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff;">
-                    <option value="P1">P1</option>
-                    <option value="P2" selected>P2</option>
-                    <option value="P3">P3</option>
-                    <option value="P4">P4</option>
+                  <select id="mgrPostPriority" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff; height:38px;">
+                    <option value="P1">P1 Critical</option>
+                    <option value="P2" selected>P2 High</option>
+                    <option value="P3">P3 Medium</option>
+                    <option value="P4">P4 Low</option>
                   </select>
                 </div>
                 <div>
                   <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">DEADLINE</label>
-                  <input type="date" id="mgrPostDeadline" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
+                  <input type="date" id="mgrPostDeadline" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; height:38px;" />
                 </div>
               </div>
 
               <div>
                 <label style="display:block; font-size:11px; font-weight:800; color:#64748b; margin-bottom:4px; letter-spacing:0.04em;">TEAM / SQUAD</label>
-                <input type="text" id="mgrPostSquad" value="Platform Apps" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box;" />
+                <select id="mgrPostSquad" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; box-sizing:border-box; background:#fff; height:38px;">
+                  <option value="" disabled>Select team or squad</option>
+                  <option value="Platform Apps" selected>Platform Apps</option>
+                  <option value="DevOps">DevOps</option>
+                  <option value="Data">Data</option>
+                  <option value="QA">QA</option>
+                  <option value="Backend">Backend</option>
+                </select>
               </div>
 
-              <button id="mgrSubmitJobBtn" style="width:100%; padding:12px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.3); margin-top:4px;" ${assignmentLoading ? "disabled" : ""}>
-                ${assignmentLoading ? "Analyzing..." : "Analyze & Assign with TaskPilot AI"}
+              <button id="mgrSubmitJobBtn" style="width:100%; padding:12px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#ffffff; border:none; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(99,102,241,0.3); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:8px;" ${assignmentLoading ? "disabled" : ""}>
+                ${assignmentLoading ? "Analyzing..." : "✦ Analyze & Assign with TaskPilot AI"}
               </button>
 
               ${assignmentResult ? `
@@ -9840,20 +9937,108 @@ function bindEvents() {
   document.querySelectorAll(".dash-card-assign-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const taskId = btn.dataset.taskId;
-      const title = btn.dataset.taskTitle;
-      const titleInput = document.querySelector("#mgrPostTitle");
-      if (titleInput) {
-        titleInput.value = `Reassign task ${taskId} ("${title}") to `;
-        titleInput.focus();
-      }
+      const task = state.prioritized.find(t => t.id === taskId);
+      if (!task) return;
+      
+      // Calculate best assignee based on lowest current load
+      const owners = datasetInsights().ownerLoad;
+      const best = owners.sort((a,b) => a.count - b.count)[0];
+      const recommendedAssignee = best?.owner || "Utkarsh";
+      
+      task.owner = recommendedAssignee;
+      triggerLocalNotification("Task Assigned", `Assigned "${task.canonicalTitle}" to ${recommendedAssignee} successfully.`);
+      
+      const post = {
+        id: `MGR-${Date.now().toString().slice(-5)}`,
+        title: task.canonicalTitle,
+        description: task.description || "Assigned via Kanban",
+        priority: task.severity,
+        deadline: task.due || "Sprint",
+        postedBy: settingsProfile.name,
+        postedAt: new Date().toISOString(),
+        assignment: {
+          recommendedAssignee,
+          assignmentReasoning: `Automatically assigned to ${recommendedAssignee} due to lowest current task load.`
+        },
+        status: "Posted"
+      };
+      managerTaskPosts.unshift(post);
+      engineerPortalPosts.unshift({
+        ...post,
+        viewed: false,
+        engineerNote: `You have been assigned: ${task.canonicalTitle}.`
+      });
+
+      render();
+      syncStateWithBackend();
     });
   });
 
   document.querySelectorAll(".dash-card-select-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const taskId = btn.dataset.taskId;
-      selectedTaskId = taskId;
+      activeSelectTaskDropdownId = activeSelectTaskDropdownId === taskId ? null : taskId;
       render();
+    });
+  });
+
+  // Handle engineer dropdown assignment selection
+  document.querySelectorAll(".eng-dropdown-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const taskId = item.dataset.taskId;
+      const engineer = item.dataset.engineer;
+      const task = state.prioritized.find(t => t.id === taskId);
+      if (!task) return;
+
+      task.owner = engineer;
+      activeSelectTaskDropdownId = null;
+      triggerLocalNotification("Task Assigned", `Assigned "${task.canonicalTitle}" to ${engineer}.`);
+
+      const post = {
+        id: `MGR-${Date.now().toString().slice(-5)}`,
+        title: task.canonicalTitle,
+        description: task.description || "Assigned manually",
+        priority: task.severity,
+        deadline: task.due || "Sprint",
+        postedBy: settingsProfile.name,
+        postedAt: new Date().toISOString(),
+        assignment: {
+          recommendedAssignee: engineer,
+          assignmentReasoning: `Manually selected by ${settingsProfile.name}.`
+        },
+        status: "Posted"
+      };
+      managerTaskPosts.unshift(post);
+      engineerPortalPosts.unshift({
+        ...post,
+        viewed: false,
+        engineerNote: `You have been assigned: ${task.canonicalTitle}.`
+      });
+
+      render();
+      syncStateWithBackend();
+    });
+  });
+
+  // Handle "+ Add Task" button inside lanes
+  document.querySelectorAll(".dash-add-task-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const priority = btn.dataset.priority;
+      const priorityEl = document.querySelector("#mgrPostPriority");
+      const titleEl = document.querySelector("#mgrPostTitle");
+      const descEl = document.querySelector("#mgrPostDesc");
+      const containerEl = document.querySelector("#mgrPostFormContainer");
+      if (priorityEl) priorityEl.value = priority;
+      if (titleEl) {
+        titleEl.value = "";
+        titleEl.focus();
+      }
+      if (descEl) descEl.value = "";
+      if (containerEl) {
+        containerEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     });
   });
 

@@ -6,237 +6,18 @@
     "task-33"
   ],
   "workingTaskIds": [],
-  "taskTimeLogs": {
-    "task-1": {
-      "title": "Fix CSV upload timeout for enterprise imports",
-      "severity": "P1",
-      "source": "Jira Sprint Board + ServiceNow Defects + Outlook Emails + Slack Mentions",
-      "startTime": "2026-06-22T12:56:00.605Z",
-      "endTime": "2026-07-21T08:16:29.142Z"
-    },
-    "task-171": {
-      "title": "Customer escalation: API rate limit increase request",
-      "severity": "P1",
-      "source": "Outlook Emails",
-      "startTime": "2026-06-22T13:09:54.554Z",
-      "endTime": "2026-06-22T13:39:54.554Z"
-    },
-    "task-145": {
-      "title": "Address API rate limiting alerts",
-      "severity": "P1",
-      "source": "GitHub",
-      "startTime": "2026-06-22T13:10:06.546Z",
-      "endTime": "2026-06-22T13:40:06.546Z"
-    },
-    "task-141": {
-      "title": "Fix payment webhook retry storm",
-      "severity": "P1",
-      "source": "GitHub",
-      "startTime": "2026-07-21T07:49:18.206Z",
-      "endTime": "2026-07-21T08:19:18.206Z"
-    },
-    "task-139": {
-      "title": "Security review blocking identity release",
-      "severity": "P1",
-      "source": "Slack Mentions + Outlook Emails + GitHub",
-      "startTime": "2026-07-21T07:50:30.512Z",
-      "endTime": "2026-07-21T08:20:30.512Z"
-    },
-    "task-33": {
-      "title": "Notification service queue depth increasing rapidly",
-      "severity": "P1",
-      "source": "ServiceNow Defects + Slack Mentions + Jira Sprint Board",
-      "startTime": "2026-07-21T07:52:03.415Z",
-      "endTime": "2026-07-21T08:22:03.415Z"
-    }
-  },
-  "managerActivityFeed": [
-    {
-      "message": "Reassigned \"Platform team blocked by API gateway errors\" from Utkarsh to Karan (balanced: Utkarsh count 27, Karan count 27)",
-      "time": "1:52:45 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "✓ Demo Manager completed \"Notification service queue depth increasing rapidly\" (P1)",
-      "color": "#22a06b",
-      "time": "01:52 PM",
-      "taskId": "task-33"
-    },
-    {
-      "message": "✓ Demo Manager completed \"Security review blocking identity release\" (P1)",
-      "color": "#22a06b",
-      "time": "01:50 PM",
-      "taskId": "task-139"
-    },
-    {
-      "message": "✓ Demo Manager completed \"Fix payment webhook retry storm\" (P1)",
-      "color": "#22a06b",
-      "time": "01:49 PM",
-      "taskId": "task-141"
-    },
-    {
-      "message": "✓ Demo Manager completed \"Fix CSV upload timeout for enterprise imports\" (P1)",
-      "color": "#22a06b",
-      "time": "01:46 PM",
-      "taskId": "task-1"
-    },
-    {
-      "message": "Reassigned \"Fix CSV upload timeout for enterprise imports\" from Riya to Rohan (balanced: Riya count 28, Rohan count 28)",
-      "time": "11:26:05 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Auto-assigned \"Fix CSV upload timeout for enterprise imports\" (P1) to Riya — workload: 23.5h",
-      "time": "10:59:17 PM",
-      "color": "#22a06b"
-    },
-    {
-      "message": "Reassigned \"Infrastructure auto-scaling not responding to load spikes\" from Sanya to Vikram (balanced: Sanya count 28, Vikram count 28)",
-      "time": "7:15:12 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Action required: invoice processing SLA breach\" from Aisha to Rohan (balanced: Aisha count 28, Rohan count 28)",
-      "time": "7:15:12 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Fix partner API schema mismatch\" from Riya to Meera (balanced: Riya count 28, Meera count 28)",
-      "time": "7:15:11 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Executive request: incident RCA summary needed\" from Utkarsh to Karan (balanced: Utkarsh count 28, Karan count 27)",
-      "time": "7:15:10 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Finance team blocked by missing reconciliation data\" from Aisha to Vikram (balanced: Aisha count 29, Vikram count 27)",
-      "time": "7:15:09 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Tenant provisioning workflow stuck in pending state\" from Utkarsh to Rohan (balanced: Utkarsh count 29, Rohan count 27)",
-      "time": "7:15:08 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Fix payment webhook retry storm\" from Aisha to Meera (balanced: Aisha count 30, Meera count 27)",
-      "time": "7:15:08 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Bulk account provisioning failing for enterprise customers\" from Utkarsh to Karan (balanced: Utkarsh count 30, Karan count 26)",
-      "time": "7:15:07 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Resolve OAuth token refresh failures\" from Utkarsh to Rohan (balanced: Utkarsh count 31, Rohan count 26)",
-      "time": "7:15:06 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"From VP Product: Sprint risk review — leadership concerned about Q2 delivery\" from Utkarsh to Karan (balanced: Utkarsh count 32, Karan count 25)",
-      "time": "7:15:05 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Executive request: weekly delivery risk update\" from Utkarsh to Rohan (balanced: Utkarsh count 33, Rohan count 25)",
-      "time": "7:15:04 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"Fix CSV upload timeout for enterprise imports\" from Utkarsh to Rohan (balanced: Utkarsh count 34, Rohan count 24)",
-      "time": "7:15:04 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"From VP Operations: Q2 infrastructure capacity — critical decisions needed this week\" from Meera to Meera",
-      "time": "7:14:56 PM",
-      "color": "#0c66e4"
-    },
-    {
-      "message": "Reassigned \"From VP Operations: Q2 infrastructure capacity — critical decisions needed this week\" from Utkarsh to Meera",
-      "time": "7:14:53 PM",
-      "color": "#0c66e4"
-    }
-  ],
+  "taskTimeLogs": {},
+  "managerActivityFeed": [],
   "managerTaskPosts": [
     {
-      "id": "DONE-task-33",
-      "title": "Notification service queue depth increasing rapidly",
-      "description": "Completed by Demo Manager at 01:52 PM",
-      "priority": "P1",
-      "status": "Completed",
-      "postedBy": "Demo Manager",
-      "postedAt": "2026-07-21T08:22:03.415Z",
-      "type": "completion"
-    },
-    {
-      "id": "DONE-task-139",
-      "title": "Security review blocking identity release",
-      "description": "Completed by Demo Manager at 01:50 PM",
-      "priority": "P1",
-      "status": "Completed",
-      "postedBy": "Demo Manager",
-      "postedAt": "2026-07-21T08:20:30.512Z",
-      "type": "completion"
-    },
-    {
-      "id": "DONE-task-141",
-      "title": "Fix payment webhook retry storm",
-      "description": "Completed by Demo Manager at 01:49 PM",
-      "priority": "P1",
-      "status": "Completed",
-      "postedBy": "Demo Manager",
-      "postedAt": "2026-07-21T08:19:18.206Z",
-      "type": "completion"
-    },
-    {
-      "id": "DONE-task-1",
-      "title": "Fix CSV upload timeout for enterprise imports",
-      "description": "Completed by Demo Manager at 01:46 PM",
-      "priority": "P1",
-      "status": "Completed",
-      "postedBy": "Demo Manager",
-      "postedAt": "2026-07-21T08:16:29.142Z",
-      "type": "completion"
-    },
-    {
-      "id": "MGR-33808",
-      "title": "Security review blocking identity release",
-      "description": "@Karan security team is waiting for validation results before approving the authentication deployment.",
-      "priority": "P1",
-      "deadline": "2026-06-21",
-      "team": "Identity",
-      "postedBy": "Demo Manager",
-      "postedAt": "2026-07-21T08:10:33.808Z",
-      "assignment": {
-        "recommendedAssignee": "Karan",
-        "alternativeAssignees": [
-          "Riya",
-          "Vikram"
-        ],
-        "assignmentReasoning": "Karan has the lowest current task load.",
-        "priorityScore": 92,
-        "estimatedHours": 4,
-        "riskLevel": "Critical",
-        "teamUpdate": "\"Security review blocking identity release\" assigned to Karan — P1 priority, deadline 2026-06-21.",
-        "engineerPortalNote": "You've been assigned: Security review blocking identity release. Priority P1. Deadline: 2026-06-21.",
-        "suggestedDeadline": "2026-06-21",
-        "dependencyWarnings": []
-      },
-      "status": "Posted"
-    },
-    {
-      "id": "MGR-78107",
-      "title": "Fix CSV upload timeout for enterprise imports",
-      "description": "P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.",
-      "priority": "P1",
-      "deadline": "2026-06-18",
+      "id": "MGR-37792",
+      "title": "Verify CDN Caching Policies",
+      "description": "",
+      "priority": "P2",
+      "deadline": "",
       "team": "Platform Apps",
-      "postedBy": "Homoai",
-      "postedAt": "2026-06-22T13:42:58.107Z",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T18:13:57.792Z",
       "assignment": {
         "recommendedAssignee": "Rohan",
         "alternativeAssignees": [
@@ -244,85 +25,27 @@
           "Meera"
         ],
         "assignmentReasoning": "Rohan has the lowest current task load.",
-        "priorityScore": 92,
+        "priorityScore": 74,
         "estimatedHours": 4,
-        "riskLevel": "Critical",
-        "teamUpdate": "\"Fix CSV upload timeout for enterprise imports\" assigned to Rohan — P1 priority, deadline 2026-06-18.",
-        "engineerPortalNote": "You've been assigned: Fix CSV upload timeout for enterprise imports. Priority P1. Deadline: 2026-06-18.",
-        "suggestedDeadline": "2026-06-18",
+        "riskLevel": "Medium",
+        "teamUpdate": "\"Verify CDN Caching Policies\" assigned to Rohan — P2 priority, deadline this sprint.",
+        "engineerPortalNote": "You've been assigned: Verify CDN Caching Policies. Priority P2. Deadline: end of sprint.",
+        "suggestedDeadline": "End of sprint",
         "dependencyWarnings": []
       },
       "status": "Posted"
-    },
-    {
-      "id": "DONE-task-145",
-      "title": "Address API rate limiting alerts",
-      "description": "Completed by Utkarsh Sinha at 07:10 PM",
-      "priority": "P1",
-      "status": "Completed",
-      "postedBy": "Utkarsh Sinha",
-      "postedAt": "2026-06-22T13:40:06.546Z",
-      "type": "completion"
-    },
-    {
-      "id": "DONE-task-171",
-      "title": "Customer escalation: API rate limit increase request",
-      "description": "Completed by Utkarsh Sinha at 07:09 PM",
-      "priority": "P1",
-      "status": "Completed",
-      "postedBy": "Utkarsh Sinha",
-      "postedAt": "2026-06-22T13:39:54.554Z",
-      "type": "completion"
-    },
-    {
-      "id": "DONE-task-1",
-      "title": "Fix CSV upload timeout for enterprise imports",
-      "description": "Completed by Utkarsh Sinha at 06:56 PM",
-      "priority": "P1",
-      "status": "Completed",
-      "postedBy": "Utkarsh Sinha",
-      "postedAt": "2026-06-22T13:26:00.605Z",
-      "type": "completion"
     }
   ],
   "engineerPortalPosts": [
     {
-      "id": "MGR-33808",
-      "title": "Security review blocking identity release",
-      "description": "@Karan security team is waiting for validation results before approving the authentication deployment.",
-      "priority": "P1",
-      "deadline": "2026-06-21",
-      "team": "Identity",
-      "postedBy": "Demo Manager",
-      "postedAt": "2026-07-21T08:10:33.808Z",
-      "assignment": {
-        "recommendedAssignee": "Karan",
-        "alternativeAssignees": [
-          "Riya",
-          "Vikram"
-        ],
-        "assignmentReasoning": "Karan has the lowest current task load.",
-        "priorityScore": 92,
-        "estimatedHours": 4,
-        "riskLevel": "Critical",
-        "teamUpdate": "\"Security review blocking identity release\" assigned to Karan — P1 priority, deadline 2026-06-21.",
-        "engineerPortalNote": "You've been assigned: Security review blocking identity release. Priority P1. Deadline: 2026-06-21.",
-        "suggestedDeadline": "2026-06-21",
-        "dependencyWarnings": []
-      },
-      "status": "Posted",
-      "viewed": false,
-      "engineerNote": "You've been assigned: Security review blocking identity release. Priority P1. Deadline: 2026-06-21."
-    },
-    {
-      "id": "MGR-78107",
-      "title": "Fix CSV upload timeout for enterprise imports",
-      "description": "P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.",
-      "priority": "P1",
-      "deadline": "2026-06-18",
+      "id": "MGR-37792",
+      "title": "Verify CDN Caching Policies",
+      "description": "",
+      "priority": "P2",
+      "deadline": "",
       "team": "Platform Apps",
-      "postedBy": "Homoai",
-      "postedAt": "2026-06-22T13:42:58.107Z",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-21T18:13:57.792Z",
       "assignment": {
         "recommendedAssignee": "Rohan",
         "alternativeAssignees": [
@@ -330,67 +53,19 @@
           "Meera"
         ],
         "assignmentReasoning": "Rohan has the lowest current task load.",
-        "priorityScore": 92,
+        "priorityScore": 74,
         "estimatedHours": 4,
-        "riskLevel": "Critical",
-        "teamUpdate": "\"Fix CSV upload timeout for enterprise imports\" assigned to Rohan — P1 priority, deadline 2026-06-18.",
-        "engineerPortalNote": "You've been assigned: Fix CSV upload timeout for enterprise imports. Priority P1. Deadline: 2026-06-18.",
-        "suggestedDeadline": "2026-06-18",
+        "riskLevel": "Medium",
+        "teamUpdate": "\"Verify CDN Caching Policies\" assigned to Rohan — P2 priority, deadline this sprint.",
+        "engineerPortalNote": "You've been assigned: Verify CDN Caching Policies. Priority P2. Deadline: end of sprint.",
+        "suggestedDeadline": "End of sprint",
         "dependencyWarnings": []
       },
       "status": "Posted",
       "viewed": false,
-      "engineerNote": "You've been assigned: Fix CSV upload timeout for enterprise imports. Priority P1. Deadline: 2026-06-18."
+      "engineerNote": "You've been assigned: Verify CDN Caching Policies. Priority P2. Deadline: end of sprint."
     }
   ],
   "addedTasks": [],
-  "reassignedTaskOwners": {
-    "MAIL-VP-005": "Meera",
-    "JIRA-421": "Rohan",
-    "INC-7741": "Rohan",
-    "MAIL-VP-001": "Rohan",
-    "MAIL-VP-003": "Rohan",
-    "MAIL-920": "Rohan",
-    "SLACK-55": "Rohan",
-    "SLACK-58": "Rohan",
-    "SLACK-85": "Rohan",
-    "SLACK-86": "Rohan",
-    "SLACK-101": "Rohan",
-    "SLACK-102": "Rohan",
-    "SLACK-116": "Rohan",
-    "SLACK-131": "Rohan",
-    "MAIL-951": "Rohan",
-    "MAIL-972": "Rohan",
-    "MEET-51": "Rohan",
-    "MEET-61": "Rohan",
-    "MEET-81": "Rohan",
-    "MEET-100": "Rohan",
-    "JIRA-388": "Karan",
-    "MAIL-VP-002": "Karan",
-    "SLACK-114": "Karan",
-    "SLACK-130": "Karan",
-    "SLACK-136": "Karan",
-    "MEET-35": "Karan",
-    "JIRA-540": "Rohan",
-    "JIRA-568": "Rohan",
-    "INC-7833": "Rohan",
-    "GH-241": "Rohan",
-    "INC-7840": "Karan",
-    "GH-257": "Karan",
-    "GH-221": "Meera",
-    "INC-7867": "Rohan",
-    "SLACK-70": "Rohan",
-    "SLACK-60": "Vikram",
-    "SLACK-87": "Vikram",
-    "MAIL-952": "Karan",
-    "JIRA-522": "Meera",
-    "GH-247": "Meera",
-    "GH-262": "Meera",
-    "SLACK-108": "Meera",
-    "MAIL-944": "Rohan",
-    "INC-7880": "Vikram",
-    "SLACK-75": "Vikram",
-    "SLACK-92": "Vikram",
-    "SLACK-117": "Karan"
-  }
+  "reassignedTaskOwners": {}
 }
