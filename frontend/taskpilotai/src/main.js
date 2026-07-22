@@ -6835,7 +6835,7 @@ function renderMeetingCard(m, priorityColor, typeIcon) {
 function renderMeetingAnalysisHTML(meetId) {
   const analysis = analyzedMeetings[meetId];
   if (!analysis) {
-    return `< p style = "color:#626f86; font-size:12px;" > Click < strong > Analyze with AI</strong > to extract decisions, action items, and follow - up meetings using TaskPilot AI.</p> `;
+    return `<p style="color:#626f86; font-size:12px;">Click <strong>Analyze with AI</strong> to extract decisions, action items, and follow-up meetings using TaskPilot AI.</p>`;
   }
 
   // Attendance Recommendation Block
@@ -6847,7 +6847,7 @@ function renderMeetingAnalysisHTML(meetId) {
     const bgCol = sw.recommendAttend ? "#f4fff9" : "#fff4f2";
     const borderCol = sw.recommendAttend ? "#b7e4ce" : "#ffd5d2";
     shouldworkHTML = `
-  < div style = "background:${bgCol}; border:1px solid ${borderCol}; border-radius:6px; padding:12px; margin-top:8px;" >
+      <div style="background:${bgCol}; border:1px solid ${borderCol}; border-radius:6px; padding:12px; margin-top:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#626f86;">AI Attendance recommendation</strong>
           <span style="font-size:12px; font-weight:800; color:${recommendColor}; padding:2px 8px; border-radius:12px; background:#fff; border:1px solid ${borderCol};">
@@ -6860,15 +6860,15 @@ function renderMeetingAnalysisHTML(meetId) {
         <div style="font-size:12px; color:#44546f; line-height:1.4;">
           ${escapeHtml(sw.reasoning)}
         </div>
-      </div >
-  `;
+      </div>
+    `;
   }
 
   // Simulated Transcript Block
   let transcriptHTML = "";
   if (analysis.transcript && analysis.transcript.length > 0) {
     transcriptHTML = `
-  < div style = "margin-top:12px; border:1px solid #dfe3ea; border-radius:6px; background:#fff; overflow:hidden;" >
+      <div style="margin-top:12px; border:1px solid #dfe3ea; border-radius:6px; background:#fff; overflow:hidden;">
         <div style="background:#fafbfc; border-bottom:1px solid #dfe3ea; padding:8px 12px; font-weight:700; font-size:12px; color:#172b4d; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="const box = this.nextElementSibling; box.style.display = box.style.display === 'none' ? 'grid' : 'none';">
           <span>💬 Meeting Transcript</span>
           <span style="font-size:10px; color:#626f86;">Click to Toggle</span>
@@ -6881,28 +6881,25 @@ function renderMeetingAnalysisHTML(meetId) {
             </div>
           `).join("")}
         </div>
-      </div >
-  `;
+      </div>
+    `;
   }
 
   return `
-  < div style = "display:grid; gap:8px;" >
-    <div style="background:#f7f8fa; padding:10px; border-radius:6px; font-size:13px;">
-      <strong>Summary:</strong> ${escapeHtml(analysis.summary || "")}
-    </div>
-      ${ shouldworkHTML }
-      ${
-  analysis.decisions && analysis.decisions.length > 0 ? `
+    <div style="display:grid; gap:8px;">
+      <div style="background:#f7f8fa; padding:10px; border-radius:6px; font-size:13px;">
+        <strong>Summary:</strong> ${escapeHtml(analysis.summary || "")}
+      </div>
+      ${shouldworkHTML}
+      ${analysis.decisions && analysis.decisions.length > 0 ? `
         <div>
           <strong style="font-size:12px; color:#626f86; text-transform:uppercase; letter-spacing:0.05em;">Key Decisions</strong>
           <ul style="padding-left:16px; margin:4px 0; font-size:12px; color:#44546f; line-height:1.5;">
             ${analysis.decisions.map(d => `<li>${escapeHtml(d)}</li>`).join("")}
           </ul>
         </div>
-      ` : ""
-}
-      ${
-  analysis.actionItems && analysis.actionItems.length > 0 ? `
+      ` : ""}
+      ${analysis.actionItems && analysis.actionItems.length > 0 ? `
         <div>
           <strong style="font-size:12px; color:#626f86; text-transform:uppercase; letter-spacing:0.05em;">Action Items</strong>
           <div style="display:grid; gap:4px; margin-top:4px;">
@@ -6914,10 +6911,8 @@ function renderMeetingAnalysisHTML(meetId) {
             `).join("")}
           </div>
         </div>
-      ` : ""
-}
-      ${
-  analysis.followUpMeetings && analysis.followUpMeetings.length > 0 ? `
+      ` : ""}
+      ${analysis.followUpMeetings && analysis.followUpMeetings.length > 0 ? `
         <div>
           <strong style="font-size:12px; color:#626f86; text-transform:uppercase; letter-spacing:0.05em;">Follow-up Meetings</strong>
           ${analysis.followUpMeetings.map((f, i) => `
@@ -6930,17 +6925,14 @@ function renderMeetingAnalysisHTML(meetId) {
             </div>
           `).join("")}
         </div>
-      ` : ""
-}
-      ${
-  analysis.risks && analysis.risks.length > 0 ? `
+      ` : ""}
+      ${analysis.risks && analysis.risks.length > 0 ? `
         <div style="background:#fff4f2; border-left:3px solid #de350b; padding:8px; border-radius:4px; font-size:12px; color:#6b1a0a;">
           <strong>Risks:</strong> ${analysis.risks.join("; ")}
         </div>
-      ` : ""
-}
-      ${ transcriptHTML }
-    </div >
+      ` : ""}
+      ${transcriptHTML}
+    </div>
   `;
 }
 
