@@ -6794,8 +6794,7 @@ function renderMeetingCard(m, priorityColor, typeIcon) {
   const pColor = priorityColor(m.urgencyLabel || m.priority);
 
   return `
-  < div class="meeting-card-btn ${isActive ? "selected" : ""}" data - meet - id="${m.id}"
-style = "background:${isActive ? '#f0f7ff' : '#ffffff'}; border:1.5px solid ${isActive ? '#0052cc' : '#e2e8f0'}; border-radius:8px; padding:10px 12px; text-align:left; cursor:pointer; transition:all 0.15s ease; position:relative; box-shadow:${isActive ? '0 2px 8px rgba(0,82,204,0.12)' : 'none'};" >
+    <div class="meeting-card-btn ${isActive ? "selected" : ""}" data-meet-id="${m.id}" style="background:${isActive ? '#f0f7ff' : '#ffffff'}; border:1.5px solid ${isActive ? '#0052cc' : '#e2e8f0'}; border-radius:8px; padding:10px 12px; text-align:left; cursor:pointer; transition:all 0.15s ease; position:relative; box-shadow:${isActive ? '0 2px 8px rgba(0,82,204,0.12)' : 'none'};">
       
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:6px;">
         <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">
@@ -6829,7 +6828,7 @@ style = "background:${isActive ? '#f0f7ff' : '#ffffff'}; border:1.5px solid ${is
         </button>
       </div>
 
-    </div >
+    </div>
   `;
 }
 
