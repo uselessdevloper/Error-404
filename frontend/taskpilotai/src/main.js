@@ -499,6 +499,9 @@ let scanCompleteInfo = null;
 // Modal States
 let showAddJiraModal = false;
 let showCalendarTaskModal = false;
+let showTeammateTasksModal = false;
+let selectedTeammateName = "";
+let showRecommendationsModal = false;
 
 let engineerPresenceStatus = localStorage.getItem("taskpilot:engineerPresence") || "online";
 let managerPresenceStatus = localStorage.getItem("taskpilot:managerPresence") || "online";
@@ -1443,6 +1446,8 @@ function render() {
   // Update auto status on render
   updateAutoPresenceStatus();
 
+  const currentDateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
+
   const queue = activeQueue();
   const selected = queue.find(t => t.id === selectedTaskId) || queue[0] || state.prioritized[0];
   const executionBrief = selected ? createExecutionBrief(selected) : null;
@@ -1492,7 +1497,7 @@ function render() {
       </aside>
 
       <section class="workspace" style="${activePage === 'team-portal' ? 'padding: 0;' : ''}">
-        ${activePage !== "team-portal" ? `
+        ${activePage !== "team-portal" && !((activePage === "overview" || activePage === "genome") && activeProfile === "manager") ? `
         <header class="topbar">
           <div>
             <h1>${navLabel(activePage)}</h1>
@@ -1521,6 +1526,8 @@ function render() {
     ${renderAddJiraModal()}
     ${renderCalendarTaskModal()}
     ${renderFilePreviewModal()}
+    ${renderTeammateTasksModal()}
+    ${renderRecommendationsModal()}
     ${renderNvidiaCopilotSidebar()}
   `;
 
@@ -3126,6 +3133,180 @@ function renderChatPage() {
     </div>
   `;
 }
+function renderTeammateTasksModal() {
+  if (!showTeammateTasksModal || !selectedTeammateName) return "";
+  const name = selectedTeammateName;
+  const engTasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
+  
+  const SEV_BG = { P1: "#ffebee", P2: "#fff8e1", P3: "#e8f5e9", P4: "#f5f5f5" };
+  const SEV_COLOR = { P1: "#c62828", P2: "#f57f17", P3: "#2e7d32", P4: "#616161" };
+
+  return `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="teammateTasksModalOverlay">
+      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:480px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; max-height:85vh; animation:scaleUp 0.15s ease-out;" onclick="event.stopPropagation()">
+        
+        <!-- Modal Header -->
+        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">📋</span>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Pending Tasks for ${escapeHtml(name)}</h3>
+          </div>
+          <button id="closeTeammateTasksModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; transition:background 0.2s;">✕</button>
+        </div>
+
+        <!-- Modal Body (Scrollable List) -->
+        <div style="padding:16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px;">
+          ${engTasks.length === 0 ? `
+            <div style="text-align:center; padding:30px 10px; color:#64748b; font-size:13px;">
+              No pending tasks assigned to ${escapeHtml(name)}.
+            </div>
+          ` : engTasks.map((t, i) => {
+            const bg = SEV_BG[t.severity] || "#f5f5f5";
+            const col = SEV_COLOR[t.severity] || "#616161";
+            return `
+              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
+                  <span style="font-size:11px; font-weight:800; color:${col}; background:${bg}; padding:2px 8px; border-radius:4px;">${t.severity}</span>
+                  <span style="font-size:11px; font-weight:700; color:#64748b;">${t.due ? `Due: ${t.due}` : "No deadline"}</span>
+                </div>
+                <div style="font-size:13px; font-weight:700; color:#1e293b; line-height:1.35; margin-bottom:4px;">${escapeHtml(t.canonicalTitle)}</div>
+                <div style="font-size:11px; color:#64748b; line-height:1.4;">${escapeHtml(t.body || "No description provided.")}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="padding:12px 16px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; background:#f8fafc;">
+          <button id="closeTeammateTasksModalBtn2" style="padding:8px 16px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.2s;">
+            Close
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+function getWorkloadRecommendation() {
+  const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
+  const list = TEAM_MEMBERS.map(name => {
+    const tasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
+    return { name, tasks };
+  });
+
+  // Sort by task count descending
+  list.sort((a, b) => b.tasks.length - a.tasks.length);
+
+  const overloaded = list[0];
+  const underloaded = list[list.length - 1];
+
+  if (overloaded && overloaded.tasks.length > 0 && (overloaded.tasks.length - underloaded.tasks.length >= 2)) {
+    // Find highest priority task (P1 -> P2 -> P3 -> P4)
+    const sortedTasks = [...overloaded.tasks].sort((t1, t2) => {
+      const pLevel = { P1: 1, P2: 2, P3: 3, P4: 4 };
+      return (pLevel[t1.severity] || 4) - (pLevel[t2.severity] || 4);
+    });
+    const targetTask = sortedTasks[0];
+    return {
+      taskId: targetTask.id,
+      taskTitle: targetTask.canonicalTitle,
+      severity: targetTask.severity,
+      fromTeammate: overloaded.name,
+      toTeammate: underloaded.name,
+      fromCount: overloaded.tasks.length,
+      toCount: underloaded.tasks.length,
+      reason: `AI Workload Recommendation: Reassign ${overloaded.name}'s "${targetTask.canonicalTitle}" to ${underloaded.name} to balance team load.`
+    };
+  }
+  return null;
+}
+
+function renderRecommendationsModal() {
+  if (!showRecommendationsModal) return "";
+  const rec = getWorkloadRecommendation();
+
+  return `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="recommendationsModalOverlay">
+      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:500px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; animation:scaleUp 0.15s ease-out;" onclick="event.stopPropagation()">
+        
+        <!-- Modal Header -->
+        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px; color:#8b5cf6;">✦</span>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">AI Workload Recommendations</h3>
+          </div>
+          <button id="closeRecommendationsModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;">✕</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+          ${!rec ? `
+            <div style="text-align:center; padding:30px 10px; display:flex; flex-direction:column; align-items:center; gap:8px;">
+              <span style="font-size:32px;">✅</span>
+              <strong style="font-size:14px; color:#0f172a; margin-top:6px;">Workloads are Balanced</strong>
+              <p style="font-size:12px; color:#64748b; margin:0; max-width:320px;">All team members have well-balanced task queues. No reassignments are recommended at this time.</p>
+            </div>
+          ` : `
+            <p style="margin:0; font-size:12.5px; color:#475569; line-height:1.5;">
+              Based on real-time task scanning, the AI recommends the following workload rebalancing to mitigate delivery delays:
+            </p>
+
+            <!-- Rebalancing Comparison Cards -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;">
+              
+              <!-- From Assignee -->
+              <div style="flex:1; text-align:center;">
+                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Current Assignee</div>
+                <strong style="font-size:14px; color:#0f172a; display:block;">${escapeHtml(rec.fromTeammate)}</strong>
+                <span style="font-size:11px; color:#ef4444; font-weight:700;">${rec.fromCount} active tasks</span>
+              </div>
+
+              <!-- Arrow -->
+              <div style="font-size:20px; color:#94a3b8; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:0 6px;">➔</div>
+
+              <!-- To Assignee -->
+              <div style="flex:1; text-align:center;">
+                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Reassign To</div>
+                <strong style="font-size:14px; color:#0f172a; display:block;">${escapeHtml(rec.toTeammate)}</strong>
+                <span style="font-size:11px; color:#22c55e; font-weight:700;">${rec.toCount} active tasks</span>
+              </div>
+
+            </div>
+
+            <!-- Target Task Details -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.01);">
+              <div style="font-size:9.5px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.04em;">Target Task to Shift</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10px; font-weight:800; color:${rec.severity === "P1" ? "#c62828" : "#f57f17"}; background:${rec.severity === "P1" ? "#ffebee" : "#fff8e1"}; padding:2px 6px; border-radius:4px;">${rec.severity}</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#1e293b; line-height:1.35;">${escapeHtml(rec.taskTitle)}</div>
+            </div>
+
+            <!-- Execution Status -->
+            <div style="font-size:11px; color:#64748b; line-height:1.4; display:flex; align-items:flex-start; gap:6px;">
+              <span style="color:#8b5cf6; font-size:14px;">✦</span>
+              <span>This reassignment will shift 1 task to a team member with higher capacity, reducing estimated sprint delivery risk.</span>
+            </div>
+          `}
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="padding:12px 16px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:8px; background:#f8fafc;">
+          <button id="closeRecommendationsModalBtn2" style="padding:8px 16px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">
+            Cancel
+          </button>
+          ${rec ? `
+            <button id="executeReassignmentBtn" data-task-id="${rec.taskId}" data-to-engineer="${escapeHtml(rec.toTeammate)}" style="padding:8px 16px; background:#0c66e4; color:#ffffff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; transition:background 0.2s;">
+              Execute Reassignment
+            </button>
+          ` : ""}
+        </div>
+
+      </div>
+    </div>
+  `;
+}
 
 function renderFilePreviewModal() {
   if (!activePreviewMessageId) return "";
@@ -4056,6 +4237,8 @@ function renderProjectGenomePage() {
   const g = genomeState;
   const current = g.currentGenome;
   const matched = g.matchedSprint;
+  const now = new Date();
+  const currentDateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
 
   // Genome fingerprint bars
   function genomeBars(genome, color) {
@@ -4074,39 +4257,37 @@ function renderProjectGenomePage() {
       const val = genome[f.key] || 0;
       const pct = Math.round((val / maxVal) * 100);
       return `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-          <span style="width:90px;font-size:11px;color:#626f86;text-align:right;flex-shrink:0;">${f.label}</span>
-          <div style="flex:1;height:10px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="width:90px;font-size:10.5px;color:#626f86;text-align:right;flex-shrink:0;">${f.label}</span>
+          <div style="flex:1;height:8px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
             <div style="width:${pct}%;height:100%;background:${color};border-radius:inherit;transition:width 0.4s;"></div>
           </div>
-          <span style="width:22px;font-size:11px;color:#172b4d;font-weight:700;">${val}</span>
+          <span style="width:22px;font-size:10.5px;color:#172b4d;font-weight:700;">${val}</span>
         </div>`;
     }).join("");
   }
 
   return `
-    <div style="padding:24px;max-width:1100px;margin:0 auto;">
+    <div style="padding:10px 16px;max-width:1440px;margin:0 auto;">
 
-      <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <!-- Header Row -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:12px;">
         <div>
-          <h1 style="margin:0;font-size:22px;color:#172b4d;display:flex;align-items:center;gap:10px;">
-            Project Genome &amp; Mutation Predictor
-          </h1>
-          <p style="margin:4px 0 0;font-size:13px;color:#626f86;">
-            Reads your sprint's DNA, compares it to past sprints, and predicts problems before they happen.
-            ${g.lastAnalyzed ? `<span style="color:#22a06b;">● Last analyzed ${g.lastAnalyzed}</span>` : ""}
-          </p>
+          <h1 style="margin:0; font-size:26px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Sprint Genome</h1>
         </div>
-        <button
-          id="genomeRunBtn"
-          style="padding:10px 22px;background:${g.loading ? "#626f86" : "#0c66e4"};color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:${g.loading ? "not-allowed" : "pointer"};display:flex;align-items:center;gap:8px;"
-          ${g.loading ? "disabled" : ""}
-        >
-          ${g.loading
-            ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Analyzing...`
-            : `${current ? "Re-Analyze Sprint" : "Analyze Sprint"}`}
-        </button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="calApproveHandoffBtn" style="padding:8px 14px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+            Approve next handoff
+          </button>
+          <button id="calSimulateLoadBtn" style="padding:8px 14px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;">
+            Simulate team load shift
+          </button>
+          <button id="genomeRunBtn" style="padding:9px 20px; background:${g.loading ? "#626f86" : "#0c66e4"}; color:#ffffff; border:none; border-radius:8px; font-size:12.5px; font-weight:700; cursor:${g.loading ? "not-allowed" : "pointer"}; display:flex; align-items:center; gap:8px;" ${g.loading ? "disabled" : ""}>
+            ${g.loading
+              ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Analyzing...`
+              : `${current ? "Re-Analyze Sprint" : "Analyze Sprint"}`}
+          </button>
+        </div>
       </div>
 
       ${!current ? `
@@ -4130,135 +4311,133 @@ function renderProjectGenomePage() {
           </div>
         </div>
       ` : `
+        <!-- High-density Row Grid Layout -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          
+          <!-- KPI Row -->
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+            ${[
+              { label:"Similarity to past sprint", value:`${g.similarityScore}%`, sub: matched ? `vs ${matched.sprintLabel}` : "", color: g.similarityScore >= 80 ? "#de350b" : g.similarityScore >= 60 ? "#974f0c" : "#22a06b" },
+              { label:"Mutations detected", value: g.mutations.length, sub:"Changed signals", color:"#6554c0" },
+              { label:"Predicted risks", value: g.risks.length, sub:"With confidence scores", color: g.risks.length > 2 ? "#de350b" : "#22a06b" },
+              { label:"Outcome prediction", value: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "At Risk" : "On Track", sub:`Based on ${matched?.sprintLabel || "history"}`, color: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "#de350b" : "#22a06b" }
+            ].map(k => `
+              <div style="background:#fff;border:1px solid #dfe3ea;border-radius:10px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                <p style="margin:0 0 2px;font-size:10px;color:#626f86;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${k.label}</p>
+                <span style="font-size:22px;font-weight:800;color:${k.color};">${k.value}</span>
+                <p style="margin:2px 0 0;font-size:10px;color:#626f86;">${k.sub}</p>
+              </div>
+            `).join("")}
+          </div>
 
-        <!-- KPI row -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
-          ${[
-            { label:"Similarity to past sprint", value:`${g.similarityScore}%`, sub: matched ? `vs ${matched.sprintLabel}` : "", color: g.similarityScore >= 80 ? "#de350b" : g.similarityScore >= 60 ? "#974f0c" : "#22a06b" },
-            { label:"Mutations detected", value: g.mutations.length, sub:"Changed signals", color:"#6554c0" },
-            { label:"Predicted risks", value: g.risks.length, sub:"With confidence scores", color: g.risks.length > 2 ? "#de350b" : "#22a06b" },
-            { label:"Outcome prediction", value: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "At Risk" : "On Track", sub:`Based on ${matched?.sprintLabel || "history"}`, color: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "#de350b" : "#22a06b" }
-          ].map(k => `
-            <div style="background:#fff;border:1px solid #dfe3ea;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-              <p style="margin:0 0 4px;font-size:11px;color:#626f86;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${k.label}</p>
-              <span style="font-size:26px;font-weight:800;color:${k.color};">${k.value}</span>
-              <p style="margin:4px 0 0;font-size:11px;color:#626f86;">${k.sub}</p>
+          <!-- AI Manager Briefing (full width if available) -->
+          ${g.aiNarrative ? `
+            <div style="background:#f0f7ff;border:1px solid #b3d4ff;border-left:4px solid #0c66e4;border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:#0c66e4;flex-shrink:0;margin-top:2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              <div>
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#0c66e4;">TaskPilot AI Manager Briefing</p>
+                <p style="margin:0;font-size:11.5px;color:#172b4d;line-height:1.4;">${escapeHtml(g.aiNarrative)}</p>
+              </div>
             </div>
-          `).join("")}
-        </div>
+          ` : ""}
 
-        <!-- AI narrative (shown when available) -->
-        ${g.aiNarrative ? `
-          <div style="background:#f0f7ff;border:1px solid #b3d4ff;border-left:4px solid #0c66e4;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start;">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:#0c66e4;flex-shrink:0;margin-top:2px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-            <div>
-              <p style="margin:0 0 2px;font-size:12px;font-weight:700;color:#0c66e4;">TaskPilot AI Manager Briefing</p>
-              <p style="margin:0;font-size:13px;color:#172b4d;line-height:1.5;">${escapeHtml(g.aiNarrative)}</p>
+          <!-- Row 1: Current Sprint, Matched Sprint, Mutation Detection in one row -->
+          <div style="display:grid; grid-template-columns:1.1fr 1.1fr 1fr; gap:12px; align-items:stretch;">
+            <!-- Current genome -->
+            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #0c66e4;border-radius:10px;padding:10px;">
+              <h3 style="margin:0 0 4px;font-size:12.5px;color:#172b4d;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0c66e4;"></span> Current Sprint Genome</h3>
+              <p style="margin:0 0 8px;font-size:10px;color:#626f86;">${current.workload} active tasks · velocity ${current.velocity}%</p>
+              ${genomeBars(current, "#0c66e4")}
             </div>
-          </div>
-        ` : ""}
-
-        <!-- Genome comparison -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-          <!-- Current genome -->
-          <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #0c66e4;border-radius:10px;padding:18px;">
-            <h3 style="margin:0 0 4px;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0c66e4;"></span> Current Sprint Genome</h3>
-            <p style="margin:0 0 14px;font-size:11px;color:#626f86;">${current.workload} active tasks · velocity ${current.velocity}%</p>
-            ${genomeBars(current, "#0c66e4")}
-          </div>
-          <!-- Matched genome -->
-          <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid ${matched?.outcome === "delayed" ? "#de350b" : "#22a06b"};border-radius:10px;padding:18px;">
-            <h3 style="margin:0 0 4px;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:6px;">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${matched?.outcome === "delayed" ? "#de350b" : "#22a06b"};"></span> ${matched?.sprintLabel || "Matched Sprint"} — ${g.similarityScore}% match
-            </h3>
-            <p style="margin:0 0 14px;font-size:11px;color:${matched?.outcome === "delayed" ? "#ae2a19" : "#216e4e"};font-weight:700;">
-              ${matched?.outcome === "delayed" ? "This sprint ended delayed" : "This sprint completed on time"}
-            </p>
-            ${genomeBars(matched, matched?.outcome === "delayed" ? "#de350b" : "#22a06b")}
-          </div>
-        </div>
-
-        <!-- Mutation panel -->
-        ${g.mutations.length > 0 ? `
-          <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #6554c0;border-radius:10px;padding:18px;margin-bottom:20px;">
-            <h3 style="margin:0 0 12px;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>Mutation Detection — What's Different This Time</h3>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
-              ${g.mutations.map(m => `
-                <div style="background:#f8f9fa;border-radius:8px;padding:12px;border:1px solid #dfe3ea;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <strong style="font-size:12px;color:#172b4d;">${m.label}</strong>
-                    <span style="font-size:12px;font-weight:800;color:${m.delta > 0 ? "#de350b" : "#22a06b"};">
-                      ${m.delta > 0 ? "▲" : "▼"} ${Math.abs(m.delta)}
-                    </span>
-                  </div>
-                  <div style="display:flex;gap:12px;font-size:11px;color:#626f86;">
-                    <span>Now: <strong style="color:#172b4d;">${m.current}</strong></span>
-                    <span>Past: <strong style="color:#172b4d;">${m.past}</strong></span>
-                  </div>
-                </div>
-              `).join("")}
+            <!-- Matched genome -->
+            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid ${matched?.outcome === "delayed" ? "#de350b" : "#22a06b"};border-radius:10px;padding:10px;">
+              <h3 style="margin:0 0 4px;font-size:12.5px;color:#172b4d;display:flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${matched?.outcome === "delayed" ? "#de350b" : "#22a06b"};"></span> ${matched?.sprintLabel || "Matched Sprint"} — ${g.similarityScore}% match
+              </h3>
+              <p style="margin:0 0 8px;font-size:10px;color:${matched?.outcome === "delayed" ? "#ae2a19" : "#216e4e"};font-weight:700;">
+                ${matched?.outcome === "delayed" ? "This sprint ended delayed" : "This sprint completed on time"}
+              </p>
+              ${genomeBars(matched, matched?.outcome === "delayed" ? "#de350b" : "#22a06b")}
             </div>
-          </div>
-        ` : ""}
-
-        <!-- Risk prediction & recommendations -->
-        ${g.risks.length > 0 ? `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-            <!-- Risks -->
-            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #de350b;border-radius:10px;padding:18px;">
-              <h3 style="margin:0 0 14px;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="#de350b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>Predicted Risks</h3>
-              <div style="display:grid;gap:12px;">
-                ${g.risks.map(r => `
-                  <div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                      <span style="font-size:13px;font-weight:700;color:${r.color};">${r.label}</span>
-                      <span style="font-size:13px;font-weight:800;color:${r.color};">${r.pct}%</span>
+            <!-- Mutation panel -->
+            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #6554c0;border-radius:10px;padding:10px;">
+              <h3 style="margin:0 0 4px;font-size:12.5px;color:#172b4d;display:flex;align-items:center;gap:6px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>Mutation Detection</h3>
+              ${g.mutations.length > 0 ? `
+                <div style="display:grid;grid-template-columns:1fr;gap:4px;max-height:115px;overflow-y:auto;padding-right:2px;">
+                  ${g.mutations.map(m => `
+                    <div style="background:#f8f9fa;border-radius:6px;padding:4px 6px;border:1px solid #dfe3ea;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+                        <strong style="font-size:10.5px;color:#172b4d;">${m.label}</strong>
+                        <span style="font-size:10.5px;font-weight:800;color:${m.delta > 0 ? "#de350b" : "#22a06b"};">
+                          ${m.delta > 0 ? "▲" : "▼"} ${Math.abs(m.delta)}
+                        </span>
+                      </div>
+                      <div style="display:flex;gap:8px;font-size:9.5px;color:#626f86;">
+                        <span>Now: <strong>${m.current}</strong></span>
+                        <span>Past: <strong>${m.past}</strong></span>
+                      </div>
                     </div>
-                    <div style="height:8px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
+                  `).join("")}
+                </div>
+              ` : `<div style="font-size:11px;color:#626f86;text-align:center;padding:10px;">No mutations.</div>`}
+            </div>
+          </div>
+
+          <!-- Row 2: Predicted Risks and AI Recommendations below them in one row -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:stretch;">
+            <!-- Risks -->
+            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #de350b;border-radius:10px;padding:10px;">
+              <h3 style="margin:0 0 8px;font-size:12.5px;color:#172b4d;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="#de350b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>Predicted Risks</h3>
+              <div style="display:grid;gap:8px;">
+                ${g.risks.length > 0 ? g.risks.map(r => `
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+                      <span style="font-size:11.5px;font-weight:700;color:${r.color};">${r.label}</span>
+                      <span style="font-size:11.5px;font-weight:800;color:${r.color};">${r.pct}%</span>
+                    </div>
+                    <div style="height:5px;background:#f1f2f4;border-radius:999px;overflow:hidden;">
                       <div style="width:${r.pct}%;height:100%;background:${r.color};border-radius:inherit;transition:width 0.5s;"></div>
                     </div>
                   </div>
-                `).join("")}
+                `).join("") : `<div style="font-size:11px;color:#626f86;text-align:center;padding:10px;">No risks.</div>`}
               </div>
             </div>
             <!-- Recommendations -->
-            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #22a06b;border-radius:10px;padding:18px;">
-              <h3 style="margin:0 0 14px;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="#22a06b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>AI Recommendations</h3>
-              <div style="display:grid;gap:10px;">
-                ${g.recommendations.map((rec, i) => `
-                  <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:#f4fff9;border:1px solid #b7e4ce;border-radius:8px;">
-                    <span style="width:22px;height:22px;background:#22a06b;color:#fff;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0;">${i+1}</span>
-                    <span style="font-size:12px;color:#172b4d;">${escapeHtml(rec)}</span>
+            <div style="background:#fff;border:1px solid #dfe3ea;border-left:4px solid #22a06b;border-radius:10px;padding:10px;">
+              <h3 style="margin:0 0 8px;font-size:12.5px;color:#172b4d;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="#22a06b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>AI Recommendations</h3>
+              <div style="display:grid;gap:6px;">
+                ${g.recommendations.length > 0 ? g.recommendations.map((rec, i) => `
+                  <div style="display:flex;align-items:flex-start;gap:6px;padding:6px;background:#f4fff9;border:1px solid #b7e4ce;border-radius:8px;">
+                    <span style="width:16px;height:16px;background:#22a06b;color:#fff;border-radius:50%;display:grid;place-items:center;font-size:9.5px;font-weight:800;flex-shrink:0;">${i+1}</span>
+                    <span style="font-size:11px;color:#172b4d;line-height:1.25;">${escapeHtml(rec)}</span>
                   </div>
-                `).join("")}
+                `).join("") : `<div style="font-size:11px;color:#626f86;text-align:center;padding:10px;">No recommendations.</div>`}
               </div>
             </div>
           </div>
-        ` : ""}
 
-        <!-- Past sprints library -->
-        <div style="background:#fff;border:1px solid #dfe3ea;border-radius:10px;padding:18px;">
-          <h3 style="margin:0 0 14px;font-size:14px;color:#172b4d;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>Genome Library — Historical Sprints</h3>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
-            ${g.pastGenomes.map(past => {
-              const sim = computeGenomeSimilarity(current, past);
-              const isMatch = past.sprintLabel === matched?.sprintLabel;
-              return `
-                <div style="padding:12px;border-radius:8px;border:${isMatch ? "2px solid #de350b" : "1px solid #dfe3ea"};background:${isMatch ? "#fff5f4" : "#f8f9fa"};">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <strong style="font-size:12px;color:#172b4d;">${past.sprintLabel}</strong>
-                    ${isMatch ? `<span style="font-size:10px;background:#ffd5d2;color:#ae2a19;padding:2px 6px;border-radius:4px;font-weight:700;">BEST MATCH</span>` : ""}
-                  </div>
-                  <div style="font-size:11px;color:#626f86;margin-bottom:8px;">
-                    ${past.workload} tasks · ${past.bugCount} bugs · ${past.apiCount} APIs
-                  </div>
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:11px;font-weight:700;color:${sim >= 70 ? "#de350b" : sim >= 50 ? "#974f0c" : "#22a06b"};">${sim}% similar</span>
-                    <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${past.outcome === "delayed" ? "#ffd5d2" : "#dcfff1"};color:${past.outcome === "delayed" ? "#ae2a19" : "#216e4e"};font-weight:700;">${past.outcome === "delayed" ? "Delayed" : "On Time"}</span>
-                  </div>
-                </div>`;
-            }).join("")}
+          <!-- Row 3: Genome Library at the bottom -->
+          <div style="background:#fff;border:1px solid #dfe3ea;border-radius:10px;padding:10px;">
+            <h3 style="margin:0 0 8px;font-size:12.5px;color:#172b4d;display:flex;align-items:center;gap:6px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>Genome Library — Historical Sprints</h3>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+              ${g.pastGenomes.map(past => {
+                const sim = computeGenomeSimilarity(current, past);
+                const isMatch = past.sprintLabel === matched?.sprintLabel;
+                return `
+                  <div style="padding:6px 8px;border-radius:6px;border:${isMatch ? "2px solid #de350b" : "1px solid #dfe3ea"};background:${isMatch ? "#fff5f4" : "#f8f9fa"};display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                      <strong style="font-size:11px;color:#172b4d;">${past.sprintLabel}</strong>
+                      <span style="font-size:10px;color:#626f86;margin-left:6px;">${past.workload} tasks · ${past.bugCount} bugs</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <span style="font-size:10px;font-weight:700;color:${sim >= 70 ? "#de350b" : sim >= 50 ? "#974f0c" : "#22a06b"};">${sim}% sim</span>
+                      <span style="font-size:9px;padding:1px 4px;border-radius:4px;background:${past.outcome === "delayed" ? "#ffd5d2" : "#dcfff1"};color:${past.outcome === "delayed" ? "#ae2a19" : "#216e4e"};font-weight:700;">${past.outcome === "delayed" ? "Delayed" : "On Time"}</span>
+                    </div>
+                  </div>`;
+              }).join("")}
+            </div>
           </div>
+
         </div>
       `}
 
@@ -4518,7 +4697,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
       const avatarUrl = avatarPhotos[ownerName] || avatarPhotos["Unassigned"];
 
       return `
-        <div class="kanban-task-card" style="background:#ffffff; border:${isSelected ? '2px solid #6366f1' : '1px solid #e2e8f0'}; border-radius:12px; padding:12px; margin-bottom:12px; box-shadow: ${isSelected ? '0 4px 12px rgba(99,102,241,0.12)' : '0 1px 3px rgba(0,0,0,0.02)'}; transition: all 0.2s ease;">
+        <div class="kanban-task-card" style="background:rgba(255,255,255,0.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:${isSelected ? '1.5px solid rgba(99,102,241,0.6)' : '1px solid rgba(226,232,240,0.8)'}; border-radius:12px; padding:12px; margin-bottom:12px; box-shadow: ${isSelected ? '0 4px 20px rgba(99,102,241,0.15), 0 0 10px rgba(99,102,241,0.25)' : '0 1px 3px rgba(0,0,0,0.02)'}; transition: all 0.2s ease;">
           <!-- Card Title -->
           <div style="font-size:12.5px; font-weight:700; color:#1e293b; line-height:1.4; margin-bottom:10px;">
             ${escapeHtml(t.canonicalTitle)}
@@ -4549,20 +4728,24 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
           </div>
 
           <!-- Card Footer (Actions & Meta) -->
-          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid #f1f5f9; margin-top:4px;">
-            <!-- Checklist Indicator -->
-            <div style="display:flex; align-items:center; gap:4px; font-size:11px; color:#94a3b8; font-weight:700;">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:2px;">
-                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-              </svg>
-              <span>${(t.sources || []).length || 2}</span>
+          <div style="display:flex; flex-direction:column; gap:6px; padding-top:8px; border-top:1px solid rgba(241,245,249,0.8); margin-top:4px;">
+            <!-- Top Footer Row: Checklist & Star -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:4px; font-size:11px; color:#94a3b8; font-weight:700;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:2px;">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                </svg>
+                <span>${(t.sources || []).length || 2}</span>
+              </div>
+              <span style="color:#f59e0b; font-size:12px; font-weight:bold; cursor:default; display:inline-flex; align-items:center;">✦</span>
             </div>
-            <!-- Action buttons and Star -->
-            <div style="display:flex; align-items:center; gap:6px; position:relative;">
-              <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="padding:4px 10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Assign</button>
-              <div style="position:relative; display:inline-block;">
-                <button class="dash-card-select-btn" data-task-id="${t.id}" style="padding:4px 10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:11.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;">Select</button>
+            
+            <!-- Bottom Footer Row: Buttons (Each taking 50% width) -->
+            <div style="display:flex; gap:6px; width:100%; align-items:center;">
+              <button class="dash-card-assign-btn" data-task-id="${t.id}" data-task-title="${escapeHtml(t.canonicalTitle)}" style="flex:1; padding:4px 0; text-align:center; background:rgba(255,255,255,0.6); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); border:1px solid rgba(203,213,225,0.7); border-radius:6px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;" onmouseover="this.style.background='rgba(99,102,241,0.08)'; this.style.borderColor='rgba(99,102,241,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.6)'; this.style.borderColor='rgba(203,213,225,0.7)';">Assign</button>
+              <div style="position:relative; flex:1; display:inline-block;">
+                <button class="dash-card-select-btn" data-task-id="${t.id}" style="width:100%; padding:4px 0; text-align:center; background:rgba(255,255,255,0.6); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); border:1px solid rgba(203,213,225,0.7); border-radius:6px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.15s ease;" onmouseover="this.style.background='rgba(99,102,241,0.08)'; this.style.borderColor='rgba(99,102,241,0.4)';" onmouseout="this.style.background='rgba(255,255,255,0.6)'; this.style.borderColor='rgba(203,213,225,0.7)';">Select</button>
                 ${activeSelectTaskDropdownId === t.id ? `
                   <div class="engineer-selector-dropdown" style="position:absolute; right:0; top:100%; margin-top:4px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999; min-width:140px; padding:6px 0; max-height:220px; overflow-y:auto;">
                     <div style="font-size:10px; font-weight:800; color:#94a3b8; padding:4px 12px; border-bottom:1px solid #f1f5f9; letter-spacing:0.05em; text-transform:uppercase;">Select Engineer</div>
@@ -4574,7 +4757,6 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                   </div>
                 ` : ""}
               </div>
-              <span style="color:#f59e0b; font-size:13px; margin-left:4px; font-weight:bold; cursor:default;">✦</span>
             </div>
           </div>
         </div>
@@ -4588,11 +4770,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
       <!-- Header Row -->
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
         <div>
-          <p style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin:0 0 4px 0;">${currentDateStr}</p>
           <h1 style="margin:0; font-size:28px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Dashboard</h1>
-          <p style="font-size:13px; color:#64748b; margin:4px 0 0 0;">
-            Active Profile: Demo Manager (Manager) · <span style="color:#0284c7;">manager@taskpilot.dev</span>
-          </p>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
           <button id="calApproveHandoffBtn" style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
@@ -4738,10 +4916,16 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                 <span style="font-size:12px; color:#64748b; font-weight:700; margin-left:6px;">Task Velocity Points</span>
               </div>
             </div>
-            <div style="display:flex; gap:6px;">
-              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">⤢</button>
-              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">📊</button>
-              <button style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; font-size:12px;">📥</button>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button style="padding:6px 8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;" title="Expand">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
+              <button style="padding:6px 8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;" title="Chart settings">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </button>
+              <button style="padding:6px 8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;" title="Download dataset">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -4867,6 +5051,12 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <div style="display:flex; gap:8px; margin-bottom:16px;">
               <input type="text" id="dashAskAiInput" placeholder="Ask anything... e.g. 'Reassign Rohan\'s P1 task to Utkarsh'" style="flex:1; padding:10px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:12.5px; background:#fafafa; box-sizing:border-box;" />
               <button id="dashAskAiSubmitBtn" style="padding:10px 16px; background:linear-gradient(135deg, #6366f1, #4f46e5); color:#ffffff; border:none; border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; box-shadow:0 3px 10px rgba(79,70,229,0.3);">➔</button>
+            </div>
+
+            <!-- Answer Display Area -->
+            <div id="dashAskAiAnswerBox" style="margin-bottom:16px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; font-size:12.5px; max-height:150px; overflow-y:auto; color:#334155; line-height:1.5; text-align:left;">
+              <div style="font-weight:800; color:#1e293b; margin-bottom:4px;">Response:</div>
+              <div>${lastAnswer}</div>
             </div>
 
             <!-- 4 Mini Insight Cards Grid -->
@@ -6488,7 +6678,7 @@ function renderUnifiedInbox() {
               <span style="font-size:10px;font-weight:700;color:#8590a2;">${t.id}</span>
             </div>
             <h3 style="font-size:14px;font-weight:700;margin:0 0 8px 0;line-height:1.4;color:#172b4d;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">${escapeHtml(t.canonicalTitle)}</h3>
-            ${t.due ? `<div style="font-size:10px;color:${subTextColor};font-weight:600;margin-bottom:8px;">📅 ${formatDue(t.due)} · <span>${badgeText}</span></div>` : ""}
+            ${t.due ? `<div style="font-size:10px;color:${subTextColor};font-weight:600;margin-bottom:8px;">Due: ${formatDue(t.due)} · <span>${badgeText}</span></div>` : ""}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid ${meta.color}20;padding-top:10px;">
             <span style="font-size:11px;color:#626f86;">${t.owner || "Unassigned"}</span>
@@ -6832,11 +7022,11 @@ function renderUnifiedInbox() {
                         <span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;background:${priorityColor}18;color:${priorityColor};flex-shrink:0;">${m.priority}</span>
                       </div>
                       <div style="font-size:10px;color:#8a6a3a;">
-                        🕒 ${m.suggestedDate} ${m.suggestedTime || ""} · ${m.duration || 30}min
+                        ${m.suggestedDate} ${m.suggestedTime || ""} · ${m.duration || 30}min
                       </div>
                       <button class="secondary" style="font-size:10px;padding:4px 10px;margin-top:4px;border:1px solid ${pal.border};background:rgba(255,255,255,0.8);color:${pal.accent};" 
                               data-meeting-analyze="${m.id}" onclick="event.stopPropagation();">
-                        🧠 Analyze with AI & View Transcript
+                        Analyze with AI & View Transcript
                       </button>
                     </div>`;
                 }).join("")}
@@ -7083,56 +7273,56 @@ function renderMeetingMemory() {
 
               ${activeMeeting.suggestedAction ? `
                 <div class="meeting-detail-section suggested-action">
-                  <strong>⚡ Suggested Action:</strong> ${escapeHtml(activeMeeting.suggestedAction)}
+                  <strong>Suggested Action:</strong> ${escapeHtml(activeMeeting.suggestedAction)}
                 </div>
               ` : ""}
 
               ${activeMeeting.riskIfSkipped ? `
                 <div class="meeting-detail-section risk">
-                  <strong>⚠ Risk if Skipped:</strong> ${escapeHtml(activeMeeting.riskIfSkipped)}
+                  <strong>Risk if Skipped:</strong> ${escapeHtml(activeMeeting.riskIfSkipped)}
                 </div>
               ` : (activeMeeting.risks && activeMeeting.risks.length > 0 ? `
                 <div class="meeting-detail-section risk">
-                  <strong>⚠ Risks:</strong> ${escapeHtml(activeMeeting.risks.join("; "))}
+                  <strong>Risks:</strong> ${escapeHtml(activeMeeting.risks.join("; "))}
                 </div>
               ` : "")}
 
               <div class="meeting-detail-info-block">
                 <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">👥 Attendees:</span>
+                  <span class="meeting-detail-info-label">Attendees:</span>
                   <span class="meeting-detail-info-value">${escapeHtml((activeMeeting.attendees || []).join(", "))}</span>
                 </div>
                 <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">🕒 Suggested:</span>
+                  <span class="meeting-detail-info-label">Suggested:</span>
                   <span class="meeting-detail-info-value">${escapeHtml(activeMeeting.suggestedDate)} at ${escapeHtml(activeMeeting.suggestedTime)} (${activeMeeting.duration} min)</span>
                 </div>
                 <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">🔗 Join Link:</span>
+                  <span class="meeting-detail-info-label">Join Link:</span>
                   <span class="meeting-detail-info-value">
                     <a href="#" data-open-external="${meetUrl}" style="color:#0c66e4; font-weight:600; text-decoration:underline;">
-                      ${meetUrl} 📹
+                      ${meetUrl}
                     </a>
                   </span>
                 </div>
                 <div class="meeting-detail-info-row">
-                  <span class="meeting-detail-info-label">🔌 Source:</span>
+                  <span class="meeting-detail-info-label">Source:</span>
                   <span class="meeting-detail-info-value">${escapeHtml(activeMeeting.extractedFrom || activeMeeting.source)}</span>
                 </div>
               </div>
 
               <div class="meeting-action-buttons" style="display:flex; gap:8px;">
                 <button class="primary" data-open-external="${meetUrl}" style="display:flex; align-items:center; gap:6px; background:#16a34a; border:none; padding: 6px 12px; font-weight:600;">
-                  <span>📹</span> Join Call
+                  Join Call
                 </button>
                 <button class="secondary" id="analyzeMeetingBtn" data-meet-detail="${activeMeeting.id}" style="display:flex; align-items:center; gap:6px;">
-                  <span>🧠</span> Analyze with AI
+                  Analyze with AI
                 </button>
                 ${activeMeeting.savedToCalendar || activeMeeting.status === "Scheduled"
                   ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; display:flex; align-items:center; gap:6px;" disabled>
                        <span>✓</span> On Calendar
                      </button>`
                   : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; gap:6px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border: none;">
-                       <span>📅</span> Save to Calendar
+                       Save to Calendar
                      </button>`
                 }
               </div>
@@ -7263,7 +7453,7 @@ function renderMeetingAnalysisHTML(meetId) {
           <div style="display:grid; gap:4px; margin-top:4px;">
             ${analysis.actionItems.map(a => `
               <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:#fff; border:1px solid #dfe3ea; border-radius:4px; font-size:12px;">
-                <span>✅ ${escapeHtml(a.title)}</span>
+                <span>${escapeHtml(a.title)}</span>
                 <span style="color:#626f86; font-size:11px;">${a.assignee || ""} ${a.deadline ? "· " + a.deadline : ""}</span>
               </div>
             `).join("")}
@@ -7279,7 +7469,7 @@ function renderMeetingAnalysisHTML(meetId) {
                 <strong>${escapeHtml(f.title)}</strong><br>
                 <span class="small">Suggested: ${escapeHtml(f.suggestedDate || "TBD")} · ${f.duration || 30} min</span>
               </div>
-              <button class="secondary success" style="font-size:11px; padding:4px 8px;" data-save-meeting-index="${i}">📅 Calendar</button>
+              <button class="secondary success" style="font-size:11px; padding:4px 8px;" data-save-meeting-index="${i}">Calendar</button>
             </div>
           `).join("")}
         </div>
@@ -7565,7 +7755,7 @@ function renderScrumColumns(byStatus) {
 function renderScrumCard(task, status) {
   const isDone = status === "Done";
   const sevColors = { P1:"#de350b", P2:"#974f0c", P3:"#216e4e", P4:"#626f86" };
-  const srcIcons = { "jira":"J", "github":"G", "servicenow":"SN", "email":"✉", "slack":"S", "notes":"M", "meetings":"📅" };
+  const srcIcons = { "jira":"J", "github":"G", "servicenow":"SN", "email":"✉", "slack":"S", "notes":"M", "meetings":"Cal" };
   const srcIcon = srcIcons[task.sourceId] || task.sourceId?.[0]?.toUpperCase() || "?";
   const mins = task.execution?.estimatedMinutes || 60;
   const effort = mins <= 60 ? "Easy" : mins <= 120 ? "Medium" : "Hard";
@@ -8055,15 +8245,15 @@ function renderLineChart(series, lines, W = 420, H = 160) {
   const PAD = { top: 16, right: 16, bottom: 32, left: 36 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
-  const maxVal = Math.max(...lines.flatMap(l => series.map(s => s[l.key] || 0)), 1);
+  const maxVal = Math.max(3, ...lines.flatMap(l => series.map(s => s[l.key] || 0)));
   const xStep = innerW / Math.max(series.length - 1, 1);
 
   function toX(i) { return PAD.left + i * xStep; }
   function toY(v) { return PAD.top + innerH - (v / maxVal) * innerH; }
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
-    const y = PAD.top + innerH * (1 - f);
-    const val = Math.round(maxVal * f);
+  const ticks = maxVal <= 3 ? [0, 1, 2, 3] : [0, Math.round(maxVal * 0.25), Math.round(maxVal * 0.5), Math.round(maxVal * 0.75), maxVal];
+  const gridLines = ticks.map(val => {
+    const y = PAD.top + innerH - (val / maxVal) * innerH;
     return `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
             <text x="${PAD.left - 4}" y="${y + 4}" font-size="9" fill="#94a3b8" text-anchor="end">${val}</text>`;
   }).join("");
@@ -8135,9 +8325,12 @@ function renderMyAnalyticsPage() {
         </div>
         <div style="display:flex;gap:8px;">
           <button id="analyticsPdfBtn" style="display:flex;align-items:center;gap:7px;padding:9px 16px;background:#172b4d;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-            ⬇ Download Summary
+            Download Summary
           </button>
-          <span style="padding:6px 14px;border-radius:20px;background:#f0fdf4;color:#22a06b;font-size:12px;font-weight:800;border:1px solid #b7e4ce;">🟢 Live</span>
+          <span style="padding:6px 14px;border-radius:20px;background:#f0fdf4;color:#22a06b;font-size:12px;font-weight:800;border:1px solid #b7e4ce;display:inline-flex;align-items:center;gap:5px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#22a06b;display:inline-block;"></span>
+            Live
+          </span>
         </div>
       </div>
 
@@ -8160,7 +8353,7 @@ function renderMyAnalyticsPage() {
       <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;">
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <h3 style="margin:0;font-size:14px;">📈 Work Completed (last 7 days)</h3>
+            <h3 style="margin:0;font-size:14px;">Work Completed (last 7 days)</h3>
             <div style="display:flex;gap:10px;font-size:11px;">
               <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#0c66e4;border-radius:2px;display:inline-block;"></span>Total done</span>
               <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#22a06b;border-radius:2px;display:inline-block;"></span>On time</span>
@@ -8172,7 +8365,7 @@ function renderMyAnalyticsPage() {
           ])}
         </div>
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 12px;font-size:14px;">🔌 Work by Source</h3>
+          <h3 style="margin:0 0 12px;font-size:14px;">Work by Source</h3>
           ${renderSourceBars(a.sourceMap)}
         </div>
       </div>
@@ -8180,7 +8373,7 @@ function renderMyAnalyticsPage() {
       <!-- Severity breakdown + completed task list -->
       <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;">
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 12px;font-size:14px;">⚡ By Priority</h3>
+          <h3 style="margin:0 0 12px;font-size:14px;">By Priority</h3>
           ${Object.entries(a.sevMap).map(([sev, d]) => {
             const col = { P1:"#de350b", P2:"#974f0c", P3:"#216e4e" }[sev] || "#64748b";
             const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
@@ -8197,7 +8390,7 @@ function renderMyAnalyticsPage() {
           }).join("")}
         </div>
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 10px;font-size:14px;">✅ Completed Tasks</h3>
+          <h3 style="margin:0 0 10px;font-size:14px;">Completed Tasks</h3>
           <div style="max-height:200px;overflow-y:auto;display:grid;gap:5px;">
             ${a.done.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:20px;">Complete tasks to see them here.</p>` :
               a.done.map(t => {
@@ -8210,7 +8403,7 @@ function renderMyAnalyticsPage() {
                     <div style="font-size:10px;color:#64748b;display:flex;gap:6px;margin-top:1px;">
                       <span style="color:${col};">${t.sources?.[0] || "—"}</span>
                       <span>${t.severity}</span>
-                      ${t.due ? `<span style="color:#22a06b;">📅 ${formatDue(t.due)}</span>` : ""}
+                      ${t.due ? `<span style="color:#22a06b;">${formatDue(t.due)}</span>` : ""}
                     </div>
                   </div>
                 </div>`;
@@ -8223,6 +8416,47 @@ function renderMyAnalyticsPage() {
 }
 
 // ─── Page: Engineer Analytics (manager view — search + line graph) ─────────────
+function renderPremiumSourceBars(sourceMap) {
+  const order = [
+    { key: "Jira Sprint Board", label: "Jira Sprint Board", col: "#8b5cf6" },
+    { key: "ServiceNow", label: "ServiceNow Defects", col: "#ef4444" },
+    { key: "Meetings", label: "Meeting Notes", col: "#94a3b8" },
+    { key: "Outlook Emails", label: "Outlook Emails", col: "#0ea5e9" },
+    { key: "GitHub", label: "GitHub", col: "#f59e0b" },
+    { key: "Slack Mentions", label: "Slack Mentions", col: "#a78bfa" }
+  ];
+
+  return order.map(item => {
+    let matched = null;
+    for (const [k, v] of Object.entries(sourceMap)) {
+      if (k.toLowerCase().includes(item.key.toLowerCase().split(" ")[0])) {
+        matched = v;
+        break;
+      }
+    }
+    const d = matched || { total: 0, done: 0, onTime: 0 };
+    const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
+    const onTimePct = d.done ? Math.round((d.onTime / d.done) * 100) : 0;
+    
+    return `
+      <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="width:7px; height:7px; border-radius:50%; background:${item.col}; display:inline-block;"></span>
+            <span style="font-weight:700; color:#334155;">${item.label}</span>
+          </span>
+          <span style="font-size:11px; font-weight:700; color:#f97316;">
+            ${d.done}/${d.total} done &bull; ${onTimePct}% on time
+          </span>
+        </div>
+        <div style="height:3px; background:#f1f5f9; border-radius:2px; overflow:hidden; position:relative;">
+          <div style="width:${pct}%; height:100%; background:${item.col}; border-radius:2px;"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
 function renderEngineerAnalyticsManager() {
   const insights = datasetInsights();
   const allOwners = insights.ownerLoad.map(o => o.owner);
@@ -8230,7 +8464,14 @@ function renderEngineerAnalyticsManager() {
     ? allOwners.filter(n => n.toLowerCase().includes(analyticsSearchQuery.toLowerCase()))
     : allOwners;
 
-  let detailPanel = "";
+  // Make sure to select Riya by default if nothing is selected
+  if (!analyticsSelectedEngineer && allOwners.length > 0) {
+    analyticsSelectedEngineer = "Riya";
+  }
+
+  let middlePanel = "";
+  let rightPanel = "";
+
   if (analyticsSelectedEngineer) {
     const a = buildEngineerAnalytics(analyticsSelectedEngineer);
     const completionRate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
@@ -8246,73 +8487,99 @@ function renderEngineerAnalyticsManager() {
       return obj;
     });
 
-    detailPanel = `
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#152238,#0c66e4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;">
+    const shortLabels = {
+      "Jira Sprint Board": "Jira",
+      "GitHub": "GitHub",
+      "ServiceNow": "ServiceNow",
+      "Outlook Emails": "Outlook",
+      "Meetings": "Meeting",
+      "Slack Mentions": "Slack"
+    };
+
+    middlePanel = `
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:16px;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#0c66e4;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;flex-shrink:0;">
             ${analyticsSelectedEngineer.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h3 style="margin:0;font-size:18px;">${escapeHtml(analyticsSelectedEngineer)}</h3>
-            <p style="margin:0;font-size:12px;color:#64748b;">${a.mine.length} tasks · ${completionRate}% completion · ${onTimeRate}% on time</p>
+            <h3 style="margin:0;font-size:16px;font-weight:800;color:#0f172a;">${escapeHtml(analyticsSelectedEngineer)}</h3>
+            <p style="margin:2px 0 0;font-size:11.5px;color:#64748b;font-weight:500;">
+              ${a.mine.length} tasks &bull; ${completionRate}% completion &bull; ${onTimeRate}% on time
+            </p>
           </div>
         </div>
 
         <!-- KPI mini row -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
           ${[
-            { l:"Assigned", v:a.mine.length, c:"#0c66e4" },
-            { l:"Done",     v:a.done.length, c:"#22a06b" },
+            { l:"Assigned", v:a.mine.length, c:"#8b5cf6" },
+            { l:"Done",     v:a.done.length, c:"#22c55e" },
             { l:"On Time",  v:a.onTime.length, c:"#f97316" },
-            { l:"Late",     v:a.late.length, c:"#de350b" }
+            { l:"Late",     v:a.late.length, c:"#ef4444" }
           ].map(k => `
-            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
-              <div style="font-size:20px;font-weight:800;color:${k.c};">${k.v}</div>
-              <div style="font-size:10px;color:#64748b;font-weight:600;">${k.l}</div>
+            <div style="text-align:center;padding:12px 6px;background:#ffffff;border-radius:10px;border:1px solid #f1f5f9;box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+              <div style="font-size:24px;font-weight:800;color:${k.c};">${k.v}</div>
+              <div style="font-size:11px;color:#64748b;font-weight:600;margin-top:2px;">${k.l}</div>
             </div>`).join("")}
         </div>
 
         <!-- Line chart by source -->
-        <div style="margin-bottom:14px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <h4 style="margin:0;font-size:13px;">📈 Tasks Completed by Source (last 7 days)</h4>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;margin-top:4px;">
+            <h4 style="margin:0;font-size:12.5px;font-weight:800;color:#1e293b;display:flex;align-items:center;gap:6px;">
+              Tasks Completed by Source (last 7 days)
+            </h4>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               ${srcEntries.map(([src]) => `
-                <span style="display:flex;align-items:center;gap:3px;font-size:10px;">
-                  <span style="width:8px;height:8px;border-radius:50%;background:${srcChartColor(src)};display:inline-block;"></span>
-                  ${escapeHtml(src.split(" ")[0])}
+                <span style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#64748b;">
+                  <span style="width:6px;height:6px;border-radius:50%;background:${srcChartColor(src)};display:inline-block;"></span>
+                  ${escapeHtml(shortLabels[src] || src.split(" ")[0])}
                 </span>`).join("")}
             </div>
           </div>
-          ${renderLineChart(multiSeries, srcEntries.map(([src]) => ({ key: src, color: srcChartColor(src) })), 480, 170)}
+          ${renderLineChart(multiSeries, srcEntries.map(([src]) => ({ key: src, color: srcChartColor(src) })), 420, 160)}
         </div>
+      </div>
+    `;
 
-        <!-- Source bars -->
-        <div>
-          <h4 style="margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> Source Breakdown</h4>
-          ${renderSourceBars(a.sourceMap)}
+    rightPanel = `
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;">
+        <h3 style="margin:0 0 16px;font-size:14px;font-weight:800;color:#0f172a;">Source Breakdown</h3>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${renderPremiumSourceBars(a.sourceMap)}
         </div>
-      </div>`;
+      </div>
+    `;
+  } else {
+    middlePanel = `
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;">
+        <div style="display:flex;justify-content:center;margin-bottom:10px;color:#94a3b8;"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
+        <p style="font-size:14px;font-weight:600;color:#64748b;margin:0;">Select an engineer to see their performance chart</p>
+      </div>
+    `;
+    rightPanel = "";
   }
 
   return `
-    <div style="padding:18px;display:grid;gap:16px;max-width:1100px;">
+    <div style="padding:18px;display:grid;gap:16px;max-width:1200px;">
       <div>
-        <p class="eyebrow">Manager View</p>
-        <h2 style="margin:2px 0 0;">Engineer Performance Charts</h2>
-        <p style="font-size:12px;color:#64748b;margin:2px 0 0;">Search for an engineer to see their work analytics</p>
+        <p class="eyebrow" style="margin-bottom:2px;">MANAGER VIEW</p>
+        <h2 style="margin:2px 0 0;font-weight:800;font-size:20px;color:#0f172a;letter-spacing:-0.01em;">Engineer Performance Charts</h2>
+        <p style="font-size:12px;color:#64748b;margin:3px 0 0;font-weight:500;">Search for an engineer to see their work analytics</p>
       </div>
 
-      <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start;">
+      <div style="display:grid;grid-template-columns:240px 1.4fr 1fr;gap:16px;align-items:start;">
         <!-- Left: search + list -->
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
           <input
             type="text"
             id="engAnalyticsSearch"
-            placeholder="🔍 Search engineer..."
+            placeholder="Search engineer..."
             value="${escapeHtml(analyticsSearchQuery)}"
-            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
-          <div style="display:grid;gap:4px;max-height:400px;overflow-y:auto;">
+            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;">
+          <div style="display:grid;gap:6px;max-height:450px;overflow-y:auto;">
             ${filtered.map(name => {
               const a = buildEngineerAnalytics(name);
               const rate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
@@ -8320,17 +8587,17 @@ function renderEngineerAnalyticsManager() {
               return `
                 <button
                   data-select-engineer="${escapeHtml(name)}"
-                  style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:1px solid ${isSelected ? "#0c66e4" : "#e2e8f0"};background:${isSelected ? "#eff6ff" : "#fafafa"};cursor:pointer;text-align:left;width:100%;">
-                  <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#152238,${srcChartColor(a.mine[0]?.sources?.[0] || "")});display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;flex-shrink:0;">
+                  style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:1px solid ${isSelected ? "#c084fc" : "#e2e8f0"};background:${isSelected ? "#faf5ff" : "#ffffff"};cursor:pointer;text-align:left;width:100%;transition:all 0.2s;">
+                  <div style="width:32px;height:32px;border-radius:50%;background:#0c66e4;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;flex-shrink:0;">
                     ${name.charAt(0).toUpperCase()}
                   </div>
                   <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(name)}</div>
-                    <div style="font-size:10px;color:#64748b;">${a.done.length}/${a.mine.length} done · ${rate}%</div>
+                    <div style="font-size:12px;font-weight:700;color:#1e293b;">${escapeHtml(name)}</div>
+                    <div style="font-size:10px;color:#64748b;font-weight:500;">${a.done.length}/${a.mine.length} done &bull; ${rate}%</div>
                   </div>
                   <div style="width:36px;height:36px;flex-shrink:0;">
                     <svg viewBox="0 0 36 10" style="overflow:visible;">
-                      ${a.series.map((s, i) => `<rect x="${i*5}" y="${10 - Math.min(10, s.done * 2)}" width="4" height="${Math.min(10, s.done * 2)}" rx="1" fill="${isSelected ? "#0c66e4" : "#94a3b8"}"/>`).join("")}
+                      ${a.series.map((s, i) => `<rect x="${i*5}" y="${10 - Math.min(10, s.done * 2)}" width="4" height="${Math.min(10, s.done * 2)}" rx="1" fill="${isSelected ? "#8b5cf6" : "#94a3b8"}"/>`).join("")}
                     </svg>
                   </div>
                 </button>`;
@@ -8339,13 +8606,14 @@ function renderEngineerAnalyticsManager() {
           </div>
         </div>
 
-        <!-- Right: detail -->
+        <!-- Middle: KPI + Line chart -->
         <div>
-          ${detailPanel || `
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;">
-              <div style="display:flex;justify-content:center;margin-bottom:10px;color:#94a3b8;"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
-              <p style="font-size:14px;font-weight:600;color:#64748b;margin:0;">Select an engineer to see their performance chart</p>
-            </div>`}
+          ${middlePanel}
+        </div>
+
+        <!-- Right: Source breakdown -->
+        <div>
+          ${rightPanel}
         </div>
       </div>
     </div>`;
@@ -9012,7 +9280,7 @@ function renderCalendarPermissionModal() {
   return `
     <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:grid; place-items:center;">
       <div class="panel" style="background:#fff; width:400px; padding:20px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
-        <h3 style="margin-top:0;">📅 Calendar Access Requested</h3>
+        <h3 style="margin-top:0;">Calendar Access Requested</h3>
         <p style="font-size:14px; line-height:1.5; color:#34414f;">
           TaskPilot is requesting access to write to your Calendar events to save meeting slot:<br>
           <strong>"${selectedMeetingToSave.title}"</strong> on ${new Date(selectedMeetingToSave.startTime).toLocaleDateString()} at ${new Date(selectedMeetingToSave.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.
@@ -9341,11 +9609,11 @@ function bindEvents() {
 
     // 1c. Diagnostics journey card modal — full inline logic
     const DIAG_JOURNEY = [
-      {id:"user",tier:"User",label:"End Users",icon:"👤",color:"#2563eb",bg:"#eff6ff",desc:"Engineers, Managers and Admins access the platform",features:[{name:"Login Page",status:"ok",detail:"Google OAuth + Supabase Auth working"},{name:"Profile Switcher",status:"ok",detail:"Switch between Admin/Engineer/Manager"},{name:"Sidebar Navigation",status:"ok",detail:"All nav items routing correctly"},{name:"Settings Popover",status:"ok",detail:"Gear icon → Settings + Sign out"}]},
-      {id:"engineer",tier:"Engineer",label:"Engineer Dashboard",icon:"🛠️",color:"#7c3aed",bg:"#f5f3ff",desc:"Task prioritization, AI scans, execution briefs",features:[{name:"Run Autonomous Scan",status:"ok",detail:"Gemini-powered task analysis"},{name:"Today's Priorities",status:"ok",detail:"P1-P3 queue rendering correctly"},{name:"Execution Brief",status:"ok",detail:"PDF export works"},{name:"AI Companion Chat",status:"ok",detail:"Gemini chat dock functional"},{name:"Jira Integration",status:"ok",detail:"Add task modal live"}]},
-      {id:"manager",tier:"Manager",label:"Manager Dashboard",icon:"📊",color:"#0d9488",bg:"#f0fdfa",desc:"Team oversight, SLA tracking, weekly standup gen",features:[{name:"Team Capacity View",status:"ok",detail:"Agent assignment visible"},{name:"Approve Handoff",status:"ok",detail:"Complete priority button working"},{name:"Weekly Standup AI",status:"ok",detail:"Gemini standup generator live"},{name:"SLA Risk Board",status:"ok",detail:"P1 tasks flagged correctly"},{name:"Dataset Insights",status:"warn",detail:"Offline mode fallback active"}]},
-      {id:"auth",tier:"Auth",label:"Google Auth + Supabase",icon:"🔐",color:"#ea580c",bg:"#fff7ed",desc:"Authentication, session management, row-level security",features:[{name:"Google OAuth Login",status:"ok",detail:"OAuth2 flow verified"},{name:"Supabase Session",status:"ok",detail:"JWT tokens refreshing"},{name:"Email Allowlist",status:"ok",detail:"Only allowed emails can log in"},{name:"RLS Policies",status:"ok",detail:"Row-level security enforced"},{name:"Logout + Cleanup",status:"ok",detail:"Session cleared on sign out"}]},
-      {id:"architecture",tier:"Architecture",label:"Full AI Pipeline",icon:"🏗️",color:"#0f766e",bg:"#f0fdfa",desc:"Agents, LLMs, data ingestion, orchestration, outputs",features:[{name:"Jira/Slack/GitHub Triggers",status:"ok",detail:"All webhooks active"},{name:"NVIDIA cuDF Pipeline",status:"ok",detail:"GPU data processing online"},{name:"Google BigQuery Warehouse",status:"ok",detail:"Schema synced"},{name:"Orchestrator Agent (ADK)",status:"ok",detail:"Multi-agent routing live"},{name:"Gemini 2.5 Flash",status:"ok",detail:"Vertex AI connected"},{name:"NVIDIA NIM Nemotron",status:"ok",detail:"NIM endpoint healthy"},{name:"Supabase DB Output",status:"ok",detail:"Write pipeline active"},{name:"Alerts & Notifications",status:"error",detail:"Slack webhook 403 — token expired"}]}
+      {id:"user",tier:"User",label:"End Users",icon:"",color:"#2563eb",bg:"#eff6ff",desc:"Engineers, Managers and Admins access the platform",features:[{name:"Login Page",status:"ok",detail:"Google OAuth + Supabase Auth working"},{name:"Profile Switcher",status:"ok",detail:"Switch between Admin/Engineer/Manager"},{name:"Sidebar Navigation",status:"ok",detail:"All nav items routing correctly"},{name:"Settings Popover",status:"ok",detail:"Gear icon → Settings + Sign out"}]},
+      {id:"engineer",tier:"Engineer",label:"Engineer Dashboard",icon:"",color:"#7c3aed",bg:"#f5f3ff",desc:"Task prioritization, AI scans, execution briefs",features:[{name:"Run Autonomous Scan",status:"ok",detail:"Gemini-powered task analysis"},{name:"Today's Priorities",status:"ok",detail:"P1-P3 queue rendering correctly"},{name:"Execution Brief",status:"ok",detail:"PDF export works"},{name:"AI Companion Chat",status:"ok",detail:"Gemini chat dock functional"},{name:"Jira Integration",status:"ok",detail:"Add task modal live"}]},
+      {id:"manager",tier:"Manager",label:"Manager Dashboard",icon:"",color:"#0d9488",bg:"#f0fdfa",desc:"Team oversight, SLA tracking, weekly standup gen",features:[{name:"Team Capacity View",status:"ok",detail:"Agent assignment visible"},{name:"Approve Handoff",status:"ok",detail:"Complete priority button working"},{name:"Weekly Standup AI",status:"ok",detail:"Gemini standup generator live"},{name:"SLA Risk Board",status:"ok",detail:"P1 tasks flagged correctly"},{name:"Dataset Insights",status:"warn",detail:"Offline mode fallback active"}]},
+      {id:"auth",tier:"Auth",label:"Google Auth + Supabase",icon:"",color:"#ea580c",bg:"#fff7ed",desc:"Authentication, session management, row-level security",features:[{name:"Google OAuth Login",status:"ok",detail:"OAuth2 flow verified"},{name:"Supabase Session",status:"ok",detail:"JWT tokens refreshing"},{name:"Email Allowlist",status:"ok",detail:"Only allowed emails can log in"},{name:"RLS Policies",status:"ok",detail:"Row-level security enforced"},{name:"Logout + Cleanup",status:"ok",detail:"Session cleared on sign out"}]},
+      {id:"architecture",tier:"Architecture",label:"Full AI Pipeline",icon:"",color:"#0f766e",bg:"#f0fdfa",desc:"Agents, LLMs, data ingestion, orchestration, outputs",features:[{name:"Jira/Slack/GitHub Triggers",status:"ok",detail:"All webhooks active"},{name:"NVIDIA cuDF Pipeline",status:"ok",detail:"GPU data processing online"},{name:"Google BigQuery Warehouse",status:"ok",detail:"Schema synced"},{name:"Orchestrator Agent (ADK)",status:"ok",detail:"Multi-agent routing live"},{name:"Gemini 2.5 Flash",status:"ok",detail:"Vertex AI connected"},{name:"NVIDIA NIM Nemotron",status:"ok",detail:"NIM endpoint healthy"},{name:"Supabase DB Output",status:"ok",detail:"Write pipeline active"},{name:"Alerts & Notifications",status:"error",detail:"Slack webhook 403 — token expired"}]}
     ];
     const _sIcon = s => s==='ok'
       ? '<span style="display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:50%;background:#dcfce7;"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round"/></svg></span>'
@@ -9695,6 +9963,65 @@ function bindEvents() {
     });
   });
 
+  // Teammate Tasks Modal Events
+  const closeTeammateTasksModalBtn = document.querySelector("#closeTeammateTasksModalBtn");
+  if (closeTeammateTasksModalBtn) {
+    closeTeammateTasksModalBtn.addEventListener("click", () => {
+      showTeammateTasksModal = false;
+      render();
+    });
+  }
+  const closeTeammateTasksModalBtn2 = document.querySelector("#closeTeammateTasksModalBtn2");
+  if (closeTeammateTasksModalBtn2) {
+    closeTeammateTasksModalBtn2.addEventListener("click", () => {
+      showTeammateTasksModal = false;
+      render();
+    });
+  }
+  const teammateTasksModalOverlay = document.querySelector("#teammateTasksModalOverlay");
+  if (teammateTasksModalOverlay) {
+    teammateTasksModalOverlay.addEventListener("click", () => {
+      showTeammateTasksModal = false;
+      render();
+    });
+  }
+
+  // Recommendations Modal Events
+  const closeRecModalBtn = document.querySelector("#closeRecommendationsModalBtn");
+  if (closeRecModalBtn) {
+    closeRecModalBtn.addEventListener("click", () => {
+      showRecommendationsModal = false;
+      render();
+    });
+  }
+  const closeRecModalBtn2 = document.querySelector("#closeRecommendationsModalBtn2");
+  if (closeRecModalBtn2) {
+    closeRecModalBtn2.addEventListener("click", () => {
+      showRecommendationsModal = false;
+      render();
+    });
+  }
+  const recModalOverlay = document.querySelector("#recommendationsModalOverlay");
+  if (recModalOverlay) {
+    recModalOverlay.addEventListener("click", () => {
+      showRecommendationsModal = false;
+      render();
+    });
+  }
+  const executeReassignmentBtn = document.querySelector("#executeReassignmentBtn");
+  if (executeReassignmentBtn) {
+    executeReassignmentBtn.addEventListener("click", () => {
+      const taskId = executeReassignmentBtn.dataset.taskId;
+      const toEng = executeReassignmentBtn.dataset.toEngineer;
+      showRecommendationsModal = false;
+      if (taskId && toEng) {
+        reassignTask(taskId, toEng);
+      } else {
+        render();
+      }
+    });
+  }
+
   // Calendar Task Details Modal Events
   const closeCalTaskModalBtn = document.querySelector("#closeCalTaskModalBtn");
   if (closeCalTaskModalBtn) {
@@ -9773,9 +10100,11 @@ function bindEvents() {
       lastAnswer = answer;
       pushCompanion("user", btn.dataset.query, false);
       pushCompanion("agent", answer, false);
-      // Mark the currently selected task as "working"
-      if (selectedTaskId && !completedTaskIds.includes(selectedTaskId) && !workingTaskIds.includes(selectedTaskId)) {
-        workingTaskIds = [...workingTaskIds, selectedTaskId];
+      // Mark the currently selected task as "working" (only if not a dashboard quick query button)
+      if (!btn.classList.contains("dash-quick-query-btn")) {
+        if (selectedTaskId && !completedTaskIds.includes(selectedTaskId) && !workingTaskIds.includes(selectedTaskId)) {
+          workingTaskIds = [...workingTaskIds, selectedTaskId];
+        }
       }
       render();
     });
@@ -10313,19 +10642,16 @@ function bindEvents() {
   });
 
   document.querySelector("#twViewRecommendationsBtn")?.addEventListener("click", () => {
-    alert("AI Workload Recommendation: Reassign Karan's P1 security patch task to Arjun to balance team load (Arjun currently has 10 tasks while Karan has 19).");
+    showRecommendationsModal = true;
+    render();
   });
 
   document.querySelectorAll(".dash-member-view-tasks").forEach(btn => {
     btn.addEventListener("click", () => {
       const name = btn.dataset.engineer;
-      const engTasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
-      if (engTasks.length === 0) {
-        alert(`${name} has no pending tasks.`);
-      } else {
-        const listStr = engTasks.map((t, i) => `${i+1}. [${t.severity}] ${t.canonicalTitle}`).join("\n");
-        alert(`Pending tasks for ${name}:\n\n${listStr}`);
-      }
+      selectedTeammateName = name;
+      showTeammateTasksModal = true;
+      render();
     });
   });
 
@@ -11900,15 +12226,15 @@ function buildAgentResponse(intent) {
           <strong style="font-size:13px;color:#172b4d;display:block;line-height:1.3;">${escapeHtml(t.canonicalTitle)}</strong>
           <div style="font-size:11px;color:#64748b;margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;">
             <span style="background:${color}18;color:${color};padding:1px 6px;border-radius:4px;font-weight:800;">${t.severity}</span>
-            <span>📍 ${escapeHtml(t.sources.join(" + "))}</span>
-            ${t.due ? `<span>📅 ${formatDue(t.due)}</span>` : ""}
-            <span>⚡ ${t.score} pts</span>
+            <span>Source: ${escapeHtml(t.sources.join(" + "))}</span>
+            ${t.due ? `<span>Due: ${formatDue(t.due)}</span>` : ""}
+            <span>${t.score} pts</span>
           </div>
         </div>
         ${isWorking ? `<span style="font-size:10px;font-weight:800;color:#0c66e4;background:#e8f0fe;padding:2px 7px;border-radius:10px;flex-shrink:0;">● Working</span>` : ""}
         ${isDone ? `<span style="font-size:10px;font-weight:800;color:#22a06b;background:#dcfff1;padding:2px 7px;border-radius:10px;flex-shrink:0;">✓ Done</span>` : ""}
       </div>
-      ${!isDone && !isWorking ? `<div style="margin-top:8px;"><button class="tp-btn-start" data-task-start="${t.id}" style="font-size:11px;padding:4px 10px;">▶ Start</button></div>` : ""}
+      ${!isDone && !isWorking ? `<div style="margin-top:8px;"><button class="tp-btn-start" data-task-start="${t.id}" style="font-size:11px;padding:4px 10px;">Start</button></div>` : ""}
     </div>`;
   }
 
@@ -11948,7 +12274,7 @@ function buildAgentResponse(intent) {
           return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#fff;border:1px solid #e8e0d5;border-radius:7px;margin:4px 0;">
             <div>
               <strong style="font-size:12px;color:#172b4d;">${escapeHtml(name)}</strong>
-              ${isOverloaded ? `<span style="font-size:10px;color:#de350b;font-weight:800;margin-left:6px;">⚠ Overloaded</span>` : ""}
+              ${isOverloaded ? `<span style="font-size:10px;color:#de350b;font-weight:800;margin-left:6px;">Overloaded</span>` : ""}
               <div style="font-size:11px;color:#64748b;">${d.total} tasks · ${d.p1} P1 · ${d.done} done</div>
             </div>
             <div style="text-align:right;">
@@ -11956,7 +12282,7 @@ function buildAgentResponse(intent) {
             </div>
           </div>`;
         }).join("");
-      return { html: `<strong>👥 Team workload:</strong>` + rows, chips: ["Show blockers", "Top 5 tasks", "Assign task", "Anything else?"] };
+      return { html: `<strong>Team workload:</strong>` + rows, chips: ["Show blockers", "Top 5 tasks", "Assign task", "Anything else?"] };
     }
     case "completed": {
       const done = completedTaskIds.map(id => {
@@ -11964,7 +12290,7 @@ function buildAgentResponse(intent) {
         const log = taskTimeLogs[id];
         return t ? { ...t, log } : null;
       }).filter(Boolean);
-      if (done.length === 0) return { html: `<span>No tasks completed yet today. Start one from your queue!</span>`, chips: ["Top 5 tasks", "▶ Start top task", "Anything else?"] };
+      if (done.length === 0) return { html: `<span>No tasks completed yet today. Start one from your queue!</span>`, chips: ["Top 5 tasks", "Start top task", "Anything else?"] };
       const rows = done.map(t => {
         const log = t.log;
         const dur = log?.startTime && log?.endTime
@@ -11978,7 +12304,7 @@ function buildAgentResponse(intent) {
           </div>
         </div>`;
       }).join("");
-      return { html: `<strong>✅ ${done.length} task${done.length > 1 ? "s" : ""} completed today:</strong>` + rows, chips: ["📄 Daily report", "Top 5 tasks", "Anything else?"] };
+      return { html: `<strong>${done.length} task${done.length > 1 ? "s" : ""} completed today:</strong>` + rows, chips: ["Daily report", "Top 5 tasks", "Anything else?"] };
     }
     case "meetings": {
       if (meetingsList.length === 0) return { html: `<span>No meetings found. Run the Meeting Agent to scan your inbox.</span>`, chips: ["Go to Meetings", "Top 5 tasks", "Anything else?"] };
@@ -11986,17 +12312,17 @@ function buildAgentResponse(intent) {
         <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#fff;border:1px solid #e8e0d5;border-radius:7px;margin:4px 0;">
           <div style="flex:1;min-width:0;">
             <strong style="font-size:12px;color:#172b4d;">${escapeHtml(m.title)}</strong>
-            <div style="font-size:11px;color:#64748b;">📅 ${m.suggestedDate} ${m.suggestedTime || ""} · ${m.duration} min</div>
+            <div style="font-size:11px;color:#64748b;">${m.suggestedDate} ${m.suggestedTime || ""} · ${m.duration} min</div>
           </div>
           <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${m.priority === "Critical" ? "#ffd5d2" : "#fff0b3"};color:${m.priority === "Critical" ? "#ae2a19" : "#974f0c"};font-weight:800;flex-shrink:0;">${m.priority}</span>
         </div>`).join("");
-      return { html: `<strong>📅 ${meetingsList.length} meetings detected:</strong>` + rows, chips: ["Go to Meetings", "Run Meeting Agent", "Top 5 tasks", "Anything else?"] };
+      return { html: `<strong>${meetingsList.length} meetings detected:</strong>` + rows, chips: ["Go to Meetings", "Run Meeting Agent", "Top 5 tasks", "Anything else?"] };
     }
     case "ties": {
       const scoreGroups = {};
       queue.forEach(t => { if (!scoreGroups[t.score]) scoreGroups[t.score] = []; scoreGroups[t.score].push(t); });
       const ties = Object.entries(scoreGroups).filter(([, ts]) => ts.length > 1);
-      if (ties.length === 0) return { html: `<span>✅ No tied scores — every task has a unique rank right now.</span>`, chips: ["Top 5 tasks", "Anything else?"] };
+      if (ties.length === 0) return { html: `<span>No tied scores — every task has a unique rank right now.</span>`, chips: ["Top 5 tasks", "Anything else?"] };
       const rows = ties.slice(0, 3).map(([score, ts]) =>
         `<div style="padding:8px 10px;background:#fff;border:1px solid #e8e0d5;border-radius:7px;margin:4px 0;">
           <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:4px;">Score ${score} — ${ts.length} tasks tied</div>
@@ -12029,17 +12355,17 @@ function buildAgentResponse(intent) {
           <strong style="font-size:13px;color:#172b4d;display:block;line-height:1.3;">${escapeHtml(e.title)}</strong>
           <div style="font-size:12px;color:#344563;margin-top:6px;padding:6px 8px;background:#f8f5f0;border-radius:6px;line-height:1.5;">${escapeHtml(e.body || "No body.")}</div>
           <div style="font-size:11px;color:#94a3b8;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-            <span>👤 ${escapeHtml(e.owner || "—")}</span>
-            <span>📅 Due ${e.due || "—"}</span>
-            <span>📍 ${escapeHtml(e.team || "—")}</span>
+            <span>Assignee: ${escapeHtml(e.owner || "—")}</span>
+            <span>Due: ${e.due || "—"}</span>
+            <span>Team: ${escapeHtml(e.team || "—")}</span>
             <span style="background:${color}18;color:${color};padding:1px 6px;border-radius:4px;font-weight:800;">${e.severity}</span>
           </div>
-          ${e.dependencies?.length ? `<div style="font-size:11px;color:#974f0c;margin-top:4px;">✅ Action needed: ${escapeHtml(e.dependencies.join(" · "))}</div>` : ""}
+          ${e.dependencies?.length ? `<div style="font-size:11px;color:#974f0c;margin-top:4px;">Action needed: ${escapeHtml(e.dependencies.join(" · "))}</div>` : ""}
         </div>`;
       }).join("");
       return {
-        html: `<strong>📨 ${displayEmails.length} email${displayEmails.length > 1 ? "s" : ""} from your inbox (${allEmails.length} total):</strong>` + emailCards,
-        chips: ["Show VP emails", "Show blockers", "▶ Start top P1", "Anything else?"]
+        html: `<strong>${displayEmails.length} email${displayEmails.length > 1 ? "s" : ""} from your inbox (${allEmails.length} total):</strong>` + emailCards,
+        chips: ["Show VP emails", "Show blockers", "Start top P1", "Anything else?"]
       };
     }
 
@@ -12054,7 +12380,7 @@ function buildAgentResponse(intent) {
         // Fallback: show ALL emails if no VP-specific ones found
         return {
           html: `<div style="padding:10px 12px;background:#fff8f0;border:1px solid #f4a261;border-radius:8px;color:#974f0c;font-size:13px;">
-            📭 No VP or executive emails found in your inbox right now.
+            No VP or executive emails found in your inbox right now.
             Here are all your recent emails instead:
           </div>`,
           chips: ["Show all emails", "Show my tasks", "Show blockers", "Anything else?"]
@@ -12063,12 +12389,10 @@ function buildAgentResponse(intent) {
       const sevColorVP = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
       const emailCards = vpEmails.slice(0, 6).map(e => {
         const color = sevColorVP[e.severity] || "#626f86";
-        // AI summary section — shown inline with the card
-        const bodyPreview = (e.body || "").slice(0, 300);
         // Build a simple inline TL;DR from the body
         const tldr = e.body && e.body.length > 60
           ? `<div style="font-size:12px;background:#fff8f0;border-left:3px solid ${color};padding:6px 10px;border-radius:0 6px 6px 0;margin-top:8px;color:#172b4d;line-height:1.5;">
-              <strong>📋 TL;DR:</strong> ${escapeHtml(e.body.slice(0, 200))}${e.body.length > 200 ? "…" : ""}
+              <strong>TL;DR:</strong> ${escapeHtml(e.body.slice(0, 200))}${e.body.length > 200 ? "…" : ""}
              </div>`
           : "";
         return `<div style="background:#fff;border:1px solid #e8e0d5;border-left:4px solid ${color};border-radius:8px;padding:12px 14px;margin:6px 0;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
@@ -12080,17 +12404,17 @@ function buildAgentResponse(intent) {
           <strong style="font-size:13px;color:#172b4d;display:block;line-height:1.4;">${escapeHtml(e.title)}</strong>
           <div style="font-size:12px;color:#344563;margin-top:6px;padding:8px 10px;background:#f8f5f0;border-radius:6px;line-height:1.6;">${escapeHtml(e.body || "")}</div>
           <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-            <span>👤 ${escapeHtml(e.owner || "—")}</span>
-            <span>📅 Due ${e.due || "—"}</span>
-            <span>📍 ${escapeHtml(e.team || "—")}</span>
+            <span>Assignee: ${escapeHtml(e.owner || "—")}</span>
+            <span>Due: ${e.due || "—"}</span>
+            <span>Team: ${escapeHtml(e.team || "—")}</span>
           </div>
-          ${e.dependencies?.length ? `<div style="font-size:11px;font-weight:700;color:#de350b;margin-top:6px;padding:4px 8px;background:#fff0ee;border-radius:4px;">✅ Action needed: ${escapeHtml(e.dependencies.join(" · "))}</div>` : ""}
+          ${e.dependencies?.length ? `<div style="font-size:11px;font-weight:700;color:#de350b;margin-top:6px;padding:4px 8px;background:#fff0ee;border-radius:4px;">Action needed: ${escapeHtml(e.dependencies.join(" · "))}</div>` : ""}
         </div>`;
       }).join("");
       return {
-        html: `<strong style="font-size:13px;color:#172b4d;">📨 Found ${vpEmails.length} VP/Executive email${vpEmails.length > 1 ? "s" : ""} in your inbox:</strong>` + emailCards +
+        html: `<strong style="font-size:13px;color:#172b4d;">Found ${vpEmails.length} VP/Executive email${vpEmails.length > 1 ? "s" : ""} in your inbox:</strong>` + emailCards +
           `<div style="margin-top:8px;font-size:11px;color:#94a3b8;font-style:italic;">💡 Tip: Say "summarize VP email" to get a full AI TL;DR, or "make this priority" to escalate.</div>`,
-        chips: ["Summarize VP email", "Make MAIL-920 priority", "Show blockers", "▶ Start top P1"]
+        chips: ["Summarize VP email", "Make MAIL-920 priority", "Show blockers", "Start top P1"]
       };
     }
 
@@ -12161,16 +12485,16 @@ function buildAgentResponse(intent) {
           const depStrings = (t.dependencies || []).slice(0, 2);
           const allReasons = [...graphBlockers, ...depStrings].slice(0, 3);
           const reasonHtml = allReasons.length > 0
-            ? `<div style="font-size:11px;color:#de350b;margin-top:4px;">🚧 ${escapeHtml(allReasons.join(" · "))}</div>`
-            : `<div style="font-size:11px;color:#974f0c;margin-top:4px;">⚠ Awaiting dependencies — ${escapeHtml((t.dependencies || ["pending inputs"]).slice(0, 2).join(", "))}</div>`;
+            ? `<div style="font-size:11px;color:#de350b;margin-top:4px;">Blocker: ${escapeHtml(allReasons.join(" · "))}</div>`
+            : `<div style="font-size:11px;color:#974f0c;margin-top:4px;">Awaiting dependencies — ${escapeHtml((t.dependencies || ["pending inputs"]).slice(0, 2).join(", "))}</div>`;
 
           return `<div style="margin:4px 0;padding:7px 10px;background:#fff;border:1px solid #e8e0d5;border-left:3px solid #de350b;border-radius:6px;">
             <div style="font-size:12px;font-weight:700;color:#172b4d;">${escapeHtml(t.canonicalTitle)}</div>
             <div style="font-size:11px;color:#64748b;margin-top:2px;">
               <span style="background:#ffd5d218;color:#de350b;padding:1px 6px;border-radius:4px;font-weight:700;">${t.severity}</span>
-              <span style="margin-left:6px;">📅 ${formatDue(t.due)}</span>
-              <span style="margin-left:6px;">📍 ${escapeHtml(t.sources.join("+"))}</span>
-              <span style="margin-left:6px;">⚡ ${t.score} pts</span>
+              <span style="margin-left:6px;">Due: ${formatDue(t.due)}</span>
+              <span style="margin-left:6px;">Source: ${escapeHtml(t.sources.join("+"))}</span>
+              <span style="margin-left:6px;">${t.score} pts</span>
             </div>
             ${reasonHtml}
           </div>`;
@@ -12179,7 +12503,7 @@ function buildAgentResponse(intent) {
         // Slack signals for this engineer
         const slackHtml = slackSignals.slice(0, 2).map(m =>
           `<div style="margin:3px 0;padding:5px 8px;background:#f8f0ff;border:1px solid #c9b8e8;border-radius:6px;font-size:11px;color:#44346e;">
-            💬 Slack: "${escapeHtml((m.body || m.title || "").substring(0, 90))}${(m.body || "").length > 90 ? "…" : ""}"
+            Slack: "${escapeHtml((m.body || m.title || "").substring(0, 90))}${(m.body || "").length > 90 ? "…" : ""}"
           </div>`
         ).join("");
 
@@ -12194,7 +12518,7 @@ function buildAgentResponse(intent) {
         })();
 
         return `<div style="margin:8px 0;padding:8px 10px;background:#fdf8f0;border:1px solid #e8ddd0;border-radius:8px;">
-          <div style="font-size:12px;font-weight:800;color:#344563;margin-bottom:5px;">👤 ${escapeHtml(owner)} — ${tasks.length} blocked task${tasks.length > 1 ? "s" : ""} ${reasoningSummary}</div>
+          <div style="font-size:12px;font-weight:800;color:#344563;margin-bottom:5px;">${escapeHtml(owner)} — ${tasks.length} blocked task${tasks.length > 1 ? "s" : ""} ${reasoningSummary}</div>
           ${taskRows}
           ${slackHtml}
         </div>`;
@@ -12252,7 +12576,7 @@ function buildAgentResponse(intent) {
 
       const aiReasons = reasons.length > 0
         ? `<div style="margin-top:8px;padding:8px 10px;background:#f8f5f0;border-radius:6px;border-left:3px solid ${color};">
-            <div style="font-size:11px;font-weight:800;color:#344563;margin-bottom:4px;">🧠 AI Reasoning:</div>
+            <div style="font-size:11px;font-weight:800;color:#344563;margin-bottom:4px;">AI Reasoning:</div>
             ${reasons.map(r => `<div style="font-size:12px;color:#172b4d;padding:2px 0;">• ${escapeHtml(r)}</div>`).join("")}
           </div>`
         : "";
@@ -12268,11 +12592,11 @@ function buildAgentResponse(intent) {
           <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             <span style="background:${color}18;color:${color};padding:1px 7px;border-radius:4px;font-size:11px;font-weight:800;">${sev}</span>
             ${sourcesList}
-            <span style="font-size:11px;color:#64748b;">📅 ${formatDue(targetTask.due)}</span>
+            <span style="font-size:11px;color:#64748b;">Due: ${formatDue(targetTask.due)}</span>
           </div>
         </div>
         <div style="margin-top:8px;padding:8px 10px;background:#f8f5f0;border-radius:6px;">
-          <div style="font-size:11px;font-weight:800;color:#344563;margin-bottom:6px;">📊 Score Breakdown (total: ${totalScore}):</div>
+          <div style="font-size:11px;font-weight:800;color:#344563;margin-bottom:6px;">Score Breakdown (total: ${totalScore}):</div>
           ${bars}
         </div>
         ${aiReasons}

@@ -18,7 +18,12 @@ const server = createServer((request, response) => {
   const url = new URL(request.url || "/", `http://${request.headers.host}`);
   if (url.pathname === "/" || url.pathname === "/index.html") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    response.end(renderHtml(root));
+    const localIndex = join(root, "index.html");
+    if (existsSync(localIndex) && !existsSync(join(root, "src/styles.css"))) {
+      createReadStream(localIndex).pipe(response);
+    } else {
+      response.end(renderHtml(root));
+    }
     return;
   }
   const cleanPath = decodeURIComponent(url.pathname).replace(/^\/+/, "").replace(/^app\//, "src/");
