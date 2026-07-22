@@ -10343,6 +10343,37 @@ function assignRandomTasks() {
 
 // ─── Event Binding ────────────────────────────────────────────────────────────
 function bindEvents() {
+
+
+  // Companion Send Button & Keydown Handler
+  document.querySelectorAll('#sendCompanionBtn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const input = document.querySelector('#companionChatInput') || document.querySelector('#companionInput');
+      const q = input?.value.trim();
+      if (!q) return;
+      input.value = '';
+      pushCompanion('user', q, false);
+      const answer = answerQuery(q, state);
+      pushCompanion('agent', answer, false);
+      render();
+    });
+  });
+
+  document.querySelectorAll('#companionChatInput, #companionInput').forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const q = input.value.trim();
+        if (!q) return;
+        input.value = '';
+        pushCompanion('user', q, false);
+        const answer = answerQuery(q, state);
+        pushCompanion('agent', answer, false);
+        render();
+      }
+    });
+  });
   // Admin Dashboard Event Listeners
   if (activeProfile === "admin") {
     // Drag Resizer logic for VS Code Terminal
