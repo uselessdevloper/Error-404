@@ -509,6 +509,7 @@ let authError = "";
 let authLoading = false;
 
 // Agent & Chat state
+let activeSelectTaskDropdownId = null;
 let lastAnswer = "Ask a quick question to see explainable agent output.";
 let lastAnswerLoading = false;
 let companionOpen = true;
@@ -1610,8 +1611,8 @@ function render() {
          ${renderDiscordUserPanel()}
       </aside>
 
-      <section class="workspace" style="${activePage === 'team-portal' ? 'padding: 0;' : ''}">
-        ${activePage !== "team-portal" && !((activePage === "overview" || activePage === "genome") && activeProfile === "manager") ? `
+
+      <section class="workspace ${activeProfile === 'engineer' && ['overview', 'inbox'].includes(activePage) ? 'workspace-engineer-no-scroll' : ''}">
         <header class="topbar">
           <div>
             <h1>${navLabel(activePage)}</h1>
@@ -3316,6 +3317,187 @@ function renderCalendarTaskDetails(task, engineers) {
 
 let activePreviewMessageId = null;
 
+
+
+
+
+
+
+function renderRecommendationsModal() {
+  if (!showRecommendationsModal) return "";
+  const rec = getWorkloadRecommendation();
+
+  return `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="recommendationsModalOverlay">
+      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:500px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; animation:scaleUp 0.15s ease-out;" onclick="event.stopPropagation()">
+        
+        <!-- Modal Header -->
+        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px; color:#8b5cf6;">✦</span>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">AI Workload Recommendations</h3>
+          </div>
+          <button id="closeRecommendationsModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;">✕</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+          ${!rec ? `
+            <div style="text-align:center; padding:30px 10px; display:flex; flex-direction:column; align-items:center; gap:8px;">
+              <span style="font-size:32px;">✅</span>
+              <strong style="font-size:14px; color:#0f172a; margin-top:6px;">Workloads are Balanced</strong>
+              <p style="font-size:12px; color:#64748b; margin:0; max-width:320px;">All team members have well-balanced task queues. No reassignments are recommended at this time.</p>
+            </div>
+          ` : `
+            <p style="margin:0; font-size:12.5px; color:#475569; line-height:1.5;">
+              Based on real-time task scanning, the AI recommends the following workload rebalancing to mitigate delivery delays:
+            </p>
+
+            <!-- Rebalancing Comparison Cards -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;">
+              
+              <!-- From Assignee -->
+              <div style="flex:1; text-align:center;">
+                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Current Assignee</div>
+                <strong style="font-size:14px; color:#0f172a; display:block;">${escapeHtml(rec.fromTeammate)}</strong>
+                <span style="font-size:11px; color:#ef4444; font-weight:700;">${rec.fromCount} active tasks</span>
+              </div>
+
+              <!-- Arrow -->
+              <div style="font-size:20px; color:#94a3b8; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:0 6px;">➔</div>
+
+              <!-- To Assignee -->
+              <div style="flex:1; text-align:center;">
+                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Reassign To</div>
+                <strong style="font-size:14px; color:#0f172a; display:block;">${escapeHtml(rec.toTeammate)}</strong>
+                <span style="font-size:11px; color:#22c55e; font-weight:700;">${rec.toCount} active tasks</span>
+              </div>
+
+            </div>
+
+            <!-- Target Task Details -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.01);">
+              <div style="font-size:9.5px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.04em;">Target Task to Shift</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-size:10px; font-weight:800; color:${rec.severity === "P1" ? "#c62828" : "#f57f17"}; background:${rec.severity === "P1" ? "#ffebee" : "#fff8e1"}; padding:2px 6px; border-radius:4px;">${rec.severity}</span>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; color:#1e293b; line-height:1.35;">${escapeHtml(rec.taskTitle)}</div>
+            </div>
+
+            <!-- Execution Status -->
+            <div style="font-size:11px; color:#64748b; line-height:1.4; display:flex; align-items:flex-start; gap:6px;">
+              <span style="color:#8b5cf6; font-size:14px;">✦</span>
+              <span>This reassignment will shift 1 task to a team member with higher capacity, reducing estimated sprint delivery risk.</span>
+            </div>
+          `}
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="padding:12px 16px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:8px; background:#f8fafc;">
+          <button id="closeRecommendationsModalBtn2" style="padding:8px 16px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">
+            Cancel
+          </button>
+          ${rec ? `
+            <button id="executeReassignmentBtn" data-task-id="${rec.taskId}" data-to-engineer="${escapeHtml(rec.toTeammate)}" style="padding:8px 16px; background:#0c66e4; color:#ffffff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; transition:background 0.2s;">
+              Execute Reassignment
+            </button>
+          ` : ""}
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+function getWorkloadRecommendation() {
+  const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
+  const list = TEAM_MEMBERS.map(name => {
+    const tasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
+    return { name, tasks };
+  });
+
+  // Sort by task count descending
+  list.sort((a, b) => b.tasks.length - a.tasks.length);
+
+  const overloaded = list[0];
+  const underloaded = list[list.length - 1];
+
+  if (overloaded && overloaded.tasks.length > 0 && (overloaded.tasks.length - underloaded.tasks.length >= 2)) {
+    // Find highest priority task (P1 -> P2 -> P3 -> P4)
+    const sortedTasks = [...overloaded.tasks].sort((t1, t2) => {
+      const pLevel = { P1: 1, P2: 2, P3: 3, P4: 4 };
+      return (pLevel[t1.severity] || 4) - (pLevel[t2.severity] || 4);
+    });
+    const targetTask = sortedTasks[0];
+    return {
+      taskId: targetTask.id,
+      taskTitle: targetTask.canonicalTitle,
+      severity: targetTask.severity,
+      fromTeammate: overloaded.name,
+      toTeammate: underloaded.name,
+      fromCount: overloaded.tasks.length,
+      toCount: underloaded.tasks.length,
+      reason: `AI Workload Recommendation: Reassign ${overloaded.name}'s "${targetTask.canonicalTitle}" to ${underloaded.name} to balance team load.`
+    };
+  }
+  return null;
+}
+
+function renderTeammateTasksModal() {
+  if (!showTeammateTasksModal || !selectedTeammateName) return "";
+  const name = selectedTeammateName;
+  const engTasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
+  
+  const SEV_BG = { P1: "#ffebee", P2: "#fff8e1", P3: "#e8f5e9", P4: "#f5f5f5" };
+  const SEV_COLOR = { P1: "#c62828", P2: "#f57f17", P3: "#2e7d32", P4: "#616161" };
+
+  return `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="teammateTasksModalOverlay">
+      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:480px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; max-height:85vh; animation:scaleUp 0.15s ease-out;" onclick="event.stopPropagation()">
+        
+        <!-- Modal Header -->
+        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">📋</span>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Pending Tasks for ${escapeHtml(name)}</h3>
+          </div>
+          <button id="closeTeammateTasksModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; transition:background 0.2s;">✕</button>
+        </div>
+
+        <!-- Modal Body (Scrollable List) -->
+        <div style="padding:16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px;">
+          ${engTasks.length === 0 ? `
+            <div style="text-align:center; padding:30px 10px; color:#64748b; font-size:13px;">
+              No pending tasks assigned to ${escapeHtml(name)}.
+            </div>
+          ` : engTasks.map((t, i) => {
+            const bg = SEV_BG[t.severity] || "#f5f5f5";
+            const col = SEV_COLOR[t.severity] || "#616161";
+            return `
+              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
+                  <span style="font-size:11px; font-weight:800; color:${col}; background:${bg}; padding:2px 8px; border-radius:4px;">${t.severity}</span>
+                  <span style="font-size:11px; font-weight:700; color:#64748b;">${t.due ? `Due: ${t.due}` : "No deadline"}</span>
+                </div>
+                <div style="font-size:13px; font-weight:700; color:#1e293b; line-height:1.35; margin-bottom:4px;">${escapeHtml(t.canonicalTitle)}</div>
+                <div style="font-size:11px; color:#64748b; line-height:1.4;">${escapeHtml(t.body || "No description provided.")}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="padding:12px 16px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; background:#f8fafc;">
+          <button id="closeTeammateTasksModalBtn2" style="padding:8px 16px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.2s;">
+            Close
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
 function getStatusSVG(status) {
   if (status === "online") {
     return `<svg viewBox="0 0 10 10" width="10" height="10"><circle cx="5" cy="5" r="5" fill="#23a55a"/></svg>`;
@@ -4029,6 +4211,12 @@ function renderCalendarTaskModal() {
   `;
 }
 
+/**
+ * Smart calendar that allocates tasks to engineers based on:
+ * - Actual historical completion times (from taskTimeLogs)
+ * - Task deadlines
+ * - Per-engineer workload
+ */
 function getLocalDateString(date) {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -4512,7 +4700,7 @@ function buildCurrentGenome() {
  * Compute similarity score (0-100) between two genomes
  */
 function computeGenomeSimilarity(g1, g2) {
-  const keys = ["workload", "bugCount", "apiCount", "meetingLoad", "reviewLoad", "blockerCount", "overdueCount"];
+  const keys = ["workload","bugCount","apiCount","meetingLoad","reviewLoad","blockerCount","overdueCount"];
   let totalDiff = 0;
   let maxPossible = 0;
   for (const k of keys) {
@@ -4529,13 +4717,13 @@ function computeGenomeSimilarity(g1, g2) {
  */
 function detectMutations(current, matchedPast) {
   const fields = {
-    workload: { label: "Total tasks" },
-    bugCount: { label: "Bug/defect count" },
-    apiCount: { label: "Pending API tasks" },
+    workload:    { label: "Total tasks" },
+    bugCount:    { label: "Bug/defect count" },
+    apiCount:    { label: "Pending API tasks" },
     meetingLoad: { label: "Meeting-sourced tasks" },
-    reviewLoad: { label: "Code review load" },
-    blockerCount: { label: "Blockers" },
-    overdueCount: { label: "Overdue items" }
+    reviewLoad:  { label: "Code review load" },
+    blockerCount:{ label: "Blockers" },
+    overdueCount:{ label: "Overdue items" }
   };
   return Object.entries(fields).map(([k, meta]) => {
     const cur = current[k] || 0;
@@ -4550,10 +4738,10 @@ function detectMutations(current, matchedPast) {
  */
 function predictRisks(mutations, similarityScore, matchedOutcome) {
   const risks = [];
-  const bugMut = mutations.find(m => m.field === "bugCount");
-  const workMut = mutations.find(m => m.field === "workload");
-  const meetMut = mutations.find(m => m.field === "meetingLoad");
-  const apiMut = mutations.find(m => m.field === "apiCount");
+  const bugMut   = mutations.find(m => m.field === "bugCount");
+  const workMut  = mutations.find(m => m.field === "workload");
+  const meetMut  = mutations.find(m => m.field === "meetingLoad");
+  const apiMut   = mutations.find(m => m.field === "apiCount");
   const blockMut = mutations.find(m => m.field === "blockerCount");
   const overdueMut = mutations.find(m => m.field === "overdueCount");
 
@@ -4608,10 +4796,10 @@ async function runGenomeAnalysis() {
 
     // Synthetic historical sprint genomes (always available, no backend needed)
     const syntheticPast = [
-      { sprintLabel: "Sprint 5", workload: 22, p1Count: 3, bugCount: 5, apiCount: 4, meetingLoad: 6, ownerCount: 4, reviewLoad: 8, blockerCount: 3, overdueCount: 4, velocity: 38, outcome: "delayed" },
-      { sprintLabel: "Sprint 8", workload: 14, p1Count: 1, bugCount: 2, apiCount: 1, meetingLoad: 2, ownerCount: 5, reviewLoad: 4, blockerCount: 1, overdueCount: 1, velocity: 72, outcome: "healthy" },
-      { sprintLabel: "Sprint 10", workload: 18, p1Count: 2, bugCount: 3, apiCount: 3, meetingLoad: 4, ownerCount: 4, reviewLoad: 6, blockerCount: 2, overdueCount: 2, velocity: 55, outcome: "delayed" },
-      { sprintLabel: "Sprint 11", workload: 12, p1Count: 0, bugCount: 1, apiCount: 2, meetingLoad: 3, ownerCount: 5, reviewLoad: 3, blockerCount: 0, overdueCount: 0, velocity: 85, outcome: "healthy" },
+      { sprintLabel: "Sprint 5",  workload: 22, p1Count: 3, bugCount: 5, apiCount: 4, meetingLoad: 6, ownerCount: 4, reviewLoad: 8,  blockerCount: 3, overdueCount: 4, velocity: 38, outcome: "delayed" },
+      { sprintLabel: "Sprint 8",  workload: 14, p1Count: 1, bugCount: 2, apiCount: 1, meetingLoad: 2, ownerCount: 5, reviewLoad: 4,  blockerCount: 1, overdueCount: 1, velocity: 72, outcome: "healthy" },
+      { sprintLabel: "Sprint 10", workload: 18, p1Count: 2, bugCount: 3, apiCount: 3, meetingLoad: 4, ownerCount: 4, reviewLoad: 6,  blockerCount: 2, overdueCount: 2, velocity: 55, outcome: "delayed" },
+      { sprintLabel: "Sprint 11", workload: 12, p1Count: 0, bugCount: 1, apiCount: 2, meetingLoad: 3, ownerCount: 5, reviewLoad: 3,  blockerCount: 0, overdueCount: 0, velocity: 85, outcome: "healthy" },
     ];
 
     // Find best historical match
@@ -4621,18 +4809,18 @@ async function runGenomeAnalysis() {
       if (score > bestScore) { bestScore = score; bestMatch = past; }
     }
 
-    const mutations = detectMutations(current, bestMatch);
-    const risks = predictRisks(mutations, bestScore, bestMatch.outcome);
+    const mutations     = detectMutations(current, bestMatch);
+    const risks         = predictRisks(mutations, bestScore, bestMatch.outcome);
     const recommendations = risks.map(r => r.recommendation);
 
-    genomeState.currentGenome = current;
-    genomeState.pastGenomes = syntheticPast;
-    genomeState.matchedSprint = bestMatch;
+    genomeState.currentGenome   = current;
+    genomeState.pastGenomes     = syntheticPast;
+    genomeState.matchedSprint   = bestMatch;
     genomeState.similarityScore = bestScore;
-    genomeState.mutations = mutations;
-    genomeState.risks = risks;
+    genomeState.mutations       = mutations;
+    genomeState.risks           = risks;
     genomeState.recommendations = recommendations;
-    genomeState.lastAnalyzed = new Date().toLocaleTimeString();
+    genomeState.lastAnalyzed    = new Date().toLocaleTimeString();
 
     // Optional AI narrative via Electron IPC (never blocks if unavailable)
     if (window.taskPilotDesktop?.invoke && risks.length > 0) {
@@ -4727,10 +4915,10 @@ function renderProjectGenomePage() {
           <p style="color:#626f86;max-width:480px;margin:0 auto 20px;">Click "Analyze Sprint" to build a genetic fingerprint of the current sprint and compare it against historical patterns to predict risks.</p>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:540px;margin:0 auto;text-align:left;">
             ${[
-        { icon: `<svg width="20" height="20" fill="none" stroke="#0c66e4" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>`, title: "Data Sources", desc: "Jira, GitHub, Slack, Emails, Meetings" },
-        { icon: `<svg width="20" height="20" fill="none" stroke="#6554c0" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>`, title: "Feature Extraction", desc: "Workload, bugs, dependencies, reviews" },
-        { icon: `<svg width="20" height="20" fill="none" stroke="#de350b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`, title: "Risk Prediction", desc: "Bottlenecks, overload, delays — with %s" }
-      ].map(s => `
+              { icon:`<svg width="20" height="20" fill="none" stroke="#0c66e4" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>`, title:"Data Sources", desc:"Jira, GitHub, Slack, Emails, Meetings" },
+              { icon:`<svg width="20" height="20" fill="none" stroke="#6554c0" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>`, title:"Feature Extraction", desc:"Workload, bugs, dependencies, reviews" },
+              { icon:`<svg width="20" height="20" fill="none" stroke="#de350b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`, title:"Risk Prediction", desc:"Bottlenecks, overload, delays — with %s" }
+            ].map(s => `
               <div style="background:#fff;border:1px solid #dfe3ea;border-radius:8px;padding:12px;">
                 <div style="margin-bottom:6px;">${s.icon}</div>
                 <strong style="font-size:12px;color:#172b4d;">${s.title}</strong>
@@ -4875,6 +5063,40 @@ function renderProjectGenomePage() {
 }
 
 // ─── Manager Dashboard Command Strip ──────────────────────────────────────────
+function renderManagerTopHeader(title, extraButtons = "") {
+  return `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;">FRIDAY, JUNE 19, 2026</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1 style="margin:0; font-size:32px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">${escapeHtml(title)}</h1>
+          <div style="font-size:13px; color:#64748b; margin-top:4px;">Active Profile: Demo Manager (Manager) · manager@taskpilot.dev</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="calApproveHandoffBtn" style="padding:9px 16px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+            Approve next handoff
+          </button>
+          <button id="calSimulateLoadBtn" style="padding:9px 16px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+            Simulate team load shift
+          </button>
+          ${extraButtons}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * ─── TaskPilot AI — Manager Section Module ───────────────────────────────────
+ * Contains all extracted Manager section components, views, dashboards,
+ * settings, assignment engines, analytics, and associated styles.
+ */
+
+// ========================================== 
+// 1. MANAGER DASHBOARD & CORE VIEWS 
+// ========================================== 
+
+// ─── Manager Dashboard Command Strip ──────────────────────────────────────────
 function renderManagerCommandStrip(selected) {
   const insights = datasetInsights();
   const p1Tasks = state.prioritized.filter(t => t.severity === "P1");
@@ -4894,9 +5116,9 @@ function renderManagerCommandStrip(selected) {
         <p class="eyebrow">Sprint Genome</p>
         <h2>${genomeReady ? `${similarityScore}% match` : "Analyze sprint"}</h2>
         <p>${genomeReady
-      ? `Current sprint is ${similarityScore}% similar to a past sprint. ${topRisk ? `Top risk: ${topRisk.label} (${topRisk.pct}%).` : ""}`
-      : "Run the Genome Analyzer to predict risks from historical sprint patterns."
-    }</p>
+          ? `Current sprint is ${similarityScore}% similar to a past sprint. ${topRisk ? `Top risk: ${topRisk.label} (${topRisk.pct}%).` : ""}`
+          : "Run the Genome Analyzer to predict risks from historical sprint patterns."
+        }</p>
       </article>
       <article class="hero-card priority" style="cursor: pointer;" data-nav="analytics">
         <p class="eyebrow">Manager action</p>
@@ -4963,16 +5185,16 @@ function renderWorkloadChart(ownerLoad) {
     ${legend}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:10px;">
       ${owners.map((o, i) => {
-    const col = COLORS[i % COLORS.length];
-    const pct = o.count ? Math.round(o.done / o.count * 100) : 0;
-    const isOverloaded = o.count >= 8 || o.p1 >= 3;
-    return `<div style="padding:7px 9px;background:#fff;border:1px solid #e8e0d5;border-left:3px solid ${col};border-radius:7px;font-size:11px;">
+        const col = COLORS[i % COLORS.length];
+        const pct = o.count ? Math.round(o.done / o.count * 100) : 0;
+        const isOverloaded = o.count >= 8 || o.p1 >= 3;
+        return `<div style="padding:7px 9px;background:#fff;border:1px solid #e8e0d5;border-left:3px solid ${col};border-radius:7px;font-size:11px;">
           <strong style="color:#172b4d;display:block;margin-bottom:2px;">${escapeHtml(o.owner)}</strong>
           <div style="color:#64748b;">${o.count} tasks · ${o.p1} P1</div>
           <div style="color:${o.blockers > 0 ? "#974f0c" : "#64748b"};">${o.blockers} blocker${o.blockers !== 1 ? "s" : ""}</div>
           ${isOverloaded ? `<span style="font-size:10px;color:#de350b;font-weight:700;">⚠ Overloaded</span>` : ""}
         </div>`;
-  }).join("")}
+      }).join("")}
     </div>`;
 }
 
@@ -4980,7 +5202,7 @@ function renderWorkloadChart(ownerLoad) {
 function renderDependencyGraph() {
   // Find tasks that are either blocking or blocked by others
   const blockingTasks = state.prioritized.filter(t => t.isBlocking && !isTaskCompleted(t.id));
-  const blockedTasks = state.prioritized.filter(t => t.isBlocked && !isTaskCompleted(t.id));
+  const blockedTasks  = state.prioritized.filter(t => t.isBlocked  && !isTaskCompleted(t.id));
 
   // Fall back: use dependency keyword analysis if graph data not populated
   const keywordBlocked = state.prioritized.filter(t =>
@@ -4989,7 +5211,7 @@ function renderDependencyGraph() {
   );
 
   const allBlockers = blockingTasks.length > 0 ? blockingTasks : [];
-  const allBlocked = blockedTasks.length > 0 ? blockedTasks : keywordBlocked;
+  const allBlocked  = blockedTasks.length  > 0 ? blockedTasks  : keywordBlocked;
 
   const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
 
@@ -5053,7 +5275,7 @@ function renderDependencyGraph() {
         </div>` : ""}
       <div style="padding:8px 10px;background:#f8f5f0;border-radius:6px;font-size:11px;color:#64748b;border-left:3px solid #6554c0;display:flex;align-items:flex-start;gap:6px;">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-        Resolving blocking tasks first will cascade ${allBlockers.reduce((s, t) => s + (t.blocksCount || 1), 0)} downstream item${allBlockers.reduce((s, t) => s + (t.blocksCount || 1), 0) !== 1 ? "s" : ""} into action automatically.
+        Resolving blocking tasks first will cascade ${allBlockers.reduce((s,t) => s + (t.blocksCount||1), 0)} downstream item${allBlockers.reduce((s,t) => s + (t.blocksCount||1), 0) !== 1 ? "s" : ""} into action automatically.
       </div>
     </div>`;
 }
@@ -5656,577 +5878,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
 
 // ─── Full Architecture Canvas & Diagnostics Rendering ──────────────────────────
 
-function getNodeLogo(id) {
-  switch (id) {
-    case "jira":
-      return `<svg viewBox="0 0 32 32" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M15.48 0l-7.74 7.74a2.67 2.67 0 000 3.77l3.97 3.97 7.74-7.74L15.48 0z" fill="#0052CC"/><path d="M8 7.78L.26 15.52a2.67 2.67 0 000 3.77L8 27.03l7.74-7.74L8 11.55V7.78z" fill="#2684FF"/><path d="M15.48 15.52L8 23.26 15.48 30.75l7.74-7.74a2.67 2.67 0 000-3.77l-7.74-3.72z" fill="#0052CC"/><path d="M23.22 7.78v3.77l-7.74 7.74 7.74 7.74 7.74-7.74a2.67 2.67 0 000-3.77L23.22 7.78z" fill="#2684FF"/></svg>`;
-    case "slack":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zm2.521-10.123a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/></svg>`;
-    case "github":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path fill="#24292f" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>`;
-    case "outlook":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="1" y="4" width="22" height="16" rx="2" fill="#0078D4"/><path d="M1 7l11 7 11-7" stroke="#fff" stroke-width="1.6" fill="none"/></svg>`;
-    case "servicenow":
-      return `<svg viewBox="0 0 32 32" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><circle cx="16" cy="16" r="16" fill="#81B5A2"/><path d="M10 22l6-12 6 12" stroke="#fff" stroke-width="2.5" fill="none"/><path d="M10 22h12" stroke="#fff" stroke-width="2.5" fill="none"/></svg>`;
-    case "meetings":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect width="24" height="24" rx="6" fill="#2D8CFF"/><path d="M4 8.5A1.5 1.5 0 015.5 7h8a1.5 1.5 0 0115 8.5v7a1.5 1.5 0 0113.5 17h-8a1.5 1.5 0 01-1.5-1.5v-7zm11 2.2l3.6-2.4A.5.5 0 0120 8.8v6.4a.5.5 0 01-.8.4L15 13.3V10.7z" fill="#fff"/></svg>`;
-    case "gcs":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="2" y="4" width="20" height="16" rx="3" fill="#1a73e8"/><path d="M6 8h12M6 12h12M6 16h12" stroke="#fff" stroke-width="2"/></svg>`;
-    case "cudf":
-    case "nemotron":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z" fill="#76b900"/><path d="M12 6l7 3.5v5L12 18l-7-3.5v-5L12 6z" fill="#fff"/></svg>`;
-    case "cleaner":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M19 4h-3V2h-8v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c0 1.1.9-2 2-2V6c0-1.1-.9-2-2-2z" fill="#64748b"/><path d="M12 8v8M8 12h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`;
-    case "bigquery":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="2" y="4" width="20" height="16" rx="3" fill="#4285f4"/><path d="M12 8a4 4 0 100 8 4 4 0 000-8z" fill="#ffbb00"/></svg>`;
-    case "fastapi":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2L2 12h9v10l10-10h-9V2z" fill="#059669"/></svg>`;
-    case "orchestrator":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="3" y="3" width="18" height="18" rx="4" fill="#0c66e4"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg>`;
-    case "router":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M4 4h4l8 16h4M4 20h4l8-16h4" stroke="#4b5563" stroke-width="2.5" stroke-linecap="round"/></svg>`;
-    case "gemini":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2c0 5.5-4.5 10-10 10 5.5 0 10 4.5 10 10 0-5.5 4.5-10 10-10-5.5 0-10-4.5-10-10z" fill="url(#geminiGrad)"/><defs><linearGradient id="geminiGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a73e8"/><stop offset="100%" stop-color="#e8710a"/></linearGradient></defs></svg>`;
-    case "grok":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><rect x="3" y="3" width="18" height="18" rx="4" fill="#000"/><path d="M7 7h10v10H7z" fill="#fff"/><path d="M9 9h6v6H9z" fill="#000"/></svg>`;
-    case "supabase":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2L3 13.5h7.5V22l9-11.5H12V2z" fill="#3ecf8e"/></svg>`;
-    case "alerts":
-      return `<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;margin-right:6px;"><path d="M12 2a7 7 0 00-7 7v5.5L3.3 17a1 1 0 00.7 1.5h16a1 1 0 00.7-1.5L19 14.5V9a7 7 0 00-7-7z" fill="#f59e0b"/><circle cx="12" cy="21" r="2" fill="#d97706"/></svg>`;
-    default:
-      return "";
-  }
-}
 
-
-function renderFullArchitectureCanvas() {
-  const getStatus = (id) => {
-    if (adminErrorSimulated && id === "gemini") return "error";
-    if (adminErrorSimulated && id === "router") return "warning";
-    return adminArchitectureNodes[id]?.status || "healthy";
-  };
-
-  const N = {
-    // Column 1: Triggers (x: 10, w: 152)
-    jira: { x: 10, y: 12, w: 152, h: 42, label: "Jira Sprint", sub: "Board webhooks" },
-    slack: { x: 10, y: 72, w: 152, h: 42, label: "Slack", sub: "Channel stream" },
-    github: { x: 10, y: 132, w: 152, h: 42, label: "GitHub", sub: "PR & commit feed" },
-    outlook: { x: 10, y: 192, w: 152, h: 42, label: "Gmail/Outlook", sub: "Inbox poller" },
-    servicenow: { x: 10, y: 252, w: 152, h: 42, label: "ServiceNow", sub: "Incident trigger" },
-    meetings: { x: 10, y: 312, w: 152, h: 42, label: "Zoom Meetings", sub: "Meeting sync" },
-
-    // Column 2: Ingestion & Storage (x: 210, w: 150)
-    gcs: { x: 210, y: 32, w: 150, h: 50, label: "Google GCS", sub: "Raw landing bucket" },
-    cudf: { x: 210, y: 162, w: 150, h: 50, label: "NVIDIA cuDF", sub: "GPU dataframes" },
-    cleaner: { x: 210, y: 292, w: 150, h: 50, label: "Data Cleaner", sub: "Normalize & dedupe" },
-
-    // Column 3: Warehouse & API (x: 410, w: 160)
-    bigquery: { x: 410, y: 72, w: 160, h: 56, label: "Google BigQuery", sub: "Unified warehouse" },
-    fastapi: { x: 410, y: 232, w: 160, h: 50, label: "FastAPI", sub: "REST backend" },
-
-    // Column 4: Orchestrator (x: 620, w: 170)
-    orchestrator: { x: 620, y: 152, w: 170, h: 56, label: "Orchestrator", sub: "Google ADK core" },
-
-    // Column 4b: Smart Router (x: 840, w: 150)
-    router: { x: 840, y: 157, w: 150, h: 50, label: "Smart Router", sub: "Multi-LLM dispatch" },
-
-    // Column 5: LLM Providers (x: 1040, w: 150)
-    gemini: { x: 1040, y: 42, w: 150, h: 50, label: "Gemini 2.5", sub: "Vertex AI" },
-    nemotron: { x: 1040, y: 162, w: 150, h: 50, label: "NVIDIA NIM", sub: "Nemotron-70B" },
-    grok: { x: 1040, y: 282, w: 150, h: 50, label: "Grok xAI", sub: "X AI Beta" },
-
-    // Column 6: Output / Action (x: 1240, w: 150)
-    supabase: { x: 1240, y: 92, w: 150, h: 50, label: "Supabase DB", sub: "Postgres store" },
-    alerts: { x: 1240, y: 212, w: 150, h: 50, label: "Alerts", sub: "Webhooks & notifs" }
-  };
-
-  const rc = (id) => [N[id].x + N[id].w, N[id].y + N[id].h / 2];
-  const lc = (id) => [N[id].x, N[id].y + N[id].h / 2];
-
-  const curve = ([x1, y1], [x2, y2]) => {
-    const mx = (x1 + x2) / 2;
-    return `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
-  };
-
-  const mkPath = (d, s) => {
-    const colors = { healthy: "#cbd5e1", active: "#3b82f6", error: "#ef4444", warning: "#f59e0b" };
-    const col = colors[s] || colors.healthy;
-    const animated = (adminPipelineRunning || s === "active");
-    return `<path d="${d}" stroke="${col}" stroke-width="1.8" fill="none" stroke-linecap="round"
-      stroke-dasharray="${s === 'error' ? '4 3' : animated ? '8 5' : 'none'}"
-      style="${animated ? 'animation:n8n-dash-flow 1.4s linear infinite;' : ''}"/>`;
-  };
-
-  const paths = [
-    // Column 1 Triggers → Column 2 Ingest/Processing
-    mkPath(curve(rc("jira"), lc("gcs")), getStatus("jira")),
-    mkPath(curve(rc("github"), lc("gcs")), getStatus("github")),
-    mkPath(curve(rc("slack"), lc("cudf")), getStatus("slack")),
-    mkPath(curve(rc("outlook"), lc("cudf")), getStatus("outlook")),
-    mkPath(curve(rc("servicenow"), lc("cleaner")), getStatus("servicenow")),
-    mkPath(curve(rc("meetings"), lc("cleaner")), getStatus("meetings")),
-
-    // Column 2 Ingest/Processing → Column 3 Warehouse/API
-    mkPath(curve(rc("gcs"), lc("bigquery")), getStatus("gcs")),
-    mkPath(curve(rc("cudf"), lc("bigquery")), getStatus("cudf")),
-    mkPath(curve(rc("cleaner"), lc("fastapi")), getStatus("cleaner")),
-
-    // Column 3 Warehouse/API → Column 4 Orchestrator
-    mkPath(curve(rc("bigquery"), lc("orchestrator")), getStatus("bigquery")),
-    mkPath(curve(rc("fastapi"), lc("orchestrator")), getStatus("fastapi")),
-
-    // Column 4 Orchestrator → Column 4b Smart Router
-    mkPath(curve(rc("orchestrator"), lc("router")), getStatus("orchestrator")),
-
-    // Column 4b Smart Router → Column 5 LLM Providers
-    mkPath(curve(rc("router"), lc("gemini")), getStatus("router")),
-    mkPath(curve(rc("router"), lc("nemotron")), getStatus("router")),
-    mkPath(curve(rc("router"), lc("grok")), getStatus("router")),
-
-    // Column 5 LLM Providers → Column 6 Output/Action
-    mkPath(curve(rc("gemini"), lc("supabase")), getStatus("gemini")),
-    mkPath(curve(rc("gemini"), lc("alerts")), getStatus("gemini")),
-    mkPath(curve(rc("nemotron"), lc("supabase")), getStatus("nemotron")),
-    mkPath(curve(rc("nemotron"), lc("alerts")), getStatus("nemotron")),
-    mkPath(curve(rc("grok"), lc("alerts")), getStatus("grok"))
-  ].join("\n");
-
-  const badge = (id) => {
-    const s = getStatus(id);
-    const conf = { error: ["#ef4444", "Error"], warning: ["#f59e0b", "Warning"], active: ["#3b82f6", "Active"], healthy: ["#10b981", "Healthy"] };
-    const [col, lbl] = conf[s] || conf.healthy;
-    return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:600;color:${col};">
-      <span style="width:5px;height:5px;border-radius:50%;background:${col};display:inline-block;${s === 'active' ? 'animation:pulse 1.2s infinite;' : ''}"></span>${lbl}
-    </span>`;
-  };
-
-  const nd = (id) => {
-    const n = N[id];
-    const s = getStatus(id);
-    const sel = adminSelectedNodeId === id;
-    const bgMap = { error: "#fef2f2", warning: "#fffbeb", active: "#eff6ff", healthy: "#ffffff" };
-    const bdMap = { error: "#fca5a5", warning: "#fcd34d", active: "#bfdbfe", healthy: "#e2e8f0" };
-    const bg = bgMap[s] || "#ffffff";
-    const bd = sel ? "#2563eb" : (bdMap[s] || "#e2e8f0");
-    const shadow = sel ? "0 0 0 2px rgba(37,99,235,0.2),0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.05)";
-    const logoSvg = getNodeLogo(id);
-    return `<div data-admin-node="${id}" style="position:absolute;left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px;
-      background:${bg};border:1.5px solid ${bd};border-radius:8px;padding:6px 10px;cursor:pointer;box-sizing:border-box;
-      transition:all 0.18s cubic-bezier(.4,0,.2,1);box-shadow:${shadow};z-index:10;">
-      <div style="font-size:11px;font-weight:700;color:#1e293b;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;">
-        ${logoSvg}
-        <span>${n.label}</span>
-      </div>
-      <div style="font-size:9.5px;color:#94a3b8;margin:1px 0 3px 22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.sub}</div>
-      <div style="margin-left:22px;">${badge(id)}</div>
-    </div>`;
-  };
-
-  const W = 1408, H = 380;
-  return `
-    <div style="width:100%;height:100%;overflow:hidden;background:#f8fafc;background-image:radial-gradient(circle,#dde1e9 1px,transparent 1px);background-size:20px 20px;position:relative;">
-      <div class="n8n-inner" style="width:${W}px;height:${H}px;position:relative;transform-origin:top left;">
-        <svg style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;pointer-events:none;overflow:visible;">
-          ${paths}
-        </svg>
-        ${Object.keys(N).map(id => nd(id)).join("\n")}
-      </div>
-    </div>
-  `;
-}
-
-function renderAdminDiagnosticsPanel() {
-  const getSelectedNodeData = () => {
-    const id = adminSelectedNodeId;
-    if (id === "all") return null;
-
-    // Dynamic simulated errors
-    if (adminErrorSimulated && id === "gemini") {
-      return {
-        name: "Vertex AI (Gemini 2.5 Flash)",
-        status: "error",
-        description: "Primary LLM provider for task classification and context generation.",
-        error: "Rate Limit Exceeded (HTTP 429) - Vertex AI quota limits reached for region us-central1.",
-        code: `def call_gemini_flash(prompt):\n    client = vertexai.GenerativeModel("gemini-2.5-flash")\n    # Standard endpoint invocation without fallback limits\n    return client.generate_content(prompt)`,
-        fix: `def call_gemini_flash(prompt):\n    try:\n        client = vertexai.GenerativeModel("gemini-2.5-flash")\n        return client.generate_content(prompt)\n    except ResourceExhausted:\n        # NVIDIA Copilot: Fallback router to high-availability NVIDIA NIM Nemotron model\n        logger.warning("Gemini Rate Limit hit. Routing prompt to NVIDIA NIM.")\n        return call_nvidia_nim_nemotron(prompt)`
-      };
-    }
-    if (adminErrorSimulated && id === "router") {
-      return {
-        name: "Multi-LLM Smart Router",
-        status: "warning",
-        description: "Evaluates health profiles and automatically directs prompt workloads.",
-        error: "Smart Router detected failure rate spike (>90%) on main Gemini channel. Fallover delay occurring.",
-        code: `def route_prompt(prompt):\n    # Default to Gemini route without fallback verification\n    return "gemini-2.5-flash"`,
-        fix: `def route_prompt(prompt):\n    # NVIDIA Copilot: Route based on real-time endpoint status\n    if is_endpoint_down("gemini-2.5-flash"):\n        logger.info("Outage detected. Auto-routing to NVIDIA NIM Nemotron-70B.")\n        return "nvidia-nemotron-70b"\n    return "gemini-2.5-flash"`
-      };
-    }
-
-    return adminArchitectureNodes[id];
-  };
-
-  const data = getSelectedNodeData();
-
-  if (!data) {
-    return `
-      <div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; color:#71717a;">
-        <span style="font-size:36px; margin-bottom:8px;">💡</span>
-        <h3 style="margin:0 0 4px 0; color:#18181b; font-weight:800; font-family:'Outfit';">NVIDIA NIM Diagnostics Copilot</h3>
-        <p style="margin:0; font-size:12.5px; max-width:440px;">Select any node component in the architecture canvas above to analyze its live status, inspect potential code blockers, and deploy NVIDIA AI suggested hotfixes.</p>
-      </div>
-    `;
-  }
-
-  const isHealthy = data.status === "healthy";
-  const stateColor = isHealthy ? "#10b981" : data.status === "warning" ? "#f59e0b" : "#ef4444";
-  const stateBadge = isHealthy ? "Healthy" : data.status === "warning" ? "Warning" : "Needs Fix";
-
-  return `
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; padding:20px; height:100%; overflow-y:auto; font-family:'Inter', sans-serif;">
-      <!-- Left Column: Diagnostic Details -->
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; align-items:center; justify-content:space-between;">
-          <h3 style="margin:0; font-size:15px; font-weight:900; color:#0f172a; font-family:'Outfit';">${escapeHtml(data.name)}</h3>
-          <span style="font-size:11px; font-weight:900; color:#fff; background:${stateColor}; padding:3px 8px; border-radius:12px; text-transform:uppercase;">${stateBadge}</span>
-        </div>
-        <p style="margin:0; font-size:12px; color:#4b5563; line-height:1.5;">${escapeHtml(data.description)}</p>
-        
-        ${isHealthy ? `
-          <div style="background:#f0fdf4; border:1px solid #b9f6ca; border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
-            <div style="font-size:11.5px; font-weight:800; color:#15803d; display:flex; align-items:center; gap:6px;">
-              <span>🟢</span> NVIDIA Diagnostics: Healthy
-            </div>
-            <ul style="margin:0; padding-left:16px; font-size:11px; color:#166534; display:grid; gap:4px;">
-              <li>All integration ports responding within SLA.</li>
-              <li>NVIDIA NIM smart route pipeline reports optimal telemetry latency.</li>
-              <li>Service credentials are validated and healthy.</li>
-            </ul>
-          </div>
-        ` : `
-          <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:6px;">
-            <div style="font-size:11.5px; font-weight:800; color:#b91c1c; display:flex; align-items:center; gap:6px;">
-              <span>🚨</span> Detected Code Blocker
-            </div>
-            <div style="font-size:11.5px; color:#7f1d1d; font-family:monospace; line-height:1.4;">
-              ${escapeHtml(data.error)}
-            </div>
-          </div>
-          
-          <button id="deployNvidiaFixBtn" data-node-id="${data.id}" style="margin-top:auto; background:#76b900; color:#fff; border:none; padding:10px; border-radius:6px; font-weight:800; font-size:12px; cursor:pointer; text-transform:uppercase; transition:background 0.15s; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#66a000'" onmouseout="this.style.background='#76b900'">
-            🟢 Deploy suggested fix via NVIDIA NIM
-          </button>
-        `}
-      </div>
-
-      <!-- Right Column: Code Editor & Suggestion -->
-      <div style="display:flex; flex-direction:column; gap:10px; min-height:0;">
-        ${isHealthy ? `
-          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#64748b;">
-            <span style="font-size:24px;">✔</span>
-            <div style="font-size:12px; font-weight:700; margin-top:4px;">Telemetry Code Clean</div>
-            <div style="font-size:10.5px;">No hotfix necessary. Code logic is fully compliant with NVIDIA NIM smart router pipelines.</div>
-          </div>
-        ` : `
-          <div style="display:grid; grid-template-rows: auto 1fr; flex:1; min-height:0; gap:6px;">
-            <div style="font-size:11px; font-weight:800; color:#4b5563; text-transform:uppercase;">NVIDIA NIM AI Diagnostic Fix</div>
-            
-            <div style="display:grid; grid-template-rows: 1fr 1.2fr; gap:8px; min-height:0;">
-              <!-- Failing Code Box -->
-              <div style="border:1px solid #fecaca; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; background:#fff1f1;">
-                <div style="background:#fee2e2; padding:3px 8px; font-size:10px; font-weight:800; color:#b91c1c; border-bottom:1px solid #fecaca;">FAILING CODE</div>
-                <pre style="margin:0; padding:8px; font-family:monospace; font-size:10px; color:#991b1b; overflow:auto; flex:1;">${escapeHtml(data.code)}</pre>
-              </div>
-
-              <!-- Suggested Fix Box -->
-              <div style="border:1px solid #bbf7d0; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; background:#f0fdf4;">
-                <div style="background:#dcfce7; padding:3px 8px; font-size:10px; font-weight:800; color:#15803d; border-bottom:1px solid #bbf7d0;">NVIDIA SUGGESTED HOTFIX</div>
-                <pre style="margin:0; padding:8px; font-family:monospace; font-size:10.5px; color:#166534; overflow:auto; flex:1; font-weight:600;">${escapeHtml(data.fix)}</pre>
-              </div>
-            </div>
-          </div>
-        `}
-      </div>
-    </div>
-  `;
-}
-
-function renderAdminDiagnosticsPage() {
-  const tiers = [
-    {
-      id: "user", tier: "USER", label: "End Users",
-      color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe",
-      icon: `<svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`,
-      desc: "Engineers, Managers and Admins access the platform",
-      features: [
-        { name: "Login Page", status: "ok", detail: "Google OAuth + Supabase Auth working" },
-        { name: "Profile Switcher", status: "ok", detail: "Switch between Admin / Engineer / Manager" },
-        { name: "Sidebar Navigation", status: "ok", detail: "All nav items routing correctly" },
-        { name: "Settings Popover", status: "ok", detail: "Gear icon opens Settings + Sign out" }
-      ]
-    },
-    {
-      id: "engineer", tier: "ENGINEER", label: "Engineer Dashboard",
-      color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe",
-      icon: `<svg width="20" height="20" fill="none" stroke="#7c3aed" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
-      desc: "Task prioritization, AI scans, execution briefs",
-      features: [
-        { name: "Autonomous Scan", status: "ok", detail: "Gemini-powered task analysis" },
-        { name: "Priority Queue", status: "ok", detail: "P1-P3 queue rendering correctly" },
-        { name: "Execution Brief", status: "ok", detail: "PDF export functional" },
-        { name: "AI Chat", status: "ok", detail: "Gemini chat dock live" },
-        { name: "Jira Integration", status: "ok", detail: "Add task modal active" }
-      ]
-    },
-    {
-      id: "manager", tier: "MANAGER", label: "Manager Dashboard",
-      color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4",
-      icon: `<svg width="20" height="20" fill="none" stroke="#0d9488" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`,
-      desc: "Team oversight, SLA tracking, standup generation",
-      features: [
-        { name: "Team Capacity", status: "ok", detail: "Agent assignment visible" },
-        { name: "Approve Handoff", status: "ok", detail: "Complete priority button working" },
-        { name: "Weekly Standup AI", status: "ok", detail: "Gemini standup generator live" },
-        { name: "SLA Risk Board", status: "ok", detail: "P1 tasks flagged correctly" },
-        { name: "Dataset Insights", status: "ok", detail: "Database analytics ready" }
-      ]
-    },
-    {
-      id: "auth", tier: "AUTH", label: "Auth Layer",
-      color: "#ea580c", bg: "#fff7ed", border: "#fed7aa",
-      icon: `<svg width="20" height="20" fill="none" stroke="#ea580c" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
-      desc: "Google OAuth + Supabase Auth, session management",
-      features: [
-        { name: "Google OAuth", status: "ok", detail: "OAuth2 flow verified" },
-        { name: "Supabase Session", status: "ok", detail: "JWT tokens refreshing" },
-        { name: "Email Allowlist", status: "ok", detail: "Only allowed emails can log in" },
-        { name: "RLS Policies", status: "ok", detail: "Row-level security enforced" }
-      ]
-    },
-    {
-      id: "architecture", tier: "PIPELINE", label: "Full AI Pipeline",
-      color: "#0f766e", bg: "#f0fdfa", border: "#5eead4",
-      icon: `<svg width="20" height="20" fill="none" stroke="#0f766e" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`,
-      desc: "Data ingestion, orchestration, LLMs, outputs",
-      features: [
-        { name: "Trigger Layer", status: "ok", detail: "Jira / Slack / GitHub / Gmail webhooks" },
-        { name: "NVIDIA cuDF", status: "ok", detail: "GPU data processing online" },
-        { name: "BigQuery Warehouse", status: "ok", detail: "Schema synced" },
-        { name: "Orchestrator (ADK)", status: "ok", detail: "Multi-agent routing live" },
-        { name: "Gemini 2.5 Flash", status: "ok", detail: "Vertex AI connected" },
-        { name: "NVIDIA NIM", status: "ok", detail: "NIM endpoint healthy" },
-        { name: "Supabase Output", status: "ok", detail: "Write pipeline active" },
-        { name: "Alerts / Webhooks", status: adminErrorSimulated ? "error" : "ok", detail: adminErrorSimulated ? "Slack webhook 403 — token expired" : "Connected and active" }
-      ]
-    }
-  ];
-
-  const currentTier = tiers.find(t => t.id === selectedDiagTierId) || tiers[0];
-  const ok = currentTier.features.filter(f => f.status === 'ok').length;
-  const warn = currentTier.features.filter(f => f.status === 'warn').length;
-  const err = currentTier.features.filter(f => f.status === 'error').length;
-
-  const statusBadgeClass = (s) => {
-    return s === 'ok' ? 'status-pill-ok' : s === 'warn' ? 'status-pill-warn' : 'status-pill-error';
-  };
-  const statusBadgeText = (s) => {
-    return s === 'ok' ? 'OK' : s === 'warn' ? 'Warning' : 'Error';
-  };
-
-  const card = (t) => {
-    const isSelected = t.id === selectedDiagTierId;
-    const borderCol = isSelected ? "#0c66e4" : t.border;
-    const shadow = isSelected ? "0 4px 12px rgba(12,102,228,0.15)" : "0 1px 4px rgba(0,0,0,0.06)";
-    return `
-      <div class="diag-journey-card" data-diag-node="${t.id}"
-        style="flex:1; min-width:0; background:${t.bg}; border:2px solid ${borderCol}; border-radius:10px; padding:12px 10px;
-        cursor:pointer; text-align:center; transition:all 0.18s ease; box-shadow:${shadow}; position:relative;">
-        <div style="display:flex; justify-content:center; margin-bottom:6px;">${t.icon}</div>
-        <div style="font-size:9px; font-weight:700; color:${t.color}; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px;">${t.tier}</div>
-        <div style="font-size:11.5px; font-weight:700; color:#172b4d; line-height:1.3; margin-bottom:4px;">${t.label}</div>
-        <div style="font-size:10px; color:#64748b; line-height:1.4;">${t.desc.slice(0, 42)}...</div>
-      </div>`;
-  };
-
-  const arrow = `<div style="display:flex; align-items:center; flex-shrink:0; padding-top:20px;">
-    <svg width="20" height="10" viewBox="0 0 28 14" fill="none">
-      <path d="M0 7H20M14 2L24 7L14 12" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </div>`;
-
-  return `
-    <div style="display:flex; flex-direction:column; height:100%; background:#fcfbf9; overflow:hidden; font-family:'Poppins', sans-serif;">
-      <!-- Header -->
-      <div style="padding:14px 20px 8px; flex-shrink:0; border-bottom:1px solid #ded5c8; background:#fff;">
-        <div style="font-size:14px; font-weight:800; color:#172b4d;">System Diagnostics & Journey Health Center</div>
-        <div style="font-size:11px; color:#65717d; margin-top:2px;">Inspect end-to-end integration tiers and execute live hotfixes.</div>
-      </div>
-
-      <!-- Split Layout Workspace -->
-      <div style="flex:1; display:flex; overflow:hidden;">
-        
-        <!-- Left Pane: Journey & Architecture Preview (65%) -->
-        <div style="flex:6.5; display:flex; flex-direction:column; gap:16px; padding:16px; overflow-y:auto; border-right:1px solid #ded5c8;">
-          
-          <!-- Horizontal Journey Flow -->
-          <div style="display:flex; align-items:center; gap:6px;">
-            ${tiers.map((t, i) => [card(t), i < tiers.length - 1 ? arrow : ""].join("")).join("")}
-          </div>
-
-          <!-- Live Preview Panel -->
-          <div style="background:#fff; border:1px solid #ded5c8; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; flex:1; min-height:280px;">
-            <div style="padding:10px 16px; background:#fbfaf8; border-bottom:1px solid #ded5c8; display:flex; align-items:center; gap:8px;">
-              <svg width="14" height="14" fill="none" stroke="#44546f" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-              <strong style="font-size:12px; color:#172b4d;">Interactive Live Architecture Preview</strong>
-              <span style="font-size:10px; color:#65717d; margin-left:auto;">Interactive Node clicking enabled</span>
-            </div>
-            <div class="n8n-canvas-wrapper" id="diagCanvasHolder" style="flex:1; overflow:hidden; position:relative;">
-              ${renderFullArchitectureCanvas()}
-            </div>
-          </div>
-        </div>
-
-        <!-- Right Pane: Diagnostics Detail Sidebar (35%) -->
-        <div style="flex:3.5; background:#fff; padding:18px; display:flex; flex-direction:column; gap:16px; overflow-y:auto;">
-          
-          <!-- Selected Tier Header -->
-          <div style="display:flex; align-items:center; gap:10px; padding-bottom:12px; border-bottom:1.5px solid #f1f5f9;">
-            <div style="width:36px; height:36px; border-radius:8px; background:${currentTier.bg}; display:grid; place-items:center;">
-              ${currentTier.icon}
-            </div>
-            <div>
-              <div style="font-size:9px; font-weight:800; color:${currentTier.color}; text-transform:uppercase;">Tier Details</div>
-              <strong style="font-size:16px; color:#172b4d;">${currentTier.label}</strong>
-            </div>
-          </div>
-
-          <p style="font-size:12px; color:#65717d; margin:0; line-height:1.4;">${currentTier.desc}</p>
-
-          <!-- Check stats pills -->
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <span class="status-pill-ok" style="font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:5px; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;">${ok} Passed</span>
-            ${warn > 0 ? `<span class="status-pill-warn" style="font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:5px; background:#fef9c3; color:#a16207; border:1px solid #fef08a;">${warn} Warning</span>` : ""}
-            ${err > 0 ? `<span class="status-pill-error" style="font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:5px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;">${err} Failed</span>` : ""}
-          </div>
-
-          <!-- Features Checklist -->
-          <div style="display:grid; gap:8px;">
-            <strong style="font-size:11.5px; color:#65717d; text-transform:uppercase; letter-spacing:0.04em;">Component Checklist</strong>
-            ${currentTier.features.map(f => `
-              <div style="display:flex; align-items:flex-start; gap:8px; padding:10px; border-radius:8px; background:#f8fafc; border:1.5px solid #f1f5f9;">
-                <span style="font-size:13px; margin-top:2px;">
-                  ${f.status === 'ok'
-      ? '<svg width="14" height="14" fill="none" stroke="#22c55e" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
-      : f.status === 'warn'
-        ? '<svg width="14" height="14" fill="none" stroke="#f59e0b" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
-        : '<svg width="14" height="14" fill="none" stroke="#ef4444" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'
-    }
-                </span>
-                <div>
-                  <div style="font-size:12px; font-weight:700; color:#172b4d;">${f.name}</div>
-                  <div style="font-size:11px; color:#65717d; margin-top:1px;">${f.detail}</div>
-                </div>
-              </div>
-            `).join("")}
-          </div>
-
-          <!-- NVIDIA NIM Copilot Box -->
-          ${currentTier.id === "architecture" && adminErrorSimulated ? `
-            <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px; margin-top:6px;">
-              <div style="display:flex; align-items:center; gap:6px; color:#166534;">
-                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-                <strong style="font-size:12px;">NVIDIA Copilot Code Suggestion</strong>
-              </div>
-              <p style="font-size:11.5px; color:#166534; margin:0; line-height:1.4;">
-                <strong>slack_agent.py</strong>: Expired Slack Bot OAuth Token. Add bearer credentials to headers and fallback to logger trigger.
-              </p>
-              <pre style="margin:4px 0; background:#fcfcfc; padding:8px; border-radius:6px; border:1px solid #ded5c8; font-size:10px; font-family:monospace; overflow-x:auto; color:#1e293b;">
-headers = {
-    "Authorization": f"Bearer {token}",
-    "Content-Type": "application/json"
-}</pre>
-              <button class="primary" id="deployNvidiaDiagFixBtn" style="padding:8px 12px; border-radius:6px; justify-content:center; font-size:11.5px; font-weight:700; margin-top:4px;">
-                Deploy NVIDIA NIM Fix
-              </button>
-            </div>
-          ` : ""}
-
-        </div>
-
-      </div>
-    </div>
-  `;
-} function renderAdminDashboard(selected) {
-  const filteredLogs = adminSelectedNodeId === "all"
-    ? adminLogs
-    : adminLogs.filter(log => log.tag === adminSelectedNodeId);
-
-  const termH = parseInt(localStorage.getItem('taskpilot:adminTerminalHeight') || '240', 10);
-
-  // Node filter options
-  const nodeFilters = [
-    ["all", "All Nodes"], ["system", "System"], ["jira", "Jira"], ["slack", "Slack"],
-    ["github", "GitHub"], ["outlook", "Gmail/Outlook"], ["servicenow", "ServiceNow"],
-    ["meetings", "Zoom Meetings"], ["gcs", "Google GCS"], ["cudf", "NVIDIA cuDF"],
-    ["cleaner", "Data Cleaner"], ["bigquery", "BigQuery"], ["fastapi", "FastAPI"],
-    ["orchestrator", "Orchestrator"], ["router", "Smart Router"], ["gemini", "Gemini"],
-    ["nemotron", "NVIDIA NIM"], ["grok", "Grok xAI"], ["supabase", "Supabase"], ["alerts", "Alerts"]
-  ];
-
-  return `
-    <div class="admin-dashboard-container">
-
-      <!-- ── Upper: n8n Canvas ─────────────────────────────── -->
-      <div class="n8n-canvas-wrapper" id="adminCanvasWrapper">
-        ${renderFullArchitectureCanvas()}
-      </div>
-
-      <!-- ── Drag Resizer ──────────────────────────────────── -->
-      <div class="terminal-resizer" id="terminalResizer" title="Drag to resize"></div>
-
-      <!-- ── Lower: VS Code Terminal ──────────────────────── -->
-      <div class="admin-terminal-wrapper" id="adminTerminalWrapper" style="height:${termH}px;">
-        <div class="admin-terminal-header">
-          <div class="terminal-tabs">
-            <span class="terminal-tab">PROBLEMS</span>
-            <span class="terminal-tab">OUTPUT</span>
-            <span class="terminal-tab">DEBUG CONSOLE</span>
-            <span class="terminal-tab active">TERMINAL</span>
-          </div>
-          <div class="terminal-actions">
-            <select id="adminNodeFilter" style="font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;color:#374151;outline:none;height:22px;">
-              ${nodeFilters.map(([val, lbl]) =>
-    `<option value="${val}" ${adminSelectedNodeId === val ? "selected" : ""}>${lbl}</option>`
-  ).join("")}
-            </select>
-            <button class="terminal-action-btn btn-run" id="executePipelineBtn2" ${adminPipelineRunning ? "disabled" : ""}>
-              ${adminPipelineRunning ? "⏳ Running..." : "⚡ Run Pipeline"}
-            </button>
-            <button class="terminal-action-btn btn-error" id="simulateErrorBtn2">
-              ${adminErrorSimulated ? "✅ Clear Error" : "🔴 Simulate Error"}
-            </button>
-            <button class="terminal-action-btn btn-reset" id="resetAdminBtn2">🔄 Reset</button>
-          </div>
-        </div>
-
-        <div class="admin-log-console" id="adminLogConsole">
-          ${filteredLogs.length === 0
-      ? `<div style="color:#94a3b8;font-style:italic;padding:6px 0;">No logs for this filter.</div>`
-      : filteredLogs.map(log => `
-              <div class="admin-log-line tag-${log.tag}">
-                <span class="log-timestamp">[${log.time}]</span>
-                <span class="log-tag ${log.tag}">[${log.tag.toUpperCase()}]</span>
-                <span>${escapeHtml(log.text)}</span>
-              </div>`).join("")
-    }
-          <div style="display:flex;align-items:center;gap:6px;color:#10b981;margin-top:6px;padding-top:4px;border-top:1px dashed #e2e8f0;">
-            <span style="font-family:monospace;font-size:11px;">admin@taskpilot-core:~$</span>
-            <span class="terminal-cursor"></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
 
 function renderManagerDashboard(selected) {
   const insights = datasetInsights();
@@ -6239,35 +5891,67 @@ function renderManagerDashboard(selected) {
 
 function renderAssignmentResult(result) {
   const initials = (name) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const assignee = result.recommendedAssignee || "Rohan";
+  const reasoning = result.assignmentReasoning || "Rohan has the lowest current task load....";
+  const risk = result.riskLevel || "Critical";
+  const teamUpdate = result.teamUpdate || "*Fix CSV upload timeout for enterprise imports* assigned to Rohan — P1 priority, deadline 2026-06-18.";
+  const engNote = result.engineerPortalNote || "You've been assigned: Fix CSV upload timeout for enterprise imports. Priority P1. Deadline: 2026-06-18.";
+  const alts = result.alternativeAssignees && result.alternativeAssignees.length > 0 ? result.alternativeAssignees : ["Karan", "Meera"];
+
   return `
-    <div class="result-header">
-      <div class="mgr-assignee-avatar">${initials(result.recommendedAssignee || "?")}</div>
-      <div>
-        <div class="result-name">${escapeHtml(result.recommendedAssignee || "TBD")}</div>
-        <div class="result-reason">${escapeHtml((result.assignmentReasoning || "").slice(0, 80))}…</div>
+    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px; margin-top:14px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+      <!-- Header with Avatar & Risk -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:34px; height:34px; border-radius:50%; background:#15803d; color:#ffffff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            ${initials(assignee)}
+          </div>
+          <div>
+            <div style="font-size:13.5px; font-weight:800; color:#0f172a;">${escapeHtml(assignee)}</div>
+            <div style="font-size:11px; color:#64748b; margin-top:1px;">${escapeHtml(reasoning)}</div>
+          </div>
+        </div>
+        <span style="background:#fee2e2; color:#dc2626; font-size:11px; font-weight:800; padding:2px 8px; border-radius:10px; flex-shrink:0;">
+          ${escapeHtml(risk)}
+        </span>
       </div>
-      <span class="mgr-risk-badge ${result.riskLevel}">${result.riskLevel}</span>
-    </div>
-    <div class="mgr-team-update-box">
-      <strong style="font-size:11px;color:#626f86;text-transform:uppercase;letter-spacing:.05em;">Team Update</strong><br>
-      ${escapeHtml(result.teamUpdate || "")}
-    </div>
-    <div class="mgr-team-update-box" style="margin-top:6px;border-color:#c9f0e1;background:#f4fff9;">
-      <strong style="font-size:11px;color:#216e4e;text-transform:uppercase;letter-spacing:.05em;">Engineer Portal Note</strong><br>
-      ${escapeHtml(result.engineerPortalNote || "")}
-    </div>
-    ${result.alternativeAssignees?.length > 0 ? `
-      <div style="margin-top:8px;font-size:11px;color:#626f86;">Also consider:</div>
-      <div class="mgr-alt-assignees">
-        ${result.alternativeAssignees.map(n=>`<span class="mgr-alt-chip">Engineer: ${escapeHtml(n)}</span>`).join("")}
-      </div>` : ""}
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <button class="secondary" style="font-size:12px;" id="mgrConfirmAssignBtn">Confirm &amp; Post to Portal</button>
-      <button class="secondary" style="font-size:12px;color:#de350b;border-color:#ffd5d2;" id="mgrCancelAssignBtn">Discard</button>
+
+      <!-- Team Update Box -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px;">
+        <div style="font-size:10.5px; font-weight:800; color:#64748b; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:4px;">TEAM UPDATE</div>
+        <div style="font-size:12px; color:#334155; line-height:1.4;">${escapeHtml(teamUpdate)}</div>
+      </div>
+
+      <!-- Engineer Portal Note Box -->
+      <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:12px; margin-bottom:12px;">
+        <div style="font-size:10.5px; font-weight:800; color:#059669; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:4px;">ENGINEER PORTAL NOTE</div>
+        <div style="font-size:12px; color:#065f46; line-height:1.4;">${escapeHtml(engNote)}</div>
+      </div>
+
+      <!-- Also Consider Pills -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px; color:#64748b; margin-bottom:6px;">Also consider:</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          ${alts.map(a => `
+            <span style="background:#f1f5f9; border:1px solid #e2e8f0; padding:4px 10px; border-radius:16px; font-size:11.5px; font-weight:600; color:#334155; display:inline-flex; align-items:center; gap:4px;">
+              👤 ${escapeHtml(a)}
+            </span>
+          `).join("")}
+        </div>
+      </div>
+
+      <!-- Action Buttons Row -->
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button id="mgrConfirmAssignBtn" style="flex:1; padding:8px 14px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:800; color:#0f172a; cursor:pointer;">
+          ✓ Confirm & Post to Portal
+        </button>
+        <button id="mgrCancelAssignBtn" style="padding:8px 14px; background:#ffffff; border:1px solid #fca5a5; border-radius:8px; font-size:12px; font-weight:800; color:#dc2626; cursor:pointer;">
+          ✕ Discard
+        </button>
+      </div>
     </div>
   `;
 }
-
 function renderPortalPost(post) {
   const sev = post.priority || "P2";
   const sevColor = { "P1": "#de350b", "P2": "#974f0c", "P3": "#216e4e", "P4": "#626f86" }[sev] || "#626f86";
@@ -6290,22 +5974,22 @@ function renderPortalPost(post) {
 function renderManagerQueries() {
   return `
     <div class="quick-queries">
-      ${["Who is overloaded?", "Show P1 risks", "Blockers needing decisions", "Team standup summary", "Suggest rebalancing"]
-      .map(q => `<button data-query="${escapeHtml(q)}">${q}</button>`).join("")}
+      ${["Who is overloaded?","Show P1 risks","Blockers needing decisions","Team standup summary","Suggest rebalancing"]
+        .map(q=>`<button data-query="${escapeHtml(q)}">${q}</button>`).join("")}
     </div>
   `;
 }
 
 function renderManagerLane(severity) {
   const laneTasks = state.prioritized.filter(t => t.severity === severity).slice(0, 4);
-  const col = { "P1": "#de350b", "P2": "#ffab00", "P3": "#22a06b" }[severity];
+  const col = {"P1":"#de350b","P2":"#ffab00","P3":"#22a06b"}[severity];
   return `
     <div class="mgr-lane">
       <div class="mgr-lane-head" style="color:${col};">
         ${severity} <span class="mgr-lane-count">${laneTasks.length}</span>
       </div>
-      ${laneTasks.map(t => `
-        <div class="mgr-lane-card ${selectedTaskId === t.id ? "selected" : ""}" data-task="${t.id}">
+      ${laneTasks.map(t=>`
+        <div class="mgr-lane-card ${selectedTaskId===t.id?"selected":""}" data-task="${t.id}">
           <strong>${t.canonicalTitle}</strong>
           <span>${t.sources.join(" · ")}</span>
         </div>`).join("")}
@@ -7767,10 +7451,12 @@ function renderMeetingMemory() {
   };
 
   return `
-    <div style="display:flex; flex-direction:column; height:calc(100vh - 84px); overflow:hidden; background:#f8fafc; color:#0f172a; padding:14px 18px; box-sizing:border-box; gap:10px;">
+    <div style="display:flex; flex-direction:column; min-height:calc(100vh - 84px); background:#f8fafc; color:#0f172a; padding:18px 24px; box-sizing:border-box; gap:16px; max-width:1440px; margin:0 auto;">
       
-      <!-- Clean Top Header (No Meeting Agent terminal/eyebrow) -->
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-shrink:0; background:#ffffff; padding:10px 16px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+      ${activeProfile === "manager" ? renderManagerTopHeader("Meetings") : ""}
+
+      <!-- Clean Top Header -->
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-shrink:0; background:#ffffff; padding:12px 18px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
         <div>
           <h2 style="margin:0; font-size:18px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
             Meetings
@@ -9594,10 +9280,10 @@ function renderEngineerAnalyticsManager() {
             style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;">
           <div style="display:grid;gap:6px;max-height:450px;overflow-y:auto;">
             ${filtered.map(name => {
-    const a = buildEngineerAnalytics(name);
-    const rate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
-    const isSelected = analyticsSelectedEngineer === name;
-    return `
+              const a = buildEngineerAnalytics(name);
+              const rate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
+              const isSelected = analyticsSelectedEngineer === name;
+              return `
                 <button
                   data-select-engineer="${escapeHtml(name)}"
                   style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:1px solid ${isSelected ? "#c084fc" : "#e2e8f0"};background:${isSelected ? "#faf5ff" : "#ffffff"};cursor:pointer;text-align:left;width:100%;transition:all 0.2s;">
@@ -9614,7 +9300,7 @@ function renderEngineerAnalyticsManager() {
                     </svg>
                   </div>
                 </button>`;
-  }).join("")}
+            }).join("")}
             ${filtered.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:16px;">No engineers found.</p>` : ""}
           </div>
         </div>
@@ -10395,7 +10081,7 @@ function renderCalendarPermissionModal() {
         <h3 style="margin-top:0;">Calendar Access Requested</h3>
         <p style="font-size:14px; line-height:1.5; color:#34414f;">
           TaskPilot is requesting access to write to your Calendar events to save meeting slot:<br>
-          <strong>"${selectedMeetingToSave.title}"</strong> on ${new Date(selectedMeetingToSave.startTime).toLocaleDateString()} at ${new Date(selectedMeetingToSave.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+          <strong>"${selectedMeetingToSave.title}"</strong> on ${new Date(selectedMeetingToSave.startTime).toLocaleDateString()} at ${new Date(selectedMeetingToSave.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.
         </p>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
           <button class="secondary" id="denyCalendarBtn">Deny</button>
@@ -10454,29 +10140,29 @@ function renderAddJiraModal() {
 }
 function simulateWorkloadShift() {
   pushCompanion("agent", "🐾 Starting workload balancing simulation... I'll distribute active tasks to balance team load. Bark!");
-
+  
   let intervalId = setInterval(() => {
     // 1. Get current active tasks (excluding completed ones)
     const activeTasks = state.prioritized.filter(t => !completedTaskIds.includes(t.id));
-
+    
     // 2. Count active tasks per owner (among team members)
     const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
     const counts = {};
     TEAM_MEMBERS.forEach(m => counts[m] = 0);
-
+    
     activeTasks.forEach(t => {
       const o = t.owner || "Unassigned";
       if (TEAM_MEMBERS.includes(o)) {
         counts[o]++;
       }
     });
-
+    
     // 3. Find the overloaded and underloaded engineers
     let maxOwner = null;
     let maxCount = -1;
     let minOwner = null;
     let minCount = Infinity;
-
+    
     TEAM_MEMBERS.forEach(m => {
       if (counts[m] > maxCount) {
         maxCount = counts[m];
@@ -10487,7 +10173,7 @@ function simulateWorkloadShift() {
         minOwner = m;
       }
     });
-
+    
     // 4. Check if they are balanced or if we can't balance further
     if (maxCount - minCount <= 1 || maxCount <= 0) {
       clearInterval(intervalId);
@@ -10496,18 +10182,18 @@ function simulateWorkloadShift() {
       pushCompanion("agent", balancedMsg);
       return;
     }
-
+    
     // 5. Find a task belonging to maxOwner to transfer
     const taskToTransfer = activeTasks.find(t => t.owner === maxOwner);
     if (!taskToTransfer) {
       clearInterval(intervalId);
       return;
     }
-
+    
     // Transfer the task
     const oldOwner = maxOwner;
     const newOwner = minOwner;
-
+    
     // Update local sources and addedTasks via aliases
     const aliases = taskToTransfer.aliases || [taskToTransfer.id];
     sources.forEach(source => {
@@ -10524,7 +10210,7 @@ function simulateWorkloadShift() {
         reassignedTaskOwners[item.id] = newOwner;
       }
     });
-
+    
     // Add activity feed update
     const shiftMsg = `Reassigned "${taskToTransfer.canonicalTitle}" from ${oldOwner} to ${newOwner} (balanced: ${oldOwner} count ${maxCount - 1}, ${newOwner} count ${minCount + 1})`;
     managerActivityFeed.unshift({
@@ -10532,11 +10218,11 @@ function simulateWorkloadShift() {
       time: new Date().toLocaleTimeString(),
       color: "#0c66e4"
     });
-
+    
     // Push companion message and local notification
     pushCompanion("agent", `🐾 Transferring "${taskToTransfer.canonicalTitle}" from ${oldOwner} to ${newOwner} to balance the load. Ruff!`);
     triggerLocalNotification("Workload Reassigned", `Task "${taskToTransfer.canonicalTitle}" assigned to ${newOwner}.`);
-
+    
     // Update local state and render
     state = buildState(sources, calendarBlocks);
     render();
@@ -11311,20 +10997,21 @@ function bindEvents() {
   });
 
   // Close menus when clicking anywhere else
-  document.addEventListener("click", () => {
-    let needsRender = false;
-    if (showStatusSelector) {
-      showStatusSelector = false;
-      needsRender = true;
-    }
-    if (showSettingsMenu) {
-      showSettingsMenu = false;
-      needsRender = true;
-    }
-    if (needsRender) {
-      render();
-    }
-  });
+  if (!window._globalClickBound) {
+    window._globalClickBound = true;
+    document.addEventListener("click", (e) => {
+      let needsRender = false;
+      if (showStatusSelector && !e.target.closest('#openStatusSelectorBtn') && !e.target.closest('#presenceStatusMenu')) {
+        showStatusSelector = false;
+        needsRender = true;
+      }
+      if (showSettingsMenu && !e.target.closest('#panelSettingsBtn') && !e.target.closest('#sidebarSettingsMenu')) {
+        showSettingsMenu = false;
+        needsRender = true;
+      }
+      if (needsRender) render();
+    });
+  }
 
   // Chat Page Events
   if (activePage === "chat") {
@@ -11490,6 +11177,137 @@ function bindEvents() {
       render();
     });
   }
+
+  // ─── Manager Dashboard New Controls & Interactivity ─────────────────────
+  // Select task dropdown toggle
+  document.querySelectorAll(".dash-card-select-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const taskId = btn.dataset.taskId;
+      activeSelectTaskDropdownId = activeSelectTaskDropdownId === taskId ? null : taskId;
+      render();
+    });
+  });
+
+  // Engineer selector item click
+  document.querySelectorAll(".eng-dropdown-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const taskId = item.dataset.taskId;
+      const eng = item.dataset.engineer;
+      const task = state.prioritized.find(t => t.id === taskId);
+      if (task) {
+        task.owner = eng;
+        if (typeof triggerLocalNotification === "function") {
+          triggerLocalNotification("TaskPilot AI", `Task "${task.canonicalTitle}" re-assigned to ${eng}.`);
+        }
+      }
+      activeSelectTaskDropdownId = null;
+      render();
+      if (typeof syncStateWithBackend === "function") syncStateWithBackend();
+    });
+  });
+
+  // Assign task button from card or leaderboard
+  document.querySelectorAll(".dash-card-assign-btn, .dash-leader-assign-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const taskId = btn.dataset.taskId;
+      const eng = btn.dataset.engineer;
+      const task = state.prioritized.find(t => t.id === taskId);
+      if (task) {
+        assignForm = { title: task.canonicalTitle, description: task.body || "", priority: task.severity || "P2", deadline: task.due || "", team: task.team || "Platform Apps" };
+      } else if (eng) {
+        assignForm = { title: `Task for ${eng}`, description: `Assigned directly to ${eng}`, priority: "P2", deadline: "", team: "Platform Apps" };
+      }
+      render();
+      setTimeout(() => document.querySelector("#mgrAssignTitle")?.focus(), 100);
+    });
+  });
+
+  // Add Task button by Priority
+  document.querySelectorAll(".dash-add-task-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const priority = btn.dataset.priority || "P2";
+      assignForm = { ...assignForm, priority };
+      render();
+      setTimeout(() => document.querySelector("#mgrAssignTitle")?.focus(), 100);
+    });
+  });
+
+  // Ask TaskPilot AI Search Handler
+  const handleDashAiQuery = (queryText) => {
+    const q = (queryText || "").trim().toLowerCase();
+    if (!q) return;
+
+    if (q.includes("overloaded")) {
+      const owners = datasetInsights().ownerLoad;
+      const overloaded = owners.filter(o => o.count >= 8 || o.p1 >= 3);
+      if (overloaded.length > 0) {
+        lastAnswer = `<strong>Overcapacity Alert:</strong> ${overloaded.map(o => `${o.owner} (${o.count} tasks, ${o.p1} P1)`).join(", ")} exceed workload thresholds. Consider rebalancing via AI Auto-Allocation.`;
+      } else {
+        lastAnswer = "<strong>Workload Balanced:</strong> All engineers are currently operating within safe capacity limits (under 8 tasks each).";
+      }
+    } else if (q.includes("blocker")) {
+      const activeTasks = state.prioritized.filter(t => !isTaskCompleted(t.id));
+      const blockers = activeTasks.filter(t => (t.dependencies || []).some(d => /block|waiting|approval|eta|coordinate/i.test(d)));
+      lastAnswer = `<strong>Active Blockers (${blockers.length}):</strong> ${blockers.slice(0, 3).map(b => b.canonicalTitle).join("; ")}. Manager approval required for resolution.`;
+    } else if (q.includes("risk") || q.includes("sprint risk")) {
+      const p1Count = state.prioritized.filter(t => t.severity === "P1" && !isTaskCompleted(t.id)).length;
+      lastAnswer = `<strong>Sprint Risk Pulse:</strong> ${p1Count} P1 critical tasks active. AI predicts 92% completion probability for current sprint scope.`;
+    } else if (q.includes("reallocat")) {
+      lastAnswer = "<strong>AI Smart Reallocation:</strong> Recommending shifting 2 P1 tasks from Rohan to Utkarsh and Aisha to equalize sprint velocity.";
+    } else {
+      lastAnswer = `<strong>TaskPilot AI Analysis:</strong> Processing "${escapeHtml(queryText)}". Contextual dataset insights synced across Jira, ServiceNow & GitHub.`;
+    }
+    render();
+  };
+
+  document.querySelector("#dashAskAiSubmitBtn")?.addEventListener("click", () => {
+    const val = document.querySelector("#dashAskAiInput")?.value;
+    handleDashAiQuery(val);
+  });
+
+  document.querySelector("#dashAskAiInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleDashAiQuery(e.target.value);
+    }
+  });
+
+  document.querySelectorAll(".dash-quick-query-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const q = btn.dataset.query;
+      const input = document.querySelector("#dashAskAiInput");
+      if (input) input.value = q;
+      handleDashAiQuery(q);
+    });
+  });
+
+  // Handoff & Load Shift Simulation Buttons
+  document.querySelector("#calApproveHandoffBtn")?.addEventListener("click", () => {
+    if (typeof triggerLocalNotification === "function") {
+      triggerLocalNotification("Handoff Approved", "Next shift handoff approved and synced across teams.");
+    }
+  });
+
+  document.querySelector("#calSimulateLoadBtn")?.addEventListener("click", () => {
+    if (typeof triggerLocalNotification === "function") {
+      triggerLocalNotification("Load Simulation", "Team load shift simulated. Workload equalized by +18%.");
+    }
+  });
+
+  // Nav buttons
+  document.querySelector("#dashViewScheduleBtn")?.addEventListener("click", () => {
+    activePage = "calendar-ai";
+    render();
+  });
+
+  document.querySelector("#dashViewAllPortalBtn, #dashOpenPortalBtn")?.addEventListener("click", () => {
+    activePage = "team-portal";
+    render();
+  });
+
 
   // ─── Manager: Assign task via Gemini ─────────────────────────────────────
   const handleAssignSubmit = async (titleId, descId, priorityId, deadlineId, teamId) => {
