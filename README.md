@@ -2,66 +2,99 @@
 
 TaskPilot AI is a cross-platform AI desktop assistant and engineering management system for software developers, engineering managers, and platform administrators. It aggregates work across Jira, ServiceNow, GitHub, Outlook Emails, Slack, and meeting notes, removes duplicate tasks, extracts hidden action items from unstructured text, predicts delivery risks, and provides automated task assignment and sprint optimization.
 
-The project is built as an Electron desktop application featuring an AI Floating Companion, an AI Task Prioritization & Sprint Genome Engine, real-time backend state synchronization, Supabase OAuth authentication, and dual AI integration with **Google Gemini API** and **NVIDIA NIM Microservices**.
+The project is built as an Electron desktop application featuring an **Autonomous Multi-Agent System (MAS)**, an AI Floating Companion, an AI Task Prioritization & Sprint Genome Engine, real-time backend state synchronization, Supabase OAuth authentication, and dual AI integration with **Google Gemini API** and **NVIDIA NIM Microservices**.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System & Multi-Agent Architecture
 
-TaskPilot AI uses a decoupled, three-tier architecture with desktop shell orchestration, backend data pipelines, and multi-model AI reasoning:
+TaskPilot AI uses a decoupled, three-tier architecture powered by a cooperative **Multi-Agent Orchestration Network**:
 
 ```mermaid
-graph TD
-    subgraph Client Layer
-        A[Electron Desktop Shell] --> B[Floating Companion Dock]
-        A --> C[Main Web App - Vite / Vanilla JS]
-        C --> C1[Manager Dashboard]
-        C --> C2[Engineer Workspace]
-        C --> C3[Admin Control Center]
+flowchart TD
+    subgraph Client ["Client Desktop Shell (Electron + Vite)"]
+        UI["Vite SPA Frontend"]
+        Companion["Floating Companion Dock"]
+        ManagerUI["Manager Dashboard"]
+        EngineerUI["Engineer Workspace"]
+        AdminUI["Admin Control Center"]
+        UI --> ManagerUI
+        UI --> EngineerUI
+        UI --> AdminUI
     end
 
-    subgraph Backend Services
-        D[Node.js Express Server] --> E[Dataset Ingestion Engine]
-        D --> F[Real-Time State Sync Engine]
-        D --> G[Local Task Engine & Deduplicator]
+    subgraph MultiAgent ["🤖 Multi-Agent Orchestration Network"]
+        Orchestrator["Orchestrator Agent (ADK / Router)"]
+        DedupAgent["Task Deduplication & Priority Agent"]
+        GenomeAgent["Sprint Genome Analysis Agent"]
+        WorkloadAgent["Calendar AI & Workload Rebalancer Agent"]
+        CompanionAgent["Desktop Companion Assistant Agent"]
+        TeeGuardAgent["TEE Security & Approval Guard Agent"]
     end
 
-    subgraph AI & Data Layer
-        D --> H[Google Gemini API]
-        D --> I[NVIDIA NIM Microservices]
-        D --> J[Supabase DB & OAuth]
-        E --> K[Sample Datasets - JSON]
+    subgraph Backend ["Backend Services (Node.js / Express)"]
+        IngestionEngine["Dataset Ingestion Engine"]
+        StateSync["Real-Time State Sync Engine"]
+        BackendServer["Express API Server"]
     end
 
-    C <-->|HTTP / Realtime Sync| D
+    subgraph Infrastructure ["AI Models & Cloud Infrastructure"]
+        Gemini["Google Gemini 2.5 Flash API"]
+        NvidiaNIM["NVIDIA NIM Nemotron Microservices"]
+        Supabase["Supabase DB & OAuth Security"]
+    end
+
+    UI --> Orchestrator
+    Orchestrator --> DedupAgent
+    Orchestrator --> GenomeAgent
+    Orchestrator --> WorkloadAgent
+    Orchestrator --> CompanionAgent
+    Orchestrator --> TeeGuardAgent
+
+    DedupAgent --> IngestionEngine
+    GenomeAgent --> Gemini
+    CompanionAgent --> NvidiaNIM
+    TeeGuardAgent --> StateSync
+    BackendServer --> Supabase
 ```
 
-### Architecture Breakdown
+---
 
-1. **Client Layer (Electron & Vite)**:
-   - **Electron Shell**: Runs multi-window instances including the primary management app and an always-on floating desktop companion dock.
-   - **Manager Workspace**: Sprint Genome Analyzer, Calendar AI resource allocator, Team Telemetry dashboard, and Engineer Performance Charts.
-   - **Engineer Workspace**: Today's Smart Queue, execution briefs, time logging, and automated "complete & assign next" workflow.
-   - **Admin Control Center**: Visual architecture pipeline canvas, live task scanning console, user management, and diagnostics error simulator.
+## 🤖 Multi-Agent System (MAS) Breakdown
 
-2. **Backend & Core Engine (Node.js)**:
-   - **Dataset Ingestion**: Aggregates signals from Jira, ServiceNow, GitHub, Outlook, Slack, and Meeting Notes.
-   - **Task Deduplication & Prioritization**: NLP token overlap analysis, shared work ID matching, and multi-factor scoring (severity, deadline, blockers, duplicate confidence, owner pressure).
-   - **Real-Time State Sync**: Syncs state (`live_state.json`), user completions, active working tasks, and team presence heartbeats across instances.
+TaskPilot AI coordinates six specialized AI agents orchestrated via a central routing layer:
 
-3. **AI & Cloud Infrastructure**:
-   - **Google Gemini API**: Generates natural language execution briefs, task assignment reasoning, and sprint genome risk insights.
-   - **NVIDIA NIM Microservices**: Fast-path LLM inference for companion chat and automated task scanning.
-   - **Supabase & Google OAuth**: User authentication, RLS security policies, and user status presence.
+1. **Orchestrator Agent (ADK & Routing Layer)**:
+   - Routes user queries, autonomous scans, and background events to appropriate sub-agents.
+   - Coordinates multi-model task handoffs between Google Gemini 2.5 Flash and NVIDIA NIM.
+
+2. **Task Deduplication & Prioritization Agent**:
+   - Ingests raw multi-source streams (Jira, ServiceNow, GitHub, Outlook, Slack, Meetings).
+   - Performs NLP token overlap, shared work ID correlation, and multi-factor SLA scoring (severity, deadlines, dependency risks, owner pressure).
+
+3. **Sprint Genome Agent**:
+   - Fingerprints historical sprint patterns (`buildCurrentGenome`).
+   - Computes genome similarity scores, detects sprint mutation anomalies, predicts delivery risks, and generates automated mitigation strategies.
+
+4. **Calendar AI & Workload Rebalancer Agent**:
+   - Calculates real-time engineer capacity against daily work limits (7.5h/day).
+   - Executes live workload rebalancing simulations (`simulateWorkloadShift`) to automatically equalize task loads across engineers.
+
+5. **Desktop Companion Assistant Agent**:
+   - Runs in an isolated floating Electron window.
+   - Provides always-on ambient context assistance, quick actions, and proactive desktop notifications.
+
+6. **TEE Trust & Security Guard Agent**:
+   - Enforces approval-first security boundaries, payload redaction, and attestation sealing for sensitive operations (handoff approvals, task posting, data export).
 
 ---
 
 ## 🌟 Core Features
 
 - **Multi-Source Signal Aggregation**: Collects tasks from Jira, ServiceNow, GitHub, Outlook, Slack, and meeting notes.
-- **Sprint Genome Analyzer**: Computes historical sprint fingerprints (`buildCurrentGenome`), similarity scores (`computeGenomeSimilarity`), mutation alerts (`detectMutations`), and delivery risk predictions (`predictRisks`).
-- **Calendar AI**: Resource planning engine that auto-allocates tasks across engineers based on daily capacity limits (7.5h/day), deadlines, severity, and historical velocity.
-- **Team Workload & Telemetry**: Live active capacity meters, dependency blocker graphs, teammate task inspection, and one-click workload rebalancing (`simulateWorkloadShift`).
+- **Sprint Genome Analyzer**: Computes historical sprint fingerprints, similarity scores, mutation alerts, and delivery risk predictions.
+- **Calendar AI Resource Allocator**: Auto-balances tasks across engineers based on capacity, deadlines, severity, and historical velocity.
+- **Team Workload Telemetry**: Real-time capacity meters, dependency blocker graphs, teammate task inspection, and one-click workload rebalancing.
 - **Engineer Performance Charts**: Multi-source activity line charts and per-engineer KPI cards (Assigned, Done, On Time, Late).
 - **Floating Desktop Companion**: Always-on movable companion widget for quick commands, context scanning, and AI task guidance.
 - **TEE-Style Approval Gates**: Approval-first security workflow for sensitive operations (handoffs, reassignments, task posting).
@@ -86,7 +119,7 @@ graph TD
 Error-404/
 ├── backend/
 │   └── taskpilotai/
-│       ├── agent/                  # Agent orchestration & prioritization logic
+│       ├── agent/                  # Multi-agent orchestration & prioritization logic
 │       ├── api/                    # API routes & helper modules
 │       ├── datasets/               # Ingested sample datasets (Jira, ServiceNow, GitHub, etc.)
 │       ├── supabase/               # SQL migrations & RLS policies
@@ -183,7 +216,7 @@ npm run build
 
 ## 🧪 Testing
 
-Run task engine verification tests:
+Run task engine & multi-agent verification tests:
 
 ```bash
 cd frontend/taskpilotai
