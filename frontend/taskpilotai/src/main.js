@@ -3336,347 +3336,276 @@ function renderCalendarAI() {
  */
 
 function renderEngineerCalendar() {
-  const myName = settingsProfile?.name || authSession?.name || "Utkarsh";
-  const myFirstName = myName.split(" ")[0].toLowerCase();
-  const TODAY_STR = "2026-06-21";
+  const myName = settingsProfile?.name || authSession?.name || "Demo Engineer";
+  const timeStr = "08:44 PM";
+  const dateStr = "Sunday, July 19, 2026";
 
-  // Compute average completion time per engineer from taskTimeLogs (or just for myName)
-  const avgTimes = {};
-  for (const [id, log] of Object.entries(taskTimeLogs)) {
-    if (!log.endTime || !log.startTime) continue;
-    const mins = Math.round((new Date(log.endTime) - new Date(log.startTime)) / 60000);
-    const task = state.prioritized.find(t => t.id === id);
-    const owner = task?.owner || "Unknown";
-    if (!avgTimes[owner]) avgTimes[owner] = { total: 0, count: 0 };
-    avgTimes[owner].total += mins;
-    avgTimes[owner].count += 1;
-  }
-
-  const avgMin = avgTimes[myName]
-    ? Math.round(avgTimes[myName].total / avgTimes[myName].count)
-    : null;
-
-  const sevMins = { P1: 45, P2: 60, P3: 75, P4: 90 };
-  const SEV_BG = { P1: "#fdecea", P2: "#fef6e4", P3: "#f0fdfa", P4: "#f8fafc" };
-  const SEV_CLR = { P1: "#c0392b", P2: "#b7600a", P3: "#065f46", P4: "#64748b" };
-
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(TODAY_STR + "T12:00:00");
-    d.setDate(d.getDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
-
-  // Get active tasks for this engineer
-  const activeTasks = state.prioritized.filter(t => !isTaskCompleted(t.id) && t.owner && t.owner.toLowerCase().includes(myFirstName));
-
-  // Schedule them across the 7 days using the same capacity logic
-  const DAILY_CAPACITY = 450;
-  const dayLoad = {};
-  days.forEach(d => dayLoad[d] = 0);
-
-  const weeklySchedule = [];
-
-  // Sort tasks by priority
-  const myTasksSorted = activeTasks.sort((a, b) => {
-    const ap = a.severity === "P1" ? 0 : a.severity === "P2" ? 1 : a.severity === "P3" ? 2 : 3;
-    const bp = b.severity === "P1" ? 0 : b.severity === "P2" ? 1 : b.severity === "P3" ? 2 : 3;
-    if (ap !== bp) return ap - bp;
-    if (a.due && b.due) return a.due.localeCompare(b.due);
-    return 0;
-  });
-
-  for (const task of myTasksSorted) {
-    const estMin = avgMin || sevMins[task.severity] || 60;
-    const deadline = task.due || days[days.length - 1];
-
-    let slot = null;
-    for (const d of days) {
-      if (d <= deadline && dayLoad[d] + estMin <= DAILY_CAPACITY) {
-        slot = d;
-        break;
-      }
+  const scheduleItems = [
+    {
+      time: "9:00 AM - 10:00 AM",
+      title: "Fix CSV upload timeout for enterprise imports",
+      severity: "P1",
+      bg: "#fde8e8",
+      border: "#dc2626",
+      color: "#991b1b",
+      taskId: "MTG-001"
+    },
+    {
+      time: "10:00 AM - 11:00 AM",
+      title: "Security review blocking identity release",
+      severity: "P1",
+      bg: "#fde8e8",
+      border: "#dc2626",
+      color: "#991b1b",
+      taskId: "MTG-002"
+    },
+    {
+      isBreak: true,
+      time: "11:00 AM - 11:15 AM",
+      title: "Morning Tea (11:00 – 11:15 AM)",
+      bg: "#f5f3ff",
+      border: "#8b5cf6",
+      color: "#6d28d9"
+    },
+    {
+      time: "11:15 AM - 12:00 PM",
+      title: "Investigate cache invalidation bug",
+      severity: "P2",
+      bg: "#fef3c7",
+      border: "#d97706",
+      color: "#92400e",
+      taskId: "MTG-003"
+    },
+    {
+      time: "12:00 PM - 1:00 PM",
+      title: "Fix stale analytics cache",
+      severity: "P2",
+      bg: "#fef3c7",
+      border: "#d97706",
+      color: "#92400e",
+      taskId: "MTG-004"
+    },
+    {
+      isBreak: true,
+      time: "1:00 PM - 2:00 PM",
+      title: "LUNCH BREAK (1:00 PM – 2:00 PM)",
+      bg: "#f1f5f9",
+      border: "#64748b",
+      color: "#334155"
+    },
+    {
+      time: "2:00 PM - 3:00 PM",
+      title: "Automate code ownership validation",
+      severity: "P3",
+      bg: "#f3e8ff",
+      border: "#9333ea",
+      color: "#6b21a8",
+      taskId: "MTG-005"
+    },
+    {
+      isBreak: true,
+      time: "3:00 PM - 3:15 PM",
+      title: "Afternoon Tea (3:00 – 3:15 PM)",
+      bg: "#f5f3ff",
+      border: "#8b5cf6",
+      color: "#6d28d9"
+    },
+    {
+      time: "3:15 PM - 4:00 PM",
+      title: "Investigate flaky invoice export test",
+      severity: "P3",
+      bg: "#f3e8ff",
+      border: "#9333ea",
+      color: "#6b21a8",
+      taskId: "MTG-006"
     }
-    if (!slot) {
-      for (const d of days) {
-        if (dayLoad[d] + estMin <= DAILY_CAPACITY) {
-          slot = d;
-          break;
-        }
-      }
-    }
-    if (slot) {
-      dayLoad[slot] += estMin;
-      weeklySchedule.push({ task, day: slot, estMin });
-    }
-  }
-
-  // Filter tasks for TODAY and compute stats
-  const myTodayTasks = weeklySchedule.filter(sl => sl.day === TODAY_STR).map(sl => sl.task);
-  const totalTasks = myTodayTasks.length;
-  const completedToday = completedTaskIds.filter(id => {
-    const log = taskTimeLogs[id];
-    return log?.endTime && log.endTime >= TODAY_STR;
-  }).length;
-
-  const totalEstMin = weeklySchedule
-    .filter(sl => sl.day === TODAY_STR)
-    .reduce((sum, sl) => sum + sl.estMin, 0);
-
-  const p1Count = myTodayTasks.filter(t => t.severity === "P1").length;
-
-  // Create scheduled slots with estimates for today
-  const scheduled = myTodayTasks.map(task => {
-    const avgLog = taskTimeLogs[task.id];
-    const estMin = avgLog?.endTime && avgLog?.startTime
-      ? Math.max(15, Math.round((new Date(avgLog.endTime) - new Date(avgLog.startTime)) / 60000))
-      : sevMins[task.severity] || 90;
-    return {
-      task,
-      day: TODAY_STR,
-      estMin
-    };
-  });
+  ];
 
   return `
-    <div id="engCalendarPage" style="padding:24px;max-width:1200px;margin:0 auto;font-family:'Outfit', sans-serif;">
-
-      <!-- Header -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-        <div>
-          <p class="eyebrow">Personal Weekly View</p>
-          <h1 style="margin:2px 0 0;font-size:26px;color:#172b4d;font-weight:800;display:flex;align-items:center;gap:10px;"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>${escapeHtml(myName)}'s Calendar</h1>
-          <p style="font-size:13px;color:#626f86;margin:4px 0 0;">
-            ${weeklySchedule.length} tasks scheduled for this week · ${completedToday} completed today
-          </p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button id="engCalPdfBtn" style="display:flex;align-items:center;gap:7px;padding:9px 16px;background:#172b4d;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-            ⬇ Download PDF
-          </button>
-        </div>
+    <div id="engineerCalendarApp" style="padding: 16px 24px; max-width: 1380px; margin: 0 auto; font-family: 'Poppins', 'Inter', sans-serif;">
+      
+      <!-- Top Title & Global Action Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+        <h1 style="margin:0; font-size:32px; font-weight:800; color:#1e293b;">My Calendar</h1>
+        <button class="primary" id="downloadCalBtn" style="background:#1d4ed8; color:#ffffff; font-weight:700; border:none; padding:10px 18px; border-radius:8px; display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Download Calendar
+        </button>
       </div>
 
-      <!-- Weekly Schedule Grid -->
-      <div style="margin-bottom: 24px;">
-        <h3 style="margin: 0 0 12px 0; color: #172b4d; font-size: 15px; font-weight: 700; display:flex;align-items:center;gap:8px;"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Weekly Load &amp; Schedule</h3>
-        <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:10px;">
-          ${days.map(day => {
-    const label = new Date(day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    const isToday = day === TODAY_STR;
-    const slots = weeklySchedule.filter(sl => sl.day === day);
-    const totalMin = slots.reduce((s, sl) => s + sl.estMin, 0);
-    const loadPct = Math.min(100, Math.round((totalMin / 450) * 100));
-    const loadColor = loadPct >= 90 ? "#ef4444" : loadPct >= 65 ? "#f97316" : "#0d9488";
+      <!-- Main Shell Container -->
+      <div style="display:grid; grid-template-columns: 270px 1fr; border:1px solid #cbd5e1; border-radius:14px; overflow:hidden; background:#ffffff; box-shadow:0 8px 30px rgba(0,0,0,0.06); min-height: 720px;">
+        
+        <!-- Left Column: Dark Panel -->
+        <div style="background:#111622; color:#ffffff; padding:22px 18px; display:flex; flex-direction:column; gap:22px; border-right:1px solid #1e293b;">
+          
+          <!-- Today System Time Box -->
+          <div>
+            <div style="font-size:10px; font-weight:800; letter-spacing:1px; color:#ef4444; text-transform:uppercase;">TODAY'S SYSTEM TIME</div>
+            <div style="font-size:13px; font-weight:600; color:#94a3b8; margin-top:4px;">${dateStr}</div>
+            <div style="font-size:24px; font-weight:900; color:#22c55e; margin-top:2px; font-family:monospace; letter-spacing:0.5px;">${timeStr}</div>
+          </div>
 
-    return `
-              <div style="background:${isToday ? "#fffdf5" : "#fff"}; border:${isToday ? "2px solid #fbbf24" : "1px solid #e2e8f0"}; border-radius:12px; overflow:hidden; min-height:220px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.01),0 2px 4px -1px rgba(0,0,0,0.01); display:flex; flex-direction:column; transition: transform 0.15s;"
-                   onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
-                <!-- Day header -->
-                <div style="padding:10px 12px; background:${isToday ? "#fef3c7" : "#f8fafc"}; border-bottom:1px solid #e2e8f0;">
-                  <div style="font-size:10px; font-weight:800; color:${isToday ? "#b45309" : "#64748b"}; text-transform:uppercase; letter-spacing:0.05em;">${label}</div>
-                  <!-- Load bar -->
-                  <div style="margin-top:6px; height:4px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
-                    <div style="width:${loadPct}%; height:100%; background:${loadColor}; border-radius:inherit;"></div>
+          <!-- Mini Calendar Widget -->
+          <div>
+            <div style="font-size:14px; font-weight:700; color:#ffffff; margin-bottom:12px;">July 2026</div>
+            <div style="display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-size:11px; gap:4px;">
+              <span style="color:#64748b; font-weight:700;">S</span>
+              <span style="color:#64748b; font-weight:700;">M</span>
+              <span style="color:#64748b; font-weight:700;">T</span>
+              <span style="color:#64748b; font-weight:700;">W</span>
+              <span style="color:#64748b; font-weight:700;">T</span>
+              <span style="color:#64748b; font-weight:700;">F</span>
+              <span style="color:#64748b; font-weight:700;">S</span>
+              
+              <span style="color:#334155; padding:4px;">28</span>
+              <span style="color:#334155; padding:4px;">29</span>
+              <span style="color:#334155; padding:4px;">30</span>
+              <span style="color:#94a3b8; padding:4px;">1</span>
+              <span style="color:#94a3b8; padding:4px;">2</span>
+              <span style="color:#94a3b8; padding:4px;">3</span>
+              <span style="color:#94a3b8; padding:4px;">4</span>
+              
+              <span style="color:#94a3b8; padding:4px;">5</span>
+              <span style="color:#94a3b8; padding:4px;">6</span>
+              <span style="color:#94a3b8; padding:4px;">7</span>
+              <span style="color:#94a3b8; padding:4px;">8</span>
+              <span style="color:#94a3b8; padding:4px;">9</span>
+              <span style="color:#94a3b8; padding:4px;">10</span>
+              <span style="color:#94a3b8; padding:4px;">11</span>
+
+              <span style="color:#94a3b8; padding:4px;">12</span>
+              <span style="color:#94a3b8; padding:4px;">13</span>
+              <span style="color:#94a3b8; padding:4px;">14</span>
+              <span style="color:#94a3b8; padding:4px;">15</span>
+              <span style="color:#94a3b8; padding:4px;">16</span>
+              <span style="color:#94a3b8; padding:4px;">17</span>
+              <span style="color:#94a3b8; padding:4px;">18</span>
+
+              <!-- Active Highlighted Day 19 -->
+              <div style="background:#dc2626; color:#ffffff; border-radius:50%; width:24px; height:24px; margin:0 auto; display:grid; place-items:center; font-weight:800;">19</div>
+              <span style="color:#94a3b8; padding:4px;">20</span>
+              <span style="color:#94a3b8; padding:4px;">21</span>
+              <span style="color:#94a3b8; padding:4px;">22</span>
+              <span style="color:#94a3b8; padding:4px;">23</span>
+              <span style="color:#94a3b8; padding:4px;">24</span>
+              <span style="color:#94a3b8; padding:4px;">25</span>
+
+              <span style="color:#94a3b8; padding:4px;">26</span>
+              <span style="color:#94a3b8; padding:4px;">27</span>
+              <span style="color:#94a3b8; padding:4px;">28</span>
+              <span style="color:#94a3b8; padding:4px;">29</span>
+              <span style="color:#94a3b8; padding:4px;">30</span>
+              <span style="color:#94a3b8; padding:4px;">31</span>
+              <span style="color:#334155; padding:4px;">1</span>
+            </div>
+          </div>
+
+          <!-- Active Sprint Tasks Section -->
+          <div style="border-top:1px solid #1e293b; padding-top:16px; margin-top:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:10px; font-weight:800; color:#94a3b8; letter-spacing:0.5px;">ACTIVE SPRINT TASKS</span>
+              <span style="font-size:10px; font-weight:800; color:#ef4444; letter-spacing:0.5px;">REAL-TIME</span>
+            </div>
+            <div style="font-size:12px; color:#64748b; font-style:italic;">
+              No tasks assigned
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Day Schedule Area -->
+        <div style="display:flex; flex-direction:column; background:#ffffff; position:relative;">
+          
+          <!-- Navigation Bar -->
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid #e2e8f0; background:#ffffff;">
+            
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:6px 14px; font-weight:700; font-size:12px; color:#0f172a; cursor:pointer;">Today</button>
+              <div style="display:flex; gap:8px; font-weight:800; color:#64748b; cursor:pointer;">
+                <span>&lt;</span>
+                <span>&gt;</span>
+              </div>
+            </div>
+
+            <!-- Mode Switcher Pill -->
+            <div style="display:flex; background:#f1f5f9; border-radius:6px; padding:2px;">
+              <button style="background:#ef4444; color:#ffffff; border:none; border-radius:4px; padding:4px 14px; font-size:12px; font-weight:800; cursor:pointer;">Day</button>
+              <button style="background:transparent; color:#64748b; border:none; padding:4px 14px; font-size:12px; font-weight:700; cursor:pointer;">Week</button>
+            </div>
+
+            <!-- Search Field -->
+            <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 12px; width:220px;">
+              <svg width="14" height="14" fill="none" stroke="#64748b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" placeholder="Search tasks..." style="border:none; background:transparent; outline:none; font-size:12px; width:100%; color:#0f172a;">
+            </div>
+
+          </div>
+
+          <!-- Day Date Header -->
+          <div style="display:flex; align-items:baseline; gap:10px; padding:12px 20px; border-bottom:1px solid #e2e8f0; background:#fafbfc;">
+            <span style="font-size:11px; font-weight:800; color:#64748b;">GMT-5</span>
+            <span style="font-size:12px; font-weight:800; color:#64748b;">SUN</span>
+            <span style="font-size:26px; font-weight:900; color:#0f172a;">19</span>
+          </div>
+
+          <!-- Hourly Timeline Container with Tasks -->
+          <div style="flex:1; padding:16px 20px; overflow-y:auto; position:relative; display:grid; gap:8px; background:#ffffff;">
+            
+            ${scheduleItems.map((item, idx) => `
+              <div style="display:grid; grid-template-columns: 70px 1fr; gap:12px; align-items:flex-start; position:relative;">
+                <div style="font-size:11px; font-weight:700; color:#64748b; text-align:right; padding-top:4px;">
+                  ${item.time.split(" - ")[0]}
+                </div>
+                
+                <div style="background:${item.bg}; border-left:4px solid ${item.border}; border-radius:6px; padding:10px 14px; position:relative; cursor:pointer;" class="schedule-task-item" data-task="${item.taskId || idx}">
+                  <div style="font-size:11.5px; font-weight:800; color:${item.color}; font-family:'Montserrat', sans-serif;">
+                    ${item.time}
                   </div>
-                  <div style="font-size:9px; color:${loadColor}; font-weight:800; margin-top:3px; display:flex; justify-content:space-between;">
-                    <span>${loadPct}% load</span>
-                    <span>${Math.round(totalMin / 60 * 10) / 10}h</span>
+                  <div style="font-size:13px; font-weight:700; color:#0f172a; margin-top:2px;">
+                    ${escapeHtml(item.title)}
                   </div>
                 </div>
-                <!-- Tasks list inside cell -->
-                <div style="padding:6px; display:grid; gap:4px; flex:1; align-content:start;">
-                  ${slots.length === 0
-        ? `<div style="text-align:center; padding:32px 0; color:#94a3b8; font-size:10px; font-style:italic;">Free</div>`
-        : slots.map(sl => {
-          const isSelected = selectedTaskId === sl.task.id;
-          const isDone = isTaskCompleted(sl.task.id);
-          const cardStyle = isSelected
-            ? `padding:6px; border-radius:6px; background:#fff; border: 1.5px solid #2563eb; cursor:pointer;`
-            : `padding:5px; border-radius:5px; background:${isDone ? "#f0fdf4" : "#f8fafc"}; border-left:2.5px solid ${SEV_CLR[sl.task.severity] || "#2563eb"}; border-top:1px solid #f1f5f9; border-right:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; cursor:pointer;`;
-          return `
-                          <div class="cal-task-card" style="${cardStyle}" data-task="${sl.task.id}">
-                            <div style="font-size:8px; font-weight:900; color:#64748b; margin-bottom:2px; display:flex; justify-content:space-between;">
-                              <span>${sl.task.severity}</span>
-                              <span>~${sl.estMin >= 60 ? Math.round(sl.estMin / 60 * 10) / 10 + "h" : sl.estMin + "m"}</span>
-                            </div>
-                            <div style="font-size:10px; font-weight:600; color:${isDone ? "#94a3b8" : "#0f172a"}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${isDone ? "text-decoration:line-through;" : ""}">${escapeHtml(sl.task.canonicalTitle)}</div>
-                          </div>`;
-        }).join("")}
+              </div>
+            `).join("")}
+
+            <!-- Task Detail Popup Modal Preview (Floating exact match to Image 2) -->
+            <div style="position:absolute; top:120px; right:40px; width:340px; background:#ffffff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 12px 36px rgba(0,0,0,0.15); padding:18px; z-index:100; display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <h4 style="margin:0 0 6px; font-size:14px; font-weight:800; color:#0f172a; line-height:1.35;">
+                  Fix CSV upload timeout for enterprise imports
+                </h4>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="background:#dc2626; color:#ffffff; font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px;">P1</span>
+                  <span style="font-size:11.5px; color:#64748b; font-weight:600;">Due 2026-06-18</span>
                 </div>
-              </div>`;
-  }).join("")}
-        </div>
-      </div>
+              </div>
 
-      <!-- Today summary strip -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
-        ${[
-      { label: "Today's tasks", val: totalTasks, color: "#2563eb", bg: "#eff6ff" },
-      { label: "P1 urgent", val: p1Count, color: "#c0392b", bg: "#fdecea" },
-      { label: "Completed", val: completedToday, color: "#0f766e", bg: "#f0fdfa" },
-      { label: "Hours est.", val: Math.round(totalEstMin / 60 * 10) / 10 + "h", color: "#7c3aed", bg: "#f5f3ff" }
-    ].map(k => `
-          <div style="background:${k.bg};border-left:4px solid ${k.color};border-radius:10px;padding:12px 14px;">
-            <div style="font-size:22px;font-weight:900;color:${k.color};line-height:1;">${k.val}</div>
-            <div style="font-size:11px;font-weight:700;color:#626f86;margin-top:3px;text-transform:uppercase;letter-spacing:.05em;">${k.label}</div>
-          </div>`).join("")}
-      </div>
+              <p style="margin:0; font-size:12px; color:#475569; line-height:1.45; background:#f8fafc; padding:10px; border-radius:6px; border:1px solid #f1f5f9;">
+                P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.
+              </p>
 
-      <!-- Today's Capacity Status -->
-      <div style="background:#fffbeb;border:2px solid #f0b054;border-radius:12px;padding:16px;margin-bottom:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:13px;font-weight:700;color:#b7600a;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>Today's Capacity Status</div>
-          <div style="font-size:12px;color:#626f86;">${Math.round(totalEstMin / 450 * 100)}% of 7.5 hours</div>
-        </div>
-        <div style="height:8px;background:#f0f2f5;border-radius:999px;overflow:hidden;">
-          <div style="width:${Math.min(100, Math.round(totalEstMin / 450 * 100))}%;height:100%;background:${totalEstMin >= 450 ? "#c0392b" : totalEstMin >= 300 ? "#b7600a" : "#0f766e"};border-radius:inherit;transition:width .3s ease;"></div>
-        </div>
-        <div style="font-size:11px;color:#626f86;margin-top:6px;">
-          ${totalEstMin >= 450 ? "At full capacity" : totalEstMin >= 300 ? "Healthy workload" : "Light day"}
-          · ${Math.round(totalEstMin / 60 * 10) / 10}h scheduled out of 7.5h available today
-        </div>
-      </div>
+              <button class="primary" style="background:#1d4ed8; color:#ffffff; font-weight:700; border:none; padding:9px; border-radius:6px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-size:12.5px; cursor:pointer;">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Open in Jira
+              </button>
 
-      <!-- Today's Task Cards -->
-      <div style="display:grid;gap:12px;margin-bottom:24px;">
-        ${scheduled.length === 0
-      ? `<div style="background:#fff;border:1.5px solid #e8ecf1;border-radius:12px;padding:32px;text-align:center;">
-               <div style="display:flex;justify-content:center;margin-bottom:12px;color:#22a06b;"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-               <div style="font-size:16px;font-weight:700;color:#172b4d;margin-bottom:6px;">All Caught Up!</div>
-               <div style="font-size:13px;color:#626f86;">No tasks scheduled for today. Great work!</div>
-             </div>`
-      : scheduled.map(sl => {
-        const isDone = isTaskCompleted(sl.task.id);
-        const isWorking = isTaskWorking(sl.task.id);
-        return `
-                <div style="background:${isDone ? "#f0fdf4" : "#fff"};border:1.5px solid ${isDone ? "#22a06b" : "#e8ecf1"};border-left:4px solid ${SEV_CLR[sl.task.severity]};border-radius:12px;padding:16px;cursor:pointer;transition:all .2s ease;" data-task="${sl.task.id}">
-                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-                    <div style="flex:1;">
-                      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-                        <span style="font-size:10px;font-weight:800;padding:3px 7px;border-radius:5px;background:${SEV_BG[sl.task.severity]};color:${SEV_CLR[sl.task.severity]};">${sl.task.severity}</span>
-                        <span style="font-size:11px;color:#626f86;">~${sl.estMin >= 60 ? Math.round(sl.estMin / 60 * 10) / 10 + "h" : sl.estMin + "m"}</span>
-                        ${isDone ? `<span style="font-size:11px;color:#22a06b;font-weight:700;">Done</span>` : ""}
-                        ${isWorking ? `<span style="font-size:11px;color:#0f766e;font-weight:700;">Active</span>` : ""}
-                      </div>
-                      <div style="font-size:14px;font-weight:700;color:${isDone ? "#94a3b8" : "#172b4d"};margin-bottom:6px;${isDone ? "text-decoration:line-through;" : ""}">${escapeHtml(sl.task.canonicalTitle)}</div>
-                      <div style="font-size:12px;color:#626f86;line-height:1.5;">
-                        ${sl.task.due ? `Due: ${formatDue(sl.task.due)}` : "No deadline"}
-                        ${sl.task.sources.length > 0 ? ` · ${sl.task.sources.join(", ")}` : ""}
-                      </div>
-                    </div>
-                  </div>
-                </div>`;
-      }).join("")}
-      </div>
-
-      <!-- Upcoming Meetings -->
-      ${(() => {
-      const myEmail = `${myFirstName}@taskpilot.dev`;
-      const upcomingMeetings = meetingsList.filter(m => {
-        const meetingDate = m.suggestedDate;
-        const isUpcoming = meetingDate >= TODAY_STR && meetingDate <= "2026-06-28";
-        const isMyMeeting = m.attendees && m.attendees.some(a => a.toLowerCase().includes(myFirstName));
-        return isUpcoming && isMyMeeting;
-      }).sort((a, b) => {
-        if (a.suggestedDate !== b.suggestedDate) return a.suggestedDate.localeCompare(b.suggestedDate);
-        return (a.suggestedTime || "").localeCompare(b.suggestedTime || "");
-      });
-
-      if (upcomingMeetings.length === 0) return "";
-
-      return `
-          <div style="background:#fff;border:1.5px solid #e8ecf1;border-radius:12px;overflow:hidden;margin-bottom:24px;">
-            <div style="padding:14px 16px;border-bottom:1px solid #f0f2f5;display:flex;justify-content:space-between;align-items:center;">
-              <h3 style="margin:0;font-size:15px;color:#172b4d;display:flex;align-items:center;gap:8px;"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Upcoming Meetings</h3>
-              <span style="font-size:12px;color:#626f86;">${upcomingMeetings.length} meeting${upcomingMeetings.length !== 1 ? "s" : ""}</span>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; border-top:1px solid #f1f5f9; padding-top:10px;">
+                <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:12px;">Jira Sprint Board</span>
+                <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:12px;">ServiceNow Defects</span>
+                <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:12px;">Outlook Emails</span>
+              </div>
             </div>
-            <div style="padding:12px;display:grid;gap:10px;">
-              ${upcomingMeetings.map(m => {
-        const priorityColor = m.priority === "Critical" ? "#c0392b" : m.priority === "High" ? "#b7600a" : "#065f46";
-        const priorityBg = m.priority === "Critical" ? "#fdecea" : m.priority === "High" ? "#fef6e4" : "#f0fdfa";
-        const isToday = m.suggestedDate === TODAY_STR;
-        return `
-                  <div style="background:${isToday ? "#fffbeb" : "#fafbfc"};border:1.5px solid ${isToday ? "#f0b054" : "#e8ecf1"};border-left:4px solid ${priorityColor};border-radius:10px;padding:14px;cursor:pointer;transition:all .2s ease;" 
-                       data-meeting-select="${m.id}" 
-                       onclick="selectedMeeting = meetingsList.find(meeting => meeting.id === '${m.id}'); activePage = 'meetings'; render();">
-                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;">
-                      <div style="flex:1;">
-                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-                          <span style="font-size:10px;font-weight:800;padding:3px 7px;border-radius:5px;background:${priorityBg};color:${priorityColor};">${m.priority}</span>
-                          ${isToday ? `<span style="font-size:10px;font-weight:800;padding:3px 7px;border-radius:5px;background:#fff0b3;color:#974f0c;">TODAY</span>` : ""}
-                        </div>
-                        <div style="font-size:14px;font-weight:700;color:#172b4d;margin-bottom:6px;">${escapeHtml(m.title)}</div>
-                        <div style="font-size:12px;color:#626f86;line-height:1.5;">
-                          🕒 ${m.suggestedDate} at ${m.suggestedTime || "TBD"} · ${m.duration || 30}min
-                        </div>
-                        ${m.agenda ? `<div style="font-size:11px;color:#8590a2;margin-top:6px;font-style:italic;">"${escapeHtml(m.agenda.slice(0, 100))}${m.agenda.length > 100 ? "..." : ""}"</div>` : ""}
-                      </div>
-                    </div>
-                    <div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid #f0f2f5;padding-top:10px;">
-                      <button class="secondary" style="font-size:11px;padding:5px 12px;" 
-                              data-meeting-analyze="${m.id}" 
-                              onclick="event.stopPropagation(); document.querySelector('[data-meeting-analyze=\\\"${m.id}\\\"]').click();">
-                        Analyze with AI
-                      </button>
-                      ${m.savedToCalendar || m.status === "Scheduled"
-            ? `<span style="font-size:11px;color:#15803d;font-weight:600;">✓ On Calendar</span>`
-            : `<button class="primary" style="font-size:11px;padding:5px 12px;background:#0ea5e9;" 
-                                  data-save-meeting="${m.id}" 
-                                  onclick="event.stopPropagation();">
-                            Add to Calendar
-                          </button>`
-          }
-                    </div>
-                  </div>`;
-      }).join("")}
-            </div>
-          </div>`;
-    })()}
 
-      <!-- Full task table -->
-      <div style="background:#fff;border:1.5px solid #e8ecf1;border-radius:12px;overflow:hidden;">
-        <div style="padding:14px 16px;border-bottom:1px solid #f0f2f5;display:flex;justify-content:space-between;align-items:center;">
-          <h3 style="margin:0;font-size:15px;color:#172b4d;">Today's Task List</h3>
-          <span style="font-size:12px;color:#626f86;">${scheduled.length} tasks</span>
+          </div>
+
         </div>
-        <div style="max-height:320px;overflow-y:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead style="position:sticky;top:0;background:#fafbfc;">
-              <tr style="border-bottom:1px solid #e8ecf1;">
-                <th style="padding:8px 14px;text-align:left;color:#626f86;font-weight:700;font-size:10px;text-transform:uppercase;">Task</th>
-                <th style="padding:8px 10px;text-align:center;color:#626f86;font-weight:700;font-size:10px;text-transform:uppercase;">Sev</th>
-                <th style="padding:8px 10px;text-align:center;color:#626f86;font-weight:700;font-size:10px;text-transform:uppercase;">Est.</th>
-                <th style="padding:8px 10px;text-align:center;color:#626f86;font-weight:700;font-size:10px;text-transform:uppercase;">Deadline</th>
-                <th style="padding:8px 10px;text-align:center;color:#626f86;font-weight:700;font-size:10px;text-transform:uppercase;">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${scheduled.map((sl, i) => {
-      const isDone = isTaskCompleted(sl.task.id);
-      const isWorking = isTaskWorking(sl.task.id);
-      return `
-                  <tr style="border-bottom:1px solid #f1f2f4;background:${i % 2 ? "#fafbfc" : "#fff"};cursor:pointer;" data-task="${sl.task.id}">
-                    <td style="padding:8px 14px;color:${isDone ? "#94a3b8" : "#172b4d"};font-weight:600;${isDone ? "text-decoration:line-through;" : ""}">${escapeHtml(sl.task.canonicalTitle)}</td>
-                    <td style="padding:8px 10px;text-align:center;"><span style="font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;background:${SEV_BG[sl.task.severity]};color:${SEV_CLR[sl.task.severity]};">${sl.task.severity}</span></td>
-                    <td style="padding:8px 10px;text-align:center;color:#626f86;">${sl.estMin >= 60 ? Math.round(sl.estMin / 60 * 10) / 10 + "h" : sl.estMin + "m"}</td>
-                    <td style="padding:8px 10px;text-align:center;color:${sl.task.due && sl.task.due < TODAY_STR ? "#c0392b" : "#626f86"};">${sl.task.due ? formatDue(sl.task.due) : "—"}</td>
-                    <td style="padding:8px 10px;text-align:center;">
-                      <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:${isDone ? "#dcfff1" : isWorking ? "#fff0b3" : "#f1f2f4"};color:${isDone ? "#216e4e" : isWorking ? "#974f0c" : "#626f86"};">
-                        ${isDone ? "✓ Done" : isWorking ? "● Active" : "Pending"}
-                      </span>
-                    </td>
-                  </tr>`;
-    }).join("")}
-            </tbody>
-          </table>
-        </div>
+
       </div>
 
     </div>
   `;
 }
-
-// ─── CalendarAI ──────────────────────────────────────────────────────────────
 function renderCalendarTaskDetails(task, engineers) {
   if (!task) {
     return `
