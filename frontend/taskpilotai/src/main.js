@@ -711,6 +711,7 @@ async function syncStateWithBackend() {
 
 // ─── Real-time State Sync from Backend ───────────────────────────────────────
 let stateSyncInterval = null;
+let lastSyncedStateHash = "";
 
 async function startRealTimeSync() {
   // Stop existing interval if any
@@ -718,13 +719,26 @@ async function startRealTimeSync() {
     clearInterval(stateSyncInterval);
   }
   
-  // Sync state from backend every 2 seconds
+  // Sync state from backend every 3 seconds
   stateSyncInterval = setInterval(async () => {
     try {
       const resp = await fetch(`${BACKEND_URL}/api/taskpilot/state`);
       if (resp.ok) {
         const backendState = await resp.json();
         if (backendState.success) {
+          // Compare with last state hash to avoid unnecessary re-renders causing screen flickering
+          const stateHash = JSON.stringify({
+            completedTaskIds: backendState.completedTaskIds,
+            workingTaskIds: backendState.workingTaskIds,
+            managerTaskPosts: backendState.managerTaskPosts,
+            engineerPortalPosts: backendState.engineerPortalPosts,
+            reassignedTaskOwners: backendState.reassignedTaskOwners
+          });
+          if (stateHash === lastSyncedStateHash) {
+            return; // No changes — skip re-render to prevent UI flickering!
+          }
+          lastSyncedStateHash = stateHash;
+
           // Update local state with backend state
           completedTaskIds = backendState.completedTaskIds || completedTaskIds;
           workingTaskIds = backendState.workingTaskIds || workingTaskIds;
@@ -752,15 +766,15 @@ async function startRealTimeSync() {
             todayQueueGeminiScored = false;
           }
           
-          // Re-render UI if there were changes
-          render();
+          // Re-render UI safely only when data has actually changed
+          safeRender();
         }
       }
     } catch (err) {
       // Silently fail - backend might not be ready yet
       console.debug("State sync skipped:", err.message);
     }
-  }, 2000); // Sync every 2 seconds
+  }, 3000);
 }
 
 // ─── Presence Heartbeat — push status to backend every 5 seconds ─────────────
@@ -13824,7 +13838,7 @@ loadBackendConfig().finally(async () => {
   // Sync completions from Supabase (background, then re-render)
   syncCompletionsFromSupabase().then(() => {
     safeRender();
-    startRealtimeSync(); // live updates
+    startRealTimeSync(); // live updates
   });
 
   // Async: re-score today queue with Gemini for smarter ranking
