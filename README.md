@@ -1,384 +1,205 @@
 # TaskPilot AI
 
-TaskPilot AI is a cross-platform desktop assistant for software engineers and engineering managers. It aggregates work from Jira, ServiceNow, GitHub, Outlook, Slack, and meeting notes, removes duplicate tasks, extracts hidden action items from unstructured text, scores priority, and creates a daily execution plan.
+TaskPilot AI is a cross-platform AI desktop assistant and engineering management system for software developers, engineering managers, and platform administrators. It aggregates work across Jira, ServiceNow, GitHub, Outlook Emails, Slack, and meeting notes, removes duplicate tasks, extracts hidden action items from unstructured text, predicts delivery risks, and provides automated task assignment and sprint optimization.
 
-The project is built as an Electron desktop application with a floating companion agent, a local task-prioritization engine, backend sample datasets, optional Supabase authentication, optional Gemini vision/LLM support, and TEE-style approval gates for sensitive screen/OCR workflows.
+The project is built as an Electron desktop application featuring an AI Floating Companion, an AI Task Prioritization & Sprint Genome Engine, real-time backend state synchronization, Supabase OAuth authentication, and dual AI integration with **Google Gemini API** and **NVIDIA NIM Microservices**.
 
-## Why This Exists
+---
 
-Software engineers receive work from too many places: sprint boards, incidents, email, Slack, pull requests, meetings, and manager follow-ups. Important actions are often duplicated or buried in unstructured messages. TaskPilot AI turns those scattered signals into one trusted queue so engineers know what to do next and managers can see team delivery risks.
+## 🏗️ System Architecture
 
-## Core Features
+TaskPilot AI uses a decoupled, three-tier architecture with desktop shell orchestration, backend data pipelines, and multi-model AI reasoning:
 
-- Aggregates tasks from Jira, ServiceNow, GitHub, Outlook, Slack, and meeting notes.
-- Deduplicates overlapping work across systems using text similarity, shared IDs, and phrase matching.
-- Extracts hidden action items from emails, Slack mentions, and meeting notes.
-- Prioritizes work using severity, deadline, business impact, blockers, duplicate confidence, owner pressure, and NLP extraction signals.
-- Provides separate dashboards for engineers and managers.
-- Gives execution briefs with definition of done, estimated timeline, process steps, and approval gates.
-- Includes a floating desktop companion agent for quick actions, OCR-style context scanning, and task guidance.
-- Supports Supabase Google login and profile tables.
-- Supports Gemini API integration through backend environment variables.
-- Packages as an Electron app for macOS and Windows.
+```mermaid
+graph TD
+    subgraph Client Layer
+        A[Electron Desktop Shell] --> B[Floating Companion Dock]
+        A --> C[Main Web App - Vite / Vanilla JS]
+        C --> C1[Manager Dashboard]
+        C --> C2[Engineer Workspace]
+        C --> C3[Admin Control Center]
+    end
 
-## Dashboards
+    subgraph Backend Services
+        D[Node.js Express Server] --> E[Dataset Ingestion Engine]
+        D --> F[Real-Time State Sync Engine]
+        D --> G[Local Task Engine & Deduplicator]
+    end
 
-### Engineer Dashboard
+    subgraph AI & Data Layer
+        D --> H[Google Gemini API]
+        D --> I[NVIDIA NIM Microservices]
+        D --> J[Supabase DB & OAuth]
+        E --> K[Sample Datasets - JSON]
+    end
 
-The engineer view focuses on personal execution:
+    C <-->|HTTP / Realtime Sync| D
+```
 
-- Current highest-priority task.
-- Deduped and ranked work queue.
-- Explanation for why a task is ranked where it is.
-- Daily plan based on priority and calendar blocks.
-- Execution brief with process steps and definition of done.
-- Natural-language task questions.
-- "Complete and assign next" flow that moves the user to the next highest-priority task.
+### Architecture Breakdown
 
-### Manager Dashboard
+1. **Client Layer (Electron & Vite)**:
+   - **Electron Shell**: Runs multi-window instances including the primary management app and an always-on floating desktop companion dock.
+   - **Manager Workspace**: Sprint Genome Analyzer, Calendar AI resource allocator, Team Telemetry dashboard, and Engineer Performance Charts.
+   - **Engineer Workspace**: Today's Smart Queue, execution briefs, time logging, and automated "complete & assign next" workflow.
+   - **Admin Control Center**: Visual architecture pipeline canvas, live task scanning console, user management, and diagnostics error simulator.
 
-The manager view focuses on team-level decisions:
+2. **Backend & Core Engine (Node.js)**:
+   - **Dataset Ingestion**: Aggregates signals from Jira, ServiceNow, GitHub, Outlook, Slack, and Meeting Notes.
+   - **Task Deduplication & Prioritization**: NLP token overlap analysis, shared work ID matching, and multi-factor scoring (severity, deadline, blockers, duplicate confidence, owner pressure).
+   - **Real-Time State Sync**: Syncs state (`live_state.json`), user completions, active working tasks, and team presence heartbeats across instances.
 
-- SLA and escalation risks.
-- Team blockers and handoff needs.
-- Workload by owner from dataset-derived task pressure.
-- Priority lanes grouped by P1/P2/P3.
-- Source intelligence showing signals by system.
-- Decision brief for the highest-risk item.
-- Live scoring features used by the priority model.
+3. **AI & Cloud Infrastructure**:
+   - **Google Gemini API**: Generates natural language execution briefs, task assignment reasoning, and sprint genome risk insights.
+   - **NVIDIA NIM Microservices**: Fast-path LLM inference for companion chat and automated task scanning.
+   - **Supabase & Google OAuth**: User authentication, RLS security policies, and user status presence.
 
-## Tech Stack
+---
 
-- Frontend: Vanilla JavaScript, HTML, CSS
-- Desktop shell: Electron
-- Backend: Node.js
-- Optional database/auth: Supabase
-- Optional AI provider: Gemini API
-- Sample data: JSON datasets
-- Packaging: electron-builder
+## 🌟 Core Features
 
-## Project Structure
+- **Multi-Source Signal Aggregation**: Collects tasks from Jira, ServiceNow, GitHub, Outlook, Slack, and meeting notes.
+- **Sprint Genome Analyzer**: Computes historical sprint fingerprints (`buildCurrentGenome`), similarity scores (`computeGenomeSimilarity`), mutation alerts (`detectMutations`), and delivery risk predictions (`predictRisks`).
+- **Calendar AI**: Resource planning engine that auto-allocates tasks across engineers based on daily capacity limits (7.5h/day), deadlines, severity, and historical velocity.
+- **Team Workload & Telemetry**: Live active capacity meters, dependency blocker graphs, teammate task inspection, and one-click workload rebalancing (`simulateWorkloadShift`).
+- **Engineer Performance Charts**: Multi-source activity line charts and per-engineer KPI cards (Assigned, Done, On Time, Late).
+- **Floating Desktop Companion**: Always-on movable companion widget for quick commands, context scanning, and AI task guidance.
+- **TEE-Style Approval Gates**: Approval-first security workflow for sensitive operations (handoffs, reassignments, task posting).
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
+- **Desktop Shell**: Electron 34+
+- **Build Tool**: Vite & Node.js scripts
+- **Backend API**: Node.js, Express
+- **Database & Auth**: Supabase PostgreSQL, Google OAuth
+- **AI Models**: Google Gemini 2.5 Flash, NVIDIA NIM Nemotron
+- **Testing**: Native Node.js Test Runner
+
+---
+
+## 📁 Project Structure
 
 ```text
 Error-404/
 ├── backend/
 │   └── taskpilotai/
-│       ├── agent/                  # Agent orchestration and prioritization helpers
-│       ├── api/                    # Settings/API helpers
-│       ├── datasets/               # Sample task datasets
-│       ├── supabase/               # SQL migrations and Supabase setup notes
-│       ├── .env.example            # Environment variable template
-│       ├── server.mjs              # Node backend server
+│       ├── agent/                  # Agent orchestration & prioritization logic
+│       ├── api/                    # API routes & helper modules
+│       ├── datasets/               # Ingested sample datasets (Jira, ServiceNow, GitHub, etc.)
+│       ├── supabase/               # SQL migrations & RLS policies
+│       ├── .env.example            # Environment configuration template
+│       ├── server.mjs              # Node.js backend server
 │       └── package.json
 ├── frontend/
 │   └── taskpilotai/
-│       ├── electron/               # Electron main/preload/floating companion windows
+│       ├── electron/               # Electron main process & floating companion setup
 │       ├── scripts/                # Build, serve, and dataset sync scripts
-│       ├── src/                    # App UI, task engine, TEE helper, generated data
-│       ├── public/                 # Static assets
-│       ├── package.json
-│       └── index.html
+│       ├── src/                    # App UI views, task engine, TEE trust module
+│       │   ├── main.js             # Main frontend application & routing
+│       │   ├── taskEngine.js       # Priority scoring & deduplication engine
+│       │   ├── teeTrust.js         # Approval-gated execution helper
+│       │   └── styles.css          # Design system & component styles
+│       ├── public/                 # Static assets & icons
+│       └── package.json
 └── README.md
 ```
 
-## Sample Data
+---
 
-Sample datasets are included in:
+## 🚀 Quick Start Guide
 
-```text
-backend/taskpilotai/datasets/
-```
+### Prerequisites
+- Node.js 18.x or newer
+- npm 9.x or newer
+- macOS or Windows
 
-Important files:
+### 1. Environment Setup
 
-- `jira_sprint_board.json`
-- `servicenow_defects.json`
-- `github_work.json`
-- `outlook_emails.json`
-- `slack_mentions.json`
-- `meeting_notes.json`
-- `calendar_blocks.json`
-- `profiles.json`
-- `cleaned_tasks.json`
-- `live_state.json`
-
-The frontend build syncs these backend datasets into:
-
-```text
-frontend/taskpilotai/src/generated/backendData.js
-```
-
-This lets the demo run with realistic local data even when external integrations are not connected.
-
-## Prerequisites
-
-- Node.js 18 or newer
-- npm
-- macOS or Windows for the desktop app
-- Optional: Supabase project for Google login
-- Optional: Gemini API key for live AI/vision workflows
-
-## Environment Setup
-
-Create an environment file from the example:
+Copy `.env.example` in the backend directory:
 
 ```bash
 cd backend/taskpilotai
 cp .env.example .env
 ```
 
-Example `.env`:
+Example `.env` configuration:
 
 ```env
 TASKPILOT_PORT=8787
 TASKPILOT_DATASET_DIR=./datasets
 
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=your_gemini_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 LLM_MODEL=gemini-2.5-flash
-LLM_TEMPERATURE=0.7
-LLM_MAX_TOKENS=2048
 
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
 ```
 
-The app can run in demo mode without Supabase or Gemini. Add keys only when testing real auth or AI-backed summaries.
+### 2. Installation
 
-## Supabase Setup
-
-SQL migrations are in:
-
-```text
-backend/taskpilotai/supabase/
-```
-
-Run these in the Supabase SQL editor:
-
-```text
-001_taskpilot_profiles.sql
-002_task_completions.sql
-```
-
-For Google auth, configure the redirect URLs in Supabase and Google Cloud according to:
-
-```text
-backend/taskpilotai/supabase/README.md
-```
-
-## Install Dependencies
-
-Backend:
-
+Install backend dependencies:
 ```bash
 cd backend/taskpilotai
 npm install
 ```
 
-Frontend:
-
+Install frontend dependencies:
 ```bash
 cd frontend/taskpilotai
 npm install
 ```
 
-## Run the Project
+### 3. Running the App
 
-Start the backend:
-
+Start the Backend Server:
 ```bash
 cd backend/taskpilotai
 npm run dev
 ```
 
-Start the web preview:
-
+Start Web Preview:
 ```bash
 cd frontend/taskpilotai
 npm run dev
 ```
 
-Run the Electron desktop app:
-
+Run Electron Desktop App:
 ```bash
 cd frontend/taskpilotai
 npm run desktop
 ```
 
-Build the static frontend:
-
+Build Static Bundle:
 ```bash
 cd frontend/taskpilotai
 npm run build
 ```
 
-Package the desktop app:
+---
 
-```bash
-cd frontend/taskpilotai
-npm run dist
-```
+## 🧪 Testing
 
-The `dist` command uses `electron-builder`. The config targets macOS DMG and Windows NSIS installers.
-
-## Testing
-
-Run task-engine tests:
+Run task engine verification tests:
 
 ```bash
 cd frontend/taskpilotai
 npm test
 ```
 
-The tests verify:
+Tests verify:
+- Dataset ingestion & normalization.
+- Text similarity & duplicate task merging.
+- Multi-factor priority scoring.
+- Calendar AI daily schedule generation.
+- Sprint Genome mutation & risk detection.
+- TEE payload sealing & approval gates.
 
-- Dataset ingestion.
-- Duplicate detection.
-- Priority ordering.
-- Daily plan generation.
-- Proactive alert generation.
-- TEE payload sealing helpers.
-- Next-task assignment after completion.
+---
 
-## How Prioritization Works
+## 📄 License
 
-The local priority engine is in:
-
-```text
-frontend/taskpilotai/src/taskEngine.js
-```
-
-The scoring pipeline:
-
-1. Flatten source datasets into raw task signals.
-2. Normalize text with lightweight NLP tokenization.
-3. Detect duplicates using token overlap, shared work IDs, and phrase boosts.
-4. Merge duplicate work into canonical tasks.
-5. Train a lightweight local priority model from the current dataset.
-6. Score each task using:
-   - severity
-   - due date
-   - business impact
-   - dependency/blocker risk
-   - duplicate confidence
-   - source type
-   - owner pressure
-   - NLP-extracted hidden action signals
-7. Create ranked queues, alerts, daily plans, and execution briefs.
-
-## TEE and Approval-Gated Execution
-
-TaskPilot includes a TEE-style trust layer in:
-
-```text
-frontend/taskpilotai/src/teeTrust.js
-```
-
-For the hackathon POC, the TEE layer demonstrates:
-
-- minimized context payloads
-- redaction declarations
-- attestation-style hashes
-- approval-first execution plans
-- no final send/commit/close action without user confirmation
-
-This models how sensitive OCR and screen-context workflows would be protected in a production implementation.
-
-## Demo Flow
-
-1. Launch the desktop app with `npm run desktop`.
-2. Sign in with Google or use demo mode if auth is not configured.
-3. Switch between Engineer and Manager roles.
-4. In Engineer mode, review the highest-priority task and its execution brief.
-5. Click "Complete & assign next" to show automatic next-task allocation.
-6. In Manager mode, inspect SLA risk, blockers, owner workload, and priority lanes.
-7. Click "Run autonomous scan" to show the agent workflow.
-8. Open the floating companion to demonstrate always-on desktop assistance.
-
-## Where Codex Accelerated the Workflow
-
-Codex was used as the main engineering pair-programmer during implementation. It accelerated the project in these areas:
-
-- Converted the hackathon problem statement into a working product architecture.
-- Created the Electron desktop shell and cross-platform packaging setup.
-- Built the floating companion agent with its own Electron window.
-- Implemented the dataset ingestion and frontend dataset sync flow.
-- Added task deduplication, ranking, next-task assignment, and explanation logic.
-- Separated engineer and manager dashboard experiences.
-- Added Supabase Google login wiring and SQL profile schema guidance.
-- Added TEE-style redaction and approval-gated execution helpers.
-- Improved UI/UX iteratively from screenshots and user feedback.
-- Ran repeated tests/builds to keep changes working while iterating quickly.
-
-## Key Product Decisions Made With Codex
-
-- Use Electron so the assistant can work as a desktop application on macOS and Windows.
-- Keep API keys in the backend `.env`, never in the frontend UI.
-- Use sample JSON datasets to make the POC demo reliable without live Jira/Slack/Outlook credentials.
-- Build separate role-specific dashboards instead of one generic dashboard.
-- Keep the floating companion small, movable, and approval-first.
-- Make prioritization explainable instead of a black-box ranking.
-- Show where each task came from and why duplicate work was merged.
-- Treat screen/OCR actions as sensitive workflows that require a trust boundary.
-
-## How GPT-5.6 and Codex Were Used
-
-GPT-5.6 and Codex were used as implementation accelerators and design reasoning partners:
-
-- GPT-5.6 helped reason through the product concept, user personas, and prioritization criteria.
-- Codex translated those decisions into code across frontend, backend, Electron, datasets, and docs.
-- GPT-style prompting was used to refine the task-agent behavior, dashboard copy, and demo narrative.
-- Codex performed codebase inspection, targeted edits, build checks, and test runs.
-- The workflow made it possible to move from idea sketches to a functioning desktop POC much faster than manual implementation alone.
-
-The human team still made the final product decisions: target users, feature scope, dashboard direction, security posture, and demo expectations.
-
-## Known Limitations
-
-- External Jira, Slack, Outlook, GitHub, and ServiceNow connectors are represented through sample datasets for the POC.
-- TEE behavior is modeled as a trust-envelope workflow; production deployment would require a real trusted execution environment.
-- Gemini and Supabase are optional and require valid keys/project configuration.
-- Windows packaging should be verified on a Windows machine or CI runner before final submission.
-
-## Troubleshooting
-
-Port already in use:
-
-```bash
-lsof -ti:8787 | xargs kill -9
-```
-
-Frontend dev server port already in use:
-
-```bash
-lsof -ti:5173 | xargs kill -9
-```
-
-No tasks appear:
-
-- Confirm dataset files exist in `backend/taskpilotai/datasets/`.
-- Run `npm run build` from `frontend/taskpilotai` to sync datasets.
-- Check the terminal for dataset sync errors.
-
-Google login fails:
-
-- Confirm `SUPABASE_URL` and `SUPABASE_ANON_KEY` are set.
-- Confirm Google provider is enabled in Supabase.
-- Confirm redirect URLs are configured as described in `backend/taskpilotai/supabase/README.md`.
-
-Gemini summary fails:
-
-- Confirm `GEMINI_API_KEY` exists in `backend/taskpilotai/.env`.
-- Confirm the backend server is running.
-- The app still works in demo mode without Gemini.
-
-## Submission Checklist
-
-- `README.md` with setup and run instructions.
-- Sample datasets in `backend/taskpilotai/datasets/`.
-- Supabase SQL in `backend/taskpilotai/supabase/`.
-- Desktop app source in `frontend/taskpilotai/electron/`.
-- Task engine tests via `npm test`.
-- Demo video showing engineer view, manager view, floating companion, and prioritization explanation.
-- Zip or repository submission including frontend, backend, datasets, and docs.
+This project is licensed under the MIT License.
