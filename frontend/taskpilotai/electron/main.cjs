@@ -369,7 +369,7 @@ app.whenReady().then(() => {
     teeMode: backendEnv.TASKPILOT_TEE_MODE || "local-attested",
     supabaseConfigured: Boolean(backendEnv.SUPABASE_URL && backendEnv.SUPABASE_ANON_KEY),
     supabaseUrl: backendEnv.SUPABASE_URL || "",
-    supabaseAnonKey: backendEnv.SUPABASE_ANON_KEY ? "configured" : "",
+    supabaseAnonKey: backendEnv.SUPABASE_ANON_KEY || "",
     backendPort: backendEnv.TASKPILOT_PORT || "8787",
     llmModel: backendEnv.LLM_MODEL || "gemini-2.5-flash"
   }));
