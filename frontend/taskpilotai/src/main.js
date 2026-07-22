@@ -2895,6 +2895,446 @@ function renderEngineerDashboard(selected, executionBrief, dynamicPlan) {
 }
 
 // ─── Engineer Personal Calendar — TODAY's tasks only (capacity-based) ───────
+function renderCalendarAI() {
+  // Real dynamic current time calculations
+  const now = new Date();
+  const rawHours = now.getHours();
+  const rawMinutes = now.getMinutes();
+  const formattedHours = rawHours % 12 || 12;
+  const formattedMinutes = rawMinutes < 10 ? `0${rawMinutes}` : rawMinutes;
+  const ampm = rawHours >= 12 ? "PM" : "AM";
+  const currentTimeStr = `${formattedHours}:${formattedMinutes} ${ampm}`;
+  const currentDateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
+
+  // Dynamic vertical position calculation for current time line indicator (9 AM to 6 PM)
+  const startHour = 9;
+  const totalGridHours = 9; // 9 AM to 6 PM (550px canvas height)
+  let currentTimeTop = 165;
+  if (rawHours >= 9 && rawHours <= 18) {
+    const elapsedMinutes = (rawHours - startHour) * 60 + rawMinutes;
+    currentTimeTop = 49 + Math.round((elapsedMinutes / (totalGridHours * 60)) * 550);
+  } else {
+    const minuteRatio = ((rawHours * 60 + rawMinutes) % (12 * 60)) / (12 * 60);
+    currentTimeTop = 49 + Math.round(minuteRatio * 500);
+  }
+
+  const engineersList = [
+    { name: "Rohan", hours: "33.6h", color: "#2563eb", dot: "#2563eb" },
+    { name: "Karan", hours: "45.5h", color: "#7c3aed", dot: "#7c3aed" },
+    { name: "Arjun", hours: "45.0h", color: "#059669", dot: "#059669" },
+    { name: "Vikram", hours: "47.0h", color: "#dc2626", dot: "#dc2626" },
+    { name: "Meera", hours: "45.0h", color: "#d97706", dot: "#d97706" },
+    { name: "Riya", hours: "45.5h", color: "#047857", dot: "#047857" },
+    { name: "Neha", hours: "42.0h", color: "#0284c7", dot: "#0284c7" },
+    { name: "Aisha", hours: "46.5h", color: "#4a154b", dot: "#4a154b" }
+  ];
+
+  const selectedEng = calendarSelectedEngineer || "Karan";
+
+  const engineerSchedules = {
+    Karan: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Security review of OAuth2", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "VP Product sync", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
+        { title: "Bulk account migration", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Executive escalations triage", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "DB query optimization", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Executive review prep", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Automated audit pipeline", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Identity architecture review", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Kube cluster upgrade", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Identity release v2.4", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Role assignment logic", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Investigate infra latency", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Review infra metrics", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Action item review", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "Team handoff review", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Reduce deployment latency", time: "9:20 AM – 12:20 PM", owner: "Karan", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Reduce Kube memory footprint", time: "12:36 PM – 3:36 PM", owner: "Karan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]}
+    ],
+    Rohan: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Backend API refactoring", time: "9:30 AM – 11:00 AM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "Redis cache warming setup", time: "11:15 AM – 12:45 PM", owner: "Rohan", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Auth service P99 latency fix", time: "9:00 AM – 11:00 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Microservices gateway patch", time: "11:30 AM – 1:30 PM", owner: "Rohan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Sentry error log triage", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
+        { title: "Load balancer health checks", time: "1:00 PM – 3:00 PM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "PostgreSQL index optimization", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Connection pooling tune", time: "12:00 PM – 2:00 PM", owner: "Rohan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Docker container security audit", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "E2E integration test suite", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Telemetry metrics cleanup", time: "11:00 AM – 1:00 PM", owner: "Rohan", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]}
+    ],
+    Arjun: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Kafka stream consumer fix", time: "9:00 AM – 11:00 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Frontend state hydration debug", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "React memoization audit", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Vite bundle size optimization", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "CSS glassmorphism polish", time: "1:00 PM – 3:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "WCAG accessibility compliance", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "User profile settings modal", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "WebSocket real-time sync", time: "9:00 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Design system token migration", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Cross-browser UI QA testing", time: "11:00 AM – 1:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]}
+    ],
+    Vikram: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Terraform infra script update", time: "9:00 AM – 11:00 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "AWS EC2 auto-scaling policy", time: "11:30 AM – 1:30 PM", owner: "Vikram", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Kubernetes pod resource limits", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Helm chart deployment v3", time: "12:00 PM – 2:00 PM", owner: "Vikram", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "CI/CD pipeline acceleration", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "GitHub Actions workflow fix", time: "1:00 PM – 3:00 PM", owner: "Vikram", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "NGINX ingress controller config", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "CloudWatch alarm threshold tuning", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Disaster recovery backup drill", time: "9:00 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Serverless Lambda cold start fix", time: "11:00 AM – 1:00 PM", owner: "Vikram", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]}
+    ],
+    Meera: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Data warehouse ETL pipeline", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+        { title: "Snowflake schema migration", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "PostgreSQL query execution plan", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Data pipeline SLA monitoring", time: "12:00 PM – 2:00 PM", owner: "Meera", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Analytics dashboard metrics", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "ML model inference benchmark", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Vector DB embedding index", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Customer analytics export", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Real-time telemetry streaming", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Data retention cleanup cron", time: "11:00 AM – 1:00 PM", owner: "Meera", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]}
+    ],
+    Riya: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "QA regression test automation", time: "9:00 AM – 11:00 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Cypress E2E test runner", time: "11:30 AM – 1:30 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "API integration test framework", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Mock server environment setup", time: "12:00 PM – 2:00 PM", owner: "Riya", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "Bug triage & reproduction", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Performance stress testing", time: "1:00 PM – 3:00 PM", owner: "Riya", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Security penetration test report", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Edge case validation suite", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Release candidate QA sign-off", time: "9:00 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Test coverage report generation", time: "11:00 AM – 1:00 PM", owner: "Riya", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]}
+    ],
+    Neha: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Product analytics tracking", time: "9:30 AM – 11:00 AM", owner: "Neha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+        { title: "User onboarding telemetry", time: "11:15 AM – 12:45 PM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Feature flag rollout config", time: "9:00 AM – 11:00 AM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "A/B testing framework setup", time: "11:30 AM – 1:30 PM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "User feedback triage", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+        { title: "Search indexing pipeline", time: "1:00 PM – 3:00 PM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Recommendation engine tuning", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Session replay event logger", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "Customer feedback SLA review", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Weekly usage report generator", time: "11:00 AM – 1:00 PM", owner: "Neha", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]}
+    ],
+    Aisha: [
+      { day: "SUN 19", dateNum: "19", active: true, events: [
+        { title: "Security vulnerability patching", time: "9:00 AM – 11:00 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "SSO SAML2 integration", time: "11:30 AM – 1:30 PM", owner: "Aisha", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "MON 20", dateNum: "20", events: [
+        { title: "Zero-trust network access audit", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "Vault secrets rotation", time: "12:00 PM – 2:00 PM", owner: "Aisha", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]},
+      { day: "TUE 21", dateNum: "21", events: [
+        { title: "API rate limiting middleware", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+        { title: "WAF security rules update", time: "1:00 PM – 3:00 PM", owner: "Aisha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+      ]},
+      { day: "WED 22", dateNum: "22", events: [
+        { title: "Audit trail compliance logging", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+      ]},
+      { day: "THU 23", dateNum: "23", events: [
+        { title: "Encryption key rotation", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+      ]},
+      { day: "FRI 24", dateNum: "24", events: [
+        { title: "SOC2 compliance documentation", time: "9:00 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+      ]},
+      { day: "SAT 25", dateNum: "25", events: [
+        { title: "Security incident dry-run", time: "11:00 AM – 1:00 PM", owner: "Aisha", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+      ]}
+    ]
+  };
+
+  const dayColumns = engineerSchedules[selectedEng] || engineerSchedules.Karan;
+
+  const capacityDays = dayColumns.map(col => {
+    const tasksCount = col.events.length;
+    let totalMinutes = 0;
+    col.events.forEach(evt => {
+      const match = evt.time.match(/(\d+):(\d+)\s*(AM|PM)\s*–\s*(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let sh = parseInt(match[1]);
+        const sm = parseInt(match[2]);
+        const sampm = match[3].toUpperCase();
+        let eh = parseInt(match[4]);
+        const em = parseInt(match[5]);
+        const eampm = match[6].toUpperCase();
+        if (sampm === "PM" && sh < 12) sh += 12;
+        if (sampm === "AM" && sh === 12) sh = 0;
+        if (eampm === "PM" && eh < 12) eh += 12;
+        if (eampm === "AM" && eh === 12) eh = 0;
+        const start = sh * 60 + sm;
+        const end = eh * 60 + em;
+        totalMinutes += (end - start);
+      }
+    });
+    const hoursNum = (totalMinutes / 60).toFixed(1);
+    const pctVal = Math.min(100, Math.round((totalMinutes / 480) * 100));
+    const totalSegments = 5;
+    const loadSegments = Math.min(totalSegments, Math.round((pctVal / 100) * totalSegments));
+    return {
+      day: col.day,
+      active: !!col.active,
+      hours: `${hoursNum}h / 8h`,
+      pct: `${pctVal}%`,
+      total: totalSegments,
+      load: loadSegments,
+      tasks: `${tasksCount} task${tasksCount !== 1 ? 's' : ''}`
+    };
+  });
+
+  return `
+    <div id="calendarAiPage" style="padding:12px 20px; max-width:100%; height:calc(100vh - 143px); display:flex; flex-direction:column; overflow:hidden; background:#f8fafc; font-family:'Inter', sans-serif; box-sizing:border-box;">
+      <!-- Controls & Filter Toolbar -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.02); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="calPrevWeekBtn" style="width:26px; height:26px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">‹</button>
+          <span style="font-size:14px; font-weight:800; color:#0f172a;">Jul 19 — Jul 25, 2026</span>
+          <button id="calNextWeekBtn" style="width:26px; height:26px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">›</button>
+          <button id="calTodayBtn" style="padding:5px 12px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-left:4px;">
+            Today
+          </button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <button id="calApproveHandoffBtn" style="padding:6px 12px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+            Approve next handoff
+          </button>
+          <button id="calSimulateLoadBtn" style="padding:6px 12px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+            Simulate team load shift
+          </button>
+          <select id="calWeekSelect" style="padding:6px 10px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+            <option>This Week</option>
+            <option>Next Week</option>
+          </select>
+          <button id="calFiltersBtn" style="padding:6px 12px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+            ⚙ Filters
+          </button>
+          <select id="calendarEngineerSelect" style="padding:6px 10px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+            ${engineersList.map(e => `<option value="${e.name}" ${e.name === selectedEng ? "selected" : ""}>${e.name}'s Calendar</option>`).join("")}
+          </select>
+          <button id="autoAssignCalendarBtn" style="padding:7px 16px; background:#5b21b6; color:#ffffff; border:none; border-radius:8px; font-size:12.5px; font-weight:800; cursor:pointer; box-shadow:0 3px 10px rgba(91,33,182,0.2);">
+            + Auto-Assign
+          </button>
+        </div>
+      </div>
+
+      <!-- Engineer Workload Chips Row -->
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; flex-shrink:0;">
+        <span style="font-size:10.5px; font-weight:800; color:#64748b; letter-spacing:0.06em; margin-right:2px;">ENGINEER:</span>
+        ${engineersList.map(e => {
+          const isSelected = e.name === selectedEng;
+          const bg = isSelected ? "#f3e8ff" : "#ffffff";
+          const border = isSelected ? "2px solid #7c3aed" : "1px solid #e2e8f0";
+          const textCol = isSelected ? "#6b21a8" : "#334155";
+          return `
+            <div class="eng-cal-chip" data-engineer="${e.name}" style="display:flex; align-items:center; gap:5px; padding:4px 10px; background:${bg}; border:${border}; border-radius:16px; font-size:11.5px; font-weight:700; color:${textCol}; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+              <span style="width:7px; height:7px; border-radius:50%; background:${e.dot};"></span>
+              <span>${e.name}</span>
+              <span style="font-size:10px; color:#64748b; font-weight:600; margin-left:1px;">${e.hours}</span>
+            </div>`;
+        }).join("")}
+      </div>
+
+      <!-- Daily Capacity Summary Cards (7 Days) -->
+      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; margin-bottom:10px; flex-shrink:0;">
+        ${capacityDays.map(cd => `
+          <div style="background:#ffffff; border:1px solid ${cd.active ? "#cbd5e1" : "#e2e8f0"}; border-radius:10px; padding:8px 10px; box-shadow:0 1px 4px rgba(0,0,0,0.015);">
+            <div style="font-size:10px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:2px;">${cd.day}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:4px;">
+              <span style="font-weight:800; color:#dc2626;">${cd.hours}</span>
+              <span style="font-size:10px; font-weight:700; color:#64748b;">${cd.pct}</span>
+            </div>
+            <!-- Segmented load bar -->
+            <div style="display:flex; gap:2px; margin-bottom:3px;">
+              ${Array.from({ length: cd.total }).map((_, i) => `
+                <div style="flex:1; height:5px; border-radius:2px; background:${i < cd.load ? "#ef4444" : "#e2e8f0"};"></div>
+              `).join("")}
+            </div>
+            <div style="font-size:10px; color:#64748b; text-align:center; font-weight:600;">${cd.tasks}</div>
+          </div>
+        `).join("")}
+      </div>
+
+      <!-- Main Timed Calendar Grid Table -->
+      <div style="flex:1; min-height:0; display:flex; flex-direction:column; background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; box-shadow:0 4px 16px rgba(0,0,0,0.02); overflow:hidden; position:relative; box-sizing:border-box;">
+        
+        <!-- Red Current Time Line Indicator -->
+        <div style="position:absolute; top:${currentTimeTop}px; left:80px; right:0; height:2px; background:#ef4444; z-index:10; pointer-events:none;">
+          <span style="position:absolute; left:-72px; top:-9px; background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; white-space:nowrap; box-shadow:0 2px 6px rgba(239,68,68,0.3);">${currentTimeStr}</span>
+          <span style="position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:#ef4444; box-shadow:0 0 0 2px #ffffff;"></span>
+        </div>
+
+        <!-- Day Columns Header -->
+        <div style="display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); border-bottom:1px solid #e2e8f0; background:#ffffff; box-sizing:border-box; flex-shrink:0;">
+          <div style="padding:10px; font-size:10.5px; font-weight:700; color:#94a3b8; border-right:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; box-sizing:border-box;">
+            GMT+5:30
+          </div>
+          ${dayColumns.map((col, idx) => `
+            <div style="padding:10px; text-align:center; ${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; font-size:12px; font-weight:800; color:#334155; display:flex; align-items:center; justify-content:center; gap:5px; box-sizing:border-box; min-width:0;">
+              <span>${col.day.split(" ")[0]}</span>
+              <span style="${col.active ? "background:#5b21b6; color:#ffffff; width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;" : ""}">${col.dateNum}</span>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Hourly Schedule Canvas (9 AM to 6 PM) -->
+        <div style="flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); box-sizing:border-box;">
+          <!-- Left Time Axis (9 AM to 6 PM) -->
+          <div style="border-right:1px solid #e2e8f0; background:#fafafa; display:grid; grid-template-rows: repeat(10, 48px); text-align:center; font-size:10.5px; font-weight:700; color:#94a3b8; padding-top:6px; box-sizing:border-box;">
+            <div>9 AM</div>
+            <div>10 AM</div>
+            <div>11 AM</div>
+            <div>12 PM</div>
+            <div>1 PM</div>
+            <div>2 PM</div>
+            <div>3 PM</div>
+            <div>4 PM</div>
+            <div>5 PM</div>
+            <div>6 PM</div>
+          </div>
+
+          <!-- 7 Day Task Event Columns -->
+          ${dayColumns.map((col, idx) => `
+            <div style="${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; padding:8px; display:flex; flex-direction:column; gap:8px; background:#ffffff; box-sizing:border-box; min-width:0;">
+              ${col.events.map(evt => `
+                <div class="cal-event-card" data-title="${evt.title}" style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:8px; padding:8px; box-shadow:0 1px 4px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer; min-width:0; box-sizing:border-box;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:5px; min-width:0;">
+                      <span style="font-size:11px; flex-shrink:0;">📄</span>
+                      <strong style="font-size:11px; color:${evt.textCol}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${evt.title}</strong>
+                    </div>
+                    <span style="color:#94a3b8; font-size:11px; font-weight:800; cursor:pointer; flex-shrink:0;">⋮</span>
+                  </div>
+                  <div style="font-size:10px; color:${evt.textCol}; font-weight:700; margin-bottom:6px;">${evt.time}</div>
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:3px;">
+                      <span style="width:16px; height:16px; border-radius:50%; background:#5b21b6; color:#fff; font-size:8.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">${(evt.owner||"K")[0]}</span>
+                      <span style="font-size:10px; font-weight:700; color:#334155;">${evt.owner}</span>
+                    </div>
+                    <span style="font-size:8.5px; font-weight:900; padding:1px 4px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol}; flex-shrink:0;">${evt.priority}</span>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Project Genome & Mutation Predictor ─────────────────────────────────────
+
+/**
+ * Build a genome fingerprint from current sprint data
+ */
+
 function renderEngineerCalendar() {
   const myName = settingsProfile?.name || authSession?.name || "Utkarsh";
   const myFirstName = myName.split(" ")[0].toLowerCase();
