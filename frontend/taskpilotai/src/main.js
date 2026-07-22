@@ -509,7 +509,7 @@ let authError = "";
 let authLoading = false;
 
 // Agent & Chat state
-let activeSelectTaskDropdownId = null;
+
 let lastAnswer = "Ask a quick question to see explainable agent output.";
 let lastAnswerLoading = false;
 let companionOpen = true;
@@ -793,7 +793,7 @@ async function startRealTimeSync() {
   if (stateSyncInterval) {
     clearInterval(stateSyncInterval);
   }
-  
+
   // Sync state from backend every 3 seconds
   stateSyncInterval = setInterval(async () => {
     try {
@@ -840,7 +840,7 @@ async function startRealTimeSync() {
             todayQueue = buildTodayCapacityQueue(state.prioritized, engineerName, taskTimeLogs);
             todayQueueGeminiScored = false;
           }
-          
+
           // Re-render UI safely only when data has actually changed
           safeRender();
         }
@@ -1620,15 +1620,15 @@ function render() {
           </div>
           <div class="top-actions">
             ${activeProfile === "admin"
-      ? `<button class="primary" id="executePipelineBtn">Execute Pipeline</button>
+        ? `<button class="primary" id="executePipelineBtn">Execute Pipeline</button>
                  <button class="secondary ${adminErrorSimulated ? 'success' : 'danger'}" id="simulateErrorBtn">${adminErrorSimulated ? 'Clear LLM Error' : 'Simulate LLM Error'}</button>
                  <button class="secondary" id="resetAdminBtn">Reset System</button>`
-      : activePage === 'calendar-ai'
-        ? `<button class="primary" id="downloadCalendarBtn" style="display:flex;align-items:center;gap:8px;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download Calendar</button>`
-        : activePage === 'agent-scan'
-          ? `<button class="primary" id="runScan">Run autonomous scan</button>`
-          : ''
-    }
+        : activePage === 'calendar-ai'
+          ? `<button class="primary" id="downloadCalendarBtn" style="display:flex;align-items:center;gap:8px;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download Calendar</button>`
+          : activePage === 'agent-scan'
+            ? `<button class="primary" id="runScan">Run autonomous scan</button>`
+            : ''
+      }
           </div>
         </header>
         ` : ""}
@@ -3441,11 +3441,121 @@ function getWorkloadRecommendation() {
   return null;
 }
 
+
+// ─── Modal Function Implementations ──────────────────────────────────────────
+
+function renderCalendarTaskModal() {
+  if (!showCalendarTaskModal || !selectedTaskId) return "";
+  const task = state.prioritized.find(t => t.id === selectedTaskId) || addedTasks.find(t => t.id === selectedTaskId);
+  if (!task) return "";
+
+  const isWorking = isTaskWorking(task.id);
+  const isDone = isTaskCompleted(task.id);
+  const sevColors = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
+  const color = sevColors[task.severity] || "#626f86";
+
+  const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
+
+  return `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="calTaskModalOverlay">
+      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:520px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; max-height:85vh; animation:scaleUp 0.15s ease-out;" onclick="event.stopPropagation()">
+        
+        <!-- Modal Header -->
+        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:11px; font-weight:800; color:#ffffff; background:${color}; padding:2px 8px; border-radius:4px;">${task.severity}</span>
+            <span style="font-size:12px; font-weight:700; color:#64748b;">${task.id}</span>
+          </div>
+          <button id="closeCalTaskModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;">✕</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+          <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a; line-height:1.4;">${escapeHtml(task.canonicalTitle || task.title)}</h3>
+          
+          <div style="font-size:13px; color:#475569; line-height:1.5; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
+            ${escapeHtml(task.body || task.description || "No description provided.")}
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px;">
+            <div>
+              <span style="color:#64748b; font-weight:600; display:block; margin-bottom:2px;">Current Assignee:</span>
+              <strong style="color:#0f172a;">${escapeHtml(task.owner || "Unassigned")}</strong>
+            </div>
+            <div>
+              <span style="color:#64748b; font-weight:600; display:block; margin-bottom:2px;">Due Date:</span>
+              <strong style="color:#0f172a;">${task.due ? formatDue(task.due) : "No deadline"}</strong>
+            </div>
+          </div>
+
+          <!-- Quick Reassign Dropdown -->
+          <div style="background:#f1f5f9; padding:12px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <span style="font-size:12px; font-weight:700; color:#334155;">Reassign Task:</span>
+            <div style="display:flex; gap:6px;">
+              <select id="modalReassignSelect" style="padding:5px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; outline:none;">
+                ${TEAM_MEMBERS.map(m => `<option value="${m}" ${task.owner === m ? "selected" : ""}>${m}</option>`).join("")}
+              </select>
+              <button id="modalReassignBtn" style="padding:5px 10px; background:#0c66e4; color:#fff; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">Reassign</button>
+            </div>
+          </div>
+
+          <!-- Severity Selector Buttons -->
+          <div>
+            <span style="font-size:12px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">Adjust Severity:</span>
+            <div style="display:flex; gap:6px;">
+              ${["P1", "P2", "P3", "P4"].map(sev => `
+                <button class="modal-sev-btn" data-sev="${sev}" style="flex:1; padding:6px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; border:1px solid ${sev === task.severity ? "#0c66e4" : "#cbd5e1"}; background:${sev === task.severity ? "#e8f0fe" : "#fff"}; color:${sev === task.severity ? "#0c66e4" : "#475569"};">
+                  ${sev}
+                </button>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div style="padding:14px 20px; border-top:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+          <button id="modalToggleWorkingBtn" style="padding:8px 14px; background:${isWorking ? "#fff3cd" : "#e8f0fe"}; color:${isWorking ? "#856404" : "#0c66e4"}; border:1px solid ${isWorking ? "#ffebaba" : "#b3d4ff"}; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
+            ${isWorking ? "⏸ Stop Working" : "▶ Start Working"}
+          </button>
+          <button id="modalToggleDoneBtn" style="padding:8px 14px; background:${isDone ? "#f8d7da" : "#d4edda"}; color:${isDone ? "#721c24" : "#155724"}; border:1px solid ${isDone ? "#f5c6cb" : "#c3e6cb"}; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
+            ${isDone ? "✕ Mark Incomplete" : "✓ Mark Done"}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+function renderFilePreviewModal() {
+  if (!showFilePreviewModal || !filePreviewData) return "";
+
+  return `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="filePreviewModalOverlay">
+      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:640px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; max-height:85vh;" onclick="event.stopPropagation()">
+        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+          <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">${escapeHtml(filePreviewData.name || "File Preview")}</h3>
+          <button id="closeFilePreviewModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;">✕</button>
+        </div>
+        <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          ${filePreviewData.type && filePreviewData.type.startsWith("image/") ? `
+            <img src="${filePreviewData.url || filePreviewData.data}" style="max-width:100%; max-height:60vh; object-fit:contain; border-radius:8px;">
+          ` : `
+            <div style="background:#f8fafc; padding:20px; border-radius:8px; border:1px solid #e2e8f0; font-family:monospace; font-size:12px; white-space:pre-wrap; max-width:100%; word-break:break-all;">
+              ${escapeHtml(filePreviewData.content || filePreviewData.data || "Binary file preview not available.")}
+            </div>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderTeammateTasksModal() {
   if (!showTeammateTasksModal || !selectedTeammateName) return "";
   const name = selectedTeammateName;
   const engTasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
-  
+
   const SEV_BG = { P1: "#ffebee", P2: "#fff8e1", P3: "#e8f5e9", P4: "#f5f5f5" };
   const SEV_COLOR = { P1: "#c62828", P2: "#f57f17", P3: "#2e7d32", P4: "#616161" };
 
@@ -3469,9 +3579,9 @@ function renderTeammateTasksModal() {
               No pending tasks assigned to ${escapeHtml(name)}.
             </div>
           ` : engTasks.map((t, i) => {
-            const bg = SEV_BG[t.severity] || "#f5f5f5";
-            const col = SEV_COLOR[t.severity] || "#616161";
-            return `
+    const bg = SEV_BG[t.severity] || "#f5f5f5";
+    const col = SEV_COLOR[t.severity] || "#616161";
+    return `
               <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
                   <span style="font-size:11px; font-weight:800; color:${col}; background:${bg}; padding:2px 8px; border-radius:4px;">${t.severity}</span>
@@ -3481,7 +3591,7 @@ function renderTeammateTasksModal() {
                 <div style="font-size:11px; color:#64748b; line-height:1.4;">${escapeHtml(t.body || "No description provided.")}</div>
               </div>
             `;
-          }).join("")}
+  }).join("")}
         </div>
 
         <!-- Modal Footer -->
@@ -3730,938 +3840,6 @@ function renderChatPage() {
     </div>
   `;
 }
-function renderTeammateTasksModal() {
-  if (!showTeammateTasksModal || !selectedTeammateName) return "";
-  const name = selectedTeammateName;
-  const engTasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
-  
-  const SEV_BG = { P1: "#ffebee", P2: "#fff8e1", P3: "#e8f5e9", P4: "#f5f5f5" };
-  const SEV_COLOR = { P1: "#c62828", P2: "#f57f17", P3: "#2e7d32", P4: "#616161" };
-
-  return `
-    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="teammateTasksModalOverlay">
-      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:480px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; max-height:85vh; animation:scaleUp 0.15s ease-out;" onclick="event.stopPropagation()">
-        
-        <!-- Modal Header -->
-        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:18px;">📋</span>
-            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Pending Tasks for ${escapeHtml(name)}</h3>
-          </div>
-          <button id="closeTeammateTasksModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; transition:background 0.2s;">✕</button>
-        </div>
-
-        <!-- Modal Body (Scrollable List) -->
-        <div style="padding:16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px;">
-          ${engTasks.length === 0 ? `
-            <div style="text-align:center; padding:30px 10px; color:#64748b; font-size:13px;">
-              No pending tasks assigned to ${escapeHtml(name)}.
-            </div>
-          ` : engTasks.map((t, i) => {
-            const bg = SEV_BG[t.severity] || "#f5f5f5";
-            const col = SEV_COLOR[t.severity] || "#616161";
-            return `
-              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01);">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px;">
-                  <span style="font-size:11px; font-weight:800; color:${col}; background:${bg}; padding:2px 8px; border-radius:4px;">${t.severity}</span>
-                  <span style="font-size:11px; font-weight:700; color:#64748b;">${t.due ? `Due: ${t.due}` : "No deadline"}</span>
-                </div>
-                <div style="font-size:13px; font-weight:700; color:#1e293b; line-height:1.35; margin-bottom:4px;">${escapeHtml(t.canonicalTitle)}</div>
-                <div style="font-size:11px; color:#64748b; line-height:1.4;">${escapeHtml(t.body || "No description provided.")}</div>
-              </div>
-            `;
-          }).join("")}
-        </div>
-
-        <!-- Modal Footer -->
-        <div style="padding:12px 16px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; background:#f8fafc;">
-          <button id="closeTeammateTasksModalBtn2" style="padding:8px 16px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; transition:all 0.2s;">
-            Close
-          </button>
-        </div>
-
-      </div>
-    </div>
-  `;
-}
-
-function getWorkloadRecommendation() {
-  const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
-  const list = TEAM_MEMBERS.map(name => {
-    const tasks = state.prioritized.filter(t => t.owner === name && !isTaskCompleted(t.id));
-    return { name, tasks };
-  });
-
-  // Sort by task count descending
-  list.sort((a, b) => b.tasks.length - a.tasks.length);
-
-  const overloaded = list[0];
-  const underloaded = list[list.length - 1];
-
-  if (overloaded && overloaded.tasks.length > 0 && (overloaded.tasks.length - underloaded.tasks.length >= 2)) {
-    // Find highest priority task (P1 -> P2 -> P3 -> P4)
-    const sortedTasks = [...overloaded.tasks].sort((t1, t2) => {
-      const pLevel = { P1: 1, P2: 2, P3: 3, P4: 4 };
-      return (pLevel[t1.severity] || 4) - (pLevel[t2.severity] || 4);
-    });
-    const targetTask = sortedTasks[0];
-    return {
-      taskId: targetTask.id,
-      taskTitle: targetTask.canonicalTitle,
-      severity: targetTask.severity,
-      fromTeammate: overloaded.name,
-      toTeammate: underloaded.name,
-      fromCount: overloaded.tasks.length,
-      toCount: underloaded.tasks.length,
-      reason: `AI Workload Recommendation: Reassign ${overloaded.name}'s "${targetTask.canonicalTitle}" to ${underloaded.name} to balance team load.`
-    };
-  }
-  return null;
-}
-
-function renderRecommendationsModal() {
-  if (!showRecommendationsModal) return "";
-  const rec = getWorkloadRecommendation();
-
-  return `
-    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="recommendationsModalOverlay">
-      <div style="background:#ffffff; border-radius:12px; border:1px solid #dfe3ea; width:100%; max-width:500px; box-shadow:0 8px 30px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; animation:scaleUp 0.15s ease-out;" onclick="event.stopPropagation()">
-        
-        <!-- Modal Header -->
-        <div style="padding:16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:18px; color:#8b5cf6;">✦</span>
-            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">AI Workload Recommendations</h3>
-          </div>
-          <button id="closeRecommendationsModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;">✕</button>
-        </div>
-
-        <!-- Modal Body -->
-        <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
-          ${!rec ? `
-            <div style="text-align:center; padding:30px 10px; display:flex; flex-direction:column; align-items:center; gap:8px;">
-              <span style="font-size:32px;">✅</span>
-              <strong style="font-size:14px; color:#0f172a; margin-top:6px;">Workloads are Balanced</strong>
-              <p style="font-size:12px; color:#64748b; margin:0; max-width:320px;">All team members have well-balanced task queues. No reassignments are recommended at this time.</p>
-            </div>
-          ` : `
-            <p style="margin:0; font-size:12.5px; color:#475569; line-height:1.5;">
-              Based on real-time task scanning, the AI recommends the following workload rebalancing to mitigate delivery delays:
-            </p>
-
-            <!-- Rebalancing Comparison Cards -->
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;">
-              
-              <!-- From Assignee -->
-              <div style="flex:1; text-align:center;">
-                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Current Assignee</div>
-                <strong style="font-size:14px; color:#0f172a; display:block;">${escapeHtml(rec.fromTeammate)}</strong>
-                <span style="font-size:11px; color:#ef4444; font-weight:700;">${rec.fromCount} active tasks</span>
-              </div>
-
-              <!-- Arrow -->
-              <div style="font-size:20px; color:#94a3b8; display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:0 6px;">➔</div>
-
-              <!-- To Assignee -->
-              <div style="flex:1; text-align:center;">
-                <div style="font-size:10px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:4px;">Reassign To</div>
-                <strong style="font-size:14px; color:#0f172a; display:block;">${escapeHtml(rec.toTeammate)}</strong>
-                <span style="font-size:11px; color:#22c55e; font-weight:700;">${rec.toCount} active tasks</span>
-              </div>
-
-            </div>
-
-            <!-- Target Task Details -->
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.01);">
-              <div style="font-size:9.5px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.04em;">Target Task to Shift</div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span style="font-size:10px; font-weight:800; color:${rec.severity === "P1" ? "#c62828" : "#f57f17"}; background:${rec.severity === "P1" ? "#ffebee" : "#fff8e1"}; padding:2px 6px; border-radius:4px;">${rec.severity}</span>
-              </div>
-              <div style="font-size:12.5px; font-weight:700; color:#1e293b; line-height:1.35;">${escapeHtml(rec.taskTitle)}</div>
-            </div>
-
-            <!-- Execution Status -->
-            <div style="font-size:11px; color:#64748b; line-height:1.4; display:flex; align-items:flex-start; gap:6px;">
-              <span style="color:#8b5cf6; font-size:14px;">✦</span>
-              <span>This reassignment will shift 1 task to a team member with higher capacity, reducing estimated sprint delivery risk.</span>
-            </div>
-          `}
-        </div>
-
-        <!-- Modal Footer -->
-        <div style="padding:12px 16px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:8px; background:#f8fafc;">
-          <button id="closeRecommendationsModalBtn2" style="padding:8px 16px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer;">
-            Cancel
-          </button>
-          ${rec ? `
-            <button id="executeReassignmentBtn" data-task-id="${rec.taskId}" data-to-engineer="${escapeHtml(rec.toTeammate)}" style="padding:8px 16px; background:#0c66e4; color:#ffffff; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; transition:background 0.2s;">
-              Execute Reassignment
-            </button>
-          ` : ""}
-        </div>
-
-      </div>
-    </div>
-  `;
-}
-
-function renderFilePreviewModal() {
-  if (!activePreviewMessageId) return "";
-  let chatMessages = JSON.parse(localStorage.getItem("taskpilot:chatMessages") || "[]");
-  const msg = chatMessages.find(m => m.id === activePreviewMessageId);
-  if (!msg || !msg.fileData) return "";
-
-  return `
-    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:9999; display:grid; place-items:center;" id="filePreviewModalOverlay">
-      <div class="panel" style="background:#fff; width:650px; height:80vh; padding:24px; border-radius:16px; box-shadow:0 20px 40px rgba(0,0,0,0.35); display:flex; flex-direction:column; gap:16px; border:1px solid #e2e8f0; font-family:'Outfit', sans-serif;" onclick="event.stopPropagation()">
-        
-        <!-- Header -->
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:12px; flex-shrink:0;">
-          <div>
-            <span style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#0284c7;">Document Viewer</span>
-            <h3 style="margin:4px 0 0 0; font-size:16px; font-weight:800; color:#0f172a;">${escapeHtml(msg.fileData.name)}</h3>
-          </div>
-          <button id="closePreviewModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;">✕</button>
-        </div>
-
-        <!-- PDF/Text Content Body -->
-        <div style="flex:1; overflow-y:auto; padding:20px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; font-family:'Inter', sans-serif; font-size:13px; line-height:1.6; color:#334155;">
-          ${msg.fileData.name.endsWith(".pdf") ? `
-            <div style="border-bottom:2px solid #ef4444; padding-bottom:12px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:14px; font-weight:900; color:#ef4444; display:inline-flex;align-items:center;gap:6px;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>PDF DOCUMENT</span>
-              <span style="font-size:11px; color:#64748b; font-weight:700;">TaskPilot Auto-Report</span>
-            </div>
-            <h2 style="margin:0 0 16px 0; font-size:18px; font-weight:800; color:#0f172a; font-family:'Outfit', sans-serif;">End of Day (EOD) Sprint Summary Report</h2>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; font-size:12px; background:#fff; padding:12px; border-radius:8px; border:1px solid #e2e8f0;">
-              <div><strong>Generated By:</strong> ${msg.sender}</div>
-              <div><strong>Date:</strong> 2026-06-22</div>
-              <div><strong>Sprint Status:</strong> Active (7.5h daily limit)</div>
-              <div><strong>Status:</strong> Attested TEE Envelope</div>
-            </div>
-            
-            <p>This PDF summary contains the compiled sprint workload metrics, active status logs, and task completions attested inside the secure hardware environment.</p>
-            
-            <h4 style="margin:16px 0 8px; color:#0f172a;">Sprint Velocity Metrics</h4>
-            <ul style="margin:0; padding-left:20px;">
-              <li>Total tasks scheduled this week: <strong>14 tasks</strong></li>
-              <li>Completed tasks status rate: <strong>100% SLA met</strong></li>
-              <li>Active work sessions: <strong>2 active items</strong></li>
-            </ul>
-
-            <h4 style="margin:16px 0 8px; color:#0f172a;">System Approvals & Signatures</h4>
-            <p style="font-style:italic; font-size:12px; color:#64748b; background:#f1f5f9; padding:8px; border-radius:6px;">
-              Verification hash: sha256-a1f9e2bc843...<br>
-              Signature: attested-trusted-execution-complete
-            </p>
-          ` : `
-            <div style="white-space:pre-wrap; font-family:monospace;">${escapeHtml(msg.text || "Plain text attachment contents...")}</div>
-          `}
-        </div>
-
-        <!-- Footer Actions -->
-        <div style="display:flex; justify-content:flex-end; gap:10px; flex-shrink:0; border-top:1px solid #f1f5f9; padding-top:12px;">
-          <a href="${msg.fileData.dataUrl || '#'}" download="${msg.fileData.name}" style="text-decoration:none; background:#10b981; color:#fff; font-size:12px; padding:8px 16px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:6px;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Download Document
-          </a>
-          <button class="secondary" id="closePreviewModalBtn2" style="font-size:12px; padding:8px 16px; border-radius:8px;">
-            Close
-          </button>
-        </div>
-
-      </div>
-    </div>
-  `;
-}
-
-function getEngineerStatusSummary(engineerName) {
-  if (!engineerName || engineerName === "Unassigned") {
-    return {
-      tasksCount: 0,
-      projectCount: 0,
-      projectsList: [],
-      totalMinutes: 0,
-      isAtCapacity: false,
-      loadPercentage: 0,
-      canBeAssigned: true,
-      overflowCount: 0
-    };
-  }
-
-  // Find all active tasks for this engineer
-  const targetFirstName = engineerName.split(" ")[0].toLowerCase();
-  const activeTasks = state.prioritized.filter(t =>
-    t.owner &&
-    (t.owner === engineerName || t.owner.toLowerCase().includes(targetFirstName)) &&
-    !isTaskCompleted(t.id)
-  );
-
-  // Find all projects (sources) they are assigned to
-  const projectMap = {
-    JIRA: "Jira",
-    GH: "GitHub",
-    SN: "ServiceNow",
-    MAIL: "Email",
-    SLACK: "Slack",
-    MEET: "Meetings"
-  };
-  const uniqueProjects = [...new Set(activeTasks.map(t => {
-    const prefix = t.id.split('-')[0];
-    return projectMap[prefix.toUpperCase()] || prefix;
-  }))];
-  const projectCount = uniqueProjects.length;
-
-  // Let's compute their total workload time in minutes
-  const avgTimes = {};
-  for (const [id, log] of Object.entries(taskTimeLogs)) {
-    if (!log.endTime || !log.startTime) continue;
-    const mins = Math.round((new Date(log.endTime) - new Date(log.startTime)) / 60000);
-    const task = state.prioritized.find(t => t.id === id);
-    const owner = task?.owner || "Unknown";
-    if (!avgTimes[owner]) avgTimes[owner] = { total: 0, count: 0 };
-    avgTimes[owner].total += mins;
-    avgTimes[owner].count += 1;
-  }
-  const avgMin = avgTimes[engineerName]
-    ? Math.round(avgTimes[engineerName].total / avgTimes[engineerName].count)
-    : null;
-
-  const sevMins = { P1: 90, P2: 120, P3: 180, P4: 240 };
-  let totalMin = 0;
-  activeTasks.forEach(task => {
-    totalMin += avgMin || sevMins[task.severity] || 120;
-  });
-
-  // Calculate overflow
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date("2026-06-21");
-    d.setDate(d.getDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
-  const DAILY_CAPACITY = 450;
-  const dayLoad = {};
-  days.forEach(d => dayLoad[d] = 0);
-
-  let overflowCount = 0;
-  activeTasks.forEach(task => {
-    const estMin = avgMin || sevMins[task.severity] || 120;
-    const deadline = task.due || days[days.length - 1];
-    let slot = null;
-    for (const d of days) {
-      if (d <= deadline && dayLoad[d] + estMin <= DAILY_CAPACITY) {
-        slot = d;
-        break;
-      }
-    }
-    if (!slot) {
-      for (const d of days) {
-        if (dayLoad[d] + estMin <= DAILY_CAPACITY) {
-          slot = d;
-          break;
-        }
-      }
-    }
-    if (slot) {
-      dayLoad[slot] += estMin;
-    } else {
-      overflowCount++;
-    }
-  });
-
-  const loadPercentage = Math.min(100, Math.round((totalMin / 3150) * 100));
-  const isAtCapacity = overflowCount > 0 || loadPercentage >= 85;
-
-  return {
-    tasksCount: activeTasks.length,
-    projectCount,
-    projectsList: uniqueProjects,
-    totalMinutes: totalMin,
-    isAtCapacity,
-    loadPercentage,
-    canBeAssigned: !isAtCapacity,
-    overflowCount
-  };
-}
-
-function renderCalendarTaskModal() {
-  if (!showCalendarTaskModal || !selectedTaskId) return "";
-  const task = state.prioritized.find(t => t.id === selectedTaskId);
-  if (!task) return "";
-
-  const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
-  const currentOwner = task.owner || "Unassigned";
-
-  // Check severity color
-  const SEV_BG = { P1: "#fee2e2", P2: "#ffedd5", P3: "#ccfbf1", P4: "#f1f5f9" };
-  const SEV_COLOR = { P1: "#ef4444", P2: "#f97316", P3: "#0d9488", P4: "#64748b" };
-
-  const isDone = isTaskCompleted(task.id);
-  const isWorking = isTaskWorking(task.id);
-
-  // How many projects the currently selected task owner is assigned:
-  const ownerSummary = getEngineerStatusSummary(currentOwner);
-
-  return `
-    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:999; display:grid; place-items:center;" id="calTaskModalOverlay">
-      <div class="panel" style="background:#fff; width:520px; padding:24px; border-radius:16px; box-shadow:0 20px 40px rgba(0,0,0,0.2); display:grid; gap:16px; border:1px solid #e2e8f0; font-family:'Outfit', sans-serif;" onclick="event.stopPropagation()">
-        
-        <!-- Header -->
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
-          <div>
-            <span style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#1e293b;">Task Allocation Details</span>
-            <h3 style="margin:4px 0 0 0; font-size:18px; font-weight:800; color:#0f172a;">${escapeHtml(task.id)}</h3>
-          </div>
-          <button id="closeCalTaskModalBtn" style="background:#f1f5f9; border:none; color:#64748b; font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; transition:background 0.2s;">✕</button>
-        </div>
-
-        <!-- Task Title & Meta -->
-        <div>
-          <h4 style="margin:0 0 8px; font-size:15px; color:#0f172a; font-weight:700; line-height:1.4;">${escapeHtml(task.canonicalTitle || task.title)}</h4>
-          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
-            <span style="font-size:9px; font-weight:800; padding:2.5px 7px; border-radius:5px; background:${SEV_BG[task.severity] || "#f1f5f9"}; color:${SEV_COLOR[task.severity] || "#475569"};">${task.severity}</span>
-            <span style="font-size:10px; font-weight:600; padding:2.5px 7px; border-radius:5px; background:#f1f5f9; color:#475569;">Due ${formatDue(task.due)}</span>
-            <span style="font-size:10px; font-weight:600; padding:2.5px 7px; border-radius:5px; background:#f1f5f9; color:#475569;">Priority Score ${task.score}</span>
-            ${isDone ? `<span style="font-size:10px; font-weight:700; padding:2.5px 7px; border-radius:5px; background:#dcfce7; color:#166534;">✓ Completed</span>` : ""}
-          </div>
-          <p style="font-size:12.5px; color:#475569; margin:0; line-height:1.55;">${escapeHtml(task.body || task.description || "No description provided.")}</p>
-        </div>
-
-        <!-- Working & Appointment Status -->
-        <div style="background:#f8fafc; border-radius:12px; padding:14px; border:1px solid #e2e8f0; display:grid; gap:10px;">
-          <div style="display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:12px; font-weight:700; color:#475569; display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> Assigned Engineer:</span>
-            <span style="font-size:12.5px; font-weight:800; color:#0f172a;">
-              ${currentOwner !== "Unassigned" && currentOwner !== "" ? currentOwner : "Unassigned"}
-            </span>
-          </div>
-          <div style="display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:12px; font-weight:700; color:#475569;">Appointment Status:</span>
-            <span style="font-size:11px; font-weight:800; padding:3px 8px; border-radius:999px; background:${(currentOwner !== "Unassigned" && currentOwner !== "") ? "#e0f2fe" : "#fee2e2"}; color:${(currentOwner !== "Unassigned" && currentOwner !== "") ? "#0369a1" : "#b91c1c"};">
-              ${(currentOwner !== "Unassigned" && currentOwner !== "") ? "Appointed to Task" : "Not Appointed"}
-            </span>
-          </div>
-          <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #e2e8f0; padding-top:10px;">
-            <span style="font-size:12px; font-weight:700; color:#475569;">Activity/Working Status:</span>
-            <span style="font-size:11px; font-weight:800; padding:3px 8px; border-radius:999px; background:${isWorking ? "#ccfbf1" : "#f1f5f9"}; color:${isWorking ? "#0f766e" : "#475569"};">
-              ${isWorking ? "● Active (Currently Working)" : "○ Inactive (Not Active)"}
-            </span>
-          </div>
-          ${(currentOwner !== "Unassigned" && currentOwner !== "") ? `
-            <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid #e2e8f0; padding-top:10px;">
-              <span style="font-size:11px; color:#64748b;">${currentOwner}'s workload summary:</span>
-              <span style="font-size:11.5px; font-weight:700; color:#475569; text-align:right;">
-                Assigned to ${ownerSummary.tasksCount} task${ownerSummary.tasksCount !== 1 ? 's' : ''} across ${ownerSummary.projectCount} project${ownerSummary.projectCount !== 1 ? 's' : ''} (${ownerSummary.projectsList.join(", ") || "None"})
-              </span>
-            </div>
-          ` : ""}
-        </div>
-
-        <!-- Manager Controls -->
-        <div style="display:grid; gap:12px;">
-          <!-- Reassign Owner -->
-          <div>
-            <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Reassign Owner</label>
-            <div style="display:flex; gap:8px;">
-              <select id="modalReassignSelect" style="flex:1; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-size:13px; font-weight:500; color:#1e293b; outline:none;">
-                <option value="Unassigned" ${currentOwner === "Unassigned" || currentOwner === "" ? "selected" : ""}>Unassigned</option>
-                ${TEAM_MEMBERS.map(m => `
-                  <option value="${m}" ${m === currentOwner ? "selected" : ""}>${m}</option>
-                `).join("")}
-              </select>
-              <button id="modalReassignBtn" class="primary" style="padding:9px 16px; font-size:12px; font-weight:800; border-radius:8px; border:none; cursor:pointer;">
-                Reassign
-              </button>
-            </div>
-          </div>
-
-          <!-- Adjust Severity -->
-          <div>
-            <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Update Severity</label>
-            <div style="display:flex; gap:6px;">
-              ${["P1", "P2", "P3", "P4"].map(sev => `
-                <button class="modal-sev-btn" data-sev="${sev}" style="flex:1; padding:8px 6px; font-size:11px; font-weight:800; border-radius:6px; border:1px solid ${task.severity === sev ? SEV_COLOR[sev] : "#cbd5e1"}; background:${task.severity === sev ? SEV_BG[sev] : "#fff"}; color:${task.severity === sev ? SEV_COLOR[sev] : "#475569"}; cursor:pointer; transition:all 0.15s;">
-                  ${sev}
-                </button>
-              `).join("")}
-            </div>
-          </div>
-
-          <!-- Toggle Active / Working Status -->
-          <div style="display:flex; gap:8px; margin-top:4px;">
-            <button id="modalToggleWorkingBtn" class="secondary" style="flex:1; padding:10px 14px; font-size:12px; font-weight:700; border-radius:8px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; gap:6px;">
-              <span>${isWorking ? "⏸ Stop Active Session" : "▶ Mark as Active"}</span>
-            </button>
-            <button id="modalToggleDoneBtn" class="secondary" style="flex:1; padding:10px 14px; font-size:12px; font-weight:700; border-radius:8px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; gap:6px;">
-              <span>${isDone ? "↩ Reopen Task" : "✓ Mark as Done"}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- AI reasoning breakdown -->
-        <div style="background:#f0fdf4; border-radius:12px; padding:12px; border:1px solid #bbf7d0;">
-          <strong style="display:block; font-size:10px; color:#15803d; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">✦ AI Priority Reason</strong>
-          <p style="font-size:11.5px; color:#166534; margin:0; line-height:1.45;">
-            ${task.priorityExplanation || (task.rankReasons ? task.rankReasons[0] : "Priority evaluated dynamically based on enterprise impact.")}
-          </p>
-        </div>
-
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Smart calendar that allocates tasks to engineers based on:
- * - Actual historical completion times (from taskTimeLogs)
- * - Task deadlines
- * - Per-engineer workload
- */
-function getLocalDateString(date) {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-/**
- * Smart calendar that allocates tasks to engineers based on:
- * - Actual historical completion times (from taskTimeLogs)
- * - Task deadlines
- * - Per-engineer workload
- */
-function renderCalendarAI() {
-  // Real dynamic current time calculations
-  const now = new Date();
-  const rawHours = now.getHours();
-  const rawMinutes = now.getMinutes();
-  const formattedHours = rawHours % 12 || 12;
-  const formattedMinutes = rawMinutes < 10 ? `0${rawMinutes}` : rawMinutes;
-  const ampm = rawHours >= 12 ? "PM" : "AM";
-  const currentTimeStr = `${formattedHours}:${formattedMinutes} ${ampm}`;
-  const currentDateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
-
-  // Dynamic vertical position calculation for current time line indicator (9 AM to 6 PM)
-  const startHour = 9;
-  const totalGridHours = 9; // 9 AM to 6 PM (550px canvas height)
-  let currentTimeTop = 165;
-  if (rawHours >= 9 && rawHours <= 18) {
-    const elapsedMinutes = (rawHours - startHour) * 60 + rawMinutes;
-    currentTimeTop = 49 + Math.round((elapsedMinutes / (totalGridHours * 60)) * 550);
-  } else {
-    const minuteRatio = ((rawHours * 60 + rawMinutes) % (12 * 60)) / (12 * 60);
-    currentTimeTop = 49 + Math.round(minuteRatio * 500);
-  }
-
-  const engineersList = [
-    { name: "Rohan", hours: "33.6h", color: "#2563eb", dot: "#2563eb" },
-    { name: "Karan", hours: "45.5h", color: "#7c3aed", dot: "#7c3aed" },
-    { name: "Arjun", hours: "45.0h", color: "#059669", dot: "#059669" },
-    { name: "Vikram", hours: "47.0h", color: "#dc2626", dot: "#dc2626" },
-    { name: "Meera", hours: "45.0h", color: "#d97706", dot: "#d97706" },
-    { name: "Riya", hours: "45.5h", color: "#047857", dot: "#047857" },
-    { name: "Neha", hours: "42.0h", color: "#0284c7", dot: "#0284c7" },
-    { name: "Aisha", hours: "46.5h", color: "#4a154b", dot: "#4a154b" }
-  ];
-
-  const selectedEng = calendarSelectedEngineer || "Karan";
-
-  const engineerSchedules = {
-    Karan: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Security review of OAuth2", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "VP Product sync", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
-        { title: "Bulk account migration", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Executive escalations triage", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "DB query optimization", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Executive review prep", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Automated audit pipeline", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Identity architecture review", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Kube cluster upgrade", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Identity release v2.4", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Role assignment logic", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Investigate infra latency", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Review infra metrics", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Action item review", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "Team handoff review", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Reduce deployment latency", time: "9:20 AM – 12:20 PM", owner: "Karan", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Reduce Kube memory footprint", time: "12:36 PM – 3:36 PM", owner: "Karan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]}
-    ],
-    Rohan: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Backend API refactoring", time: "9:30 AM – 11:00 AM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "Redis cache warming setup", time: "11:15 AM – 12:45 PM", owner: "Rohan", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Auth service P99 latency fix", time: "9:00 AM – 11:00 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Microservices gateway patch", time: "11:30 AM – 1:30 PM", owner: "Rohan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Sentry error log triage", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
-        { title: "Load balancer health checks", time: "1:00 PM – 3:00 PM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "PostgreSQL index optimization", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Connection pooling tune", time: "12:00 PM – 2:00 PM", owner: "Rohan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Docker container security audit", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "E2E integration test suite", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Telemetry metrics cleanup", time: "11:00 AM – 1:00 PM", owner: "Rohan", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]}
-    ],
-    Arjun: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Kafka stream consumer fix", time: "9:00 AM – 11:00 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Frontend state hydration debug", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "React memoization audit", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Vite bundle size optimization", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "CSS glassmorphism polish", time: "1:00 PM – 3:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "WCAG accessibility compliance", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "User profile settings modal", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "WebSocket real-time sync", time: "9:00 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Design system token migration", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Cross-browser UI QA testing", time: "11:00 AM – 1:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]}
-    ],
-    Vikram: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Terraform infra script update", time: "9:00 AM – 11:00 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "AWS EC2 auto-scaling policy", time: "11:30 AM – 1:30 PM", owner: "Vikram", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Kubernetes pod resource limits", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Helm chart deployment v3", time: "12:00 PM – 2:00 PM", owner: "Vikram", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "CI/CD pipeline acceleration", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "GitHub Actions workflow fix", time: "1:00 PM – 3:00 PM", owner: "Vikram", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "NGINX ingress controller config", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "CloudWatch alarm threshold tuning", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Disaster recovery backup drill", time: "9:00 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Serverless Lambda cold start fix", time: "11:00 AM – 1:00 PM", owner: "Vikram", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]}
-    ],
-    Meera: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Data warehouse ETL pipeline", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Snowflake schema migration", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "PostgreSQL query execution plan", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Data pipeline SLA monitoring", time: "12:00 PM – 2:00 PM", owner: "Meera", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Analytics dashboard metrics", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "ML model inference benchmark", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Vector DB embedding index", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Customer analytics export", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Real-time telemetry streaming", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Data retention cleanup cron", time: "11:00 AM – 1:00 PM", owner: "Meera", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]}
-    ],
-    Riya: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "QA regression test automation", time: "9:00 AM – 11:00 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Cypress E2E test runner", time: "11:30 AM – 1:30 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "API integration test framework", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Mock server environment setup", time: "12:00 PM – 2:00 PM", owner: "Riya", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Bug triage & reproduction", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Performance stress testing", time: "1:00 PM – 3:00 PM", owner: "Riya", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Security penetration test report", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Edge case validation suite", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Release candidate QA sign-off", time: "9:00 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Test coverage report generation", time: "11:00 AM – 1:00 PM", owner: "Riya", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]}
-    ],
-    Neha: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Product analytics tracking", time: "9:30 AM – 11:00 AM", owner: "Neha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "User onboarding telemetry", time: "11:15 AM – 12:45 PM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Feature flag rollout config", time: "9:00 AM – 11:00 AM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "A/B testing framework setup", time: "11:30 AM – 1:30 PM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "User feedback triage", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Search indexing pipeline", time: "1:00 PM – 3:00 PM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Recommendation engine tuning", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Session replay event logger", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Customer feedback SLA review", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Weekly usage report generator", time: "11:00 AM – 1:00 PM", owner: "Neha", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]}
-    ],
-    Aisha: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Security vulnerability patching", time: "9:00 AM – 11:00 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "SSO SAML2 integration", time: "11:30 AM – 1:30 PM", owner: "Aisha", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Zero-trust network access audit", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Vault secrets rotation", time: "12:00 PM – 2:00 PM", owner: "Aisha", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "API rate limiting middleware", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "WAF security rules update", time: "1:00 PM – 3:00 PM", owner: "Aisha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Audit trail compliance logging", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Encryption key rotation", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "SOC2 compliance documentation", time: "9:00 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Security incident dry-run", time: "11:00 AM – 1:00 PM", owner: "Aisha", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]}
-    ]
-  };
-
-  const dayColumns = engineerSchedules[selectedEng] || engineerSchedules.Karan;
-
-  const capacityDays = dayColumns.map(col => {
-    const tasksCount = col.events.length;
-    let totalMinutes = 0;
-    col.events.forEach(evt => {
-      const match = evt.time.match(/(\d+):(\d+)\s*(AM|PM)\s*–\s*(\d+):(\d+)\s*(AM|PM)/i);
-      if (match) {
-        let sh = parseInt(match[1]);
-        const sm = parseInt(match[2]);
-        const sampm = match[3].toUpperCase();
-        let eh = parseInt(match[4]);
-        const em = parseInt(match[5]);
-        const eampm = match[6].toUpperCase();
-        if (sampm === "PM" && sh < 12) sh += 12;
-        if (sampm === "AM" && sh === 12) sh = 0;
-        if (eampm === "PM" && eh < 12) eh += 12;
-        if (eampm === "AM" && eh === 12) eh = 0;
-        const start = sh * 60 + sm;
-        const end = eh * 60 + em;
-        totalMinutes += (end - start);
-      }
-    });
-    const hoursNum = (totalMinutes / 60).toFixed(1);
-    const pctVal = Math.min(100, Math.round((totalMinutes / 480) * 100));
-    const totalSegments = 5;
-    const loadSegments = Math.min(totalSegments, Math.round((pctVal / 100) * totalSegments));
-    return {
-      day: col.day,
-      active: !!col.active,
-      hours: `${hoursNum}h / 8h`,
-      pct: `${pctVal}%`,
-      total: totalSegments,
-      load: loadSegments,
-      tasks: `${tasksCount} task${tasksCount !== 1 ? 's' : ''}`
-    };
-  });
-
-  return `
-    <div id="calendarAiPage" style="padding:12px 20px; max-width:100%; height:calc(100vh - 143px); display:flex; flex-direction:column; overflow:hidden; background:#f8fafc; font-family:'Inter', sans-serif; box-sizing:border-box;">
-      <!-- Controls & Filter Toolbar -->
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 16px; box-shadow:0 2px 6px rgba(0,0,0,0.02); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; flex-shrink:0;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button id="calPrevWeekBtn" style="width:26px; height:26px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">‹</button>
-          <span style="font-size:14px; font-weight:800; color:#0f172a;">Jul 19 — Jul 25, 2026</span>
-          <button id="calNextWeekBtn" style="width:26px; height:26px; border-radius:50%; border:1px solid #cbd5e1; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">›</button>
-          <button id="calTodayBtn" style="padding:5px 12px; background:#fef9c3; color:#854d0e; border:1px solid #fef08a; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-left:4px;">
-            Today
-          </button>
-        </div>
-
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <button id="calApproveHandoffBtn" style="padding:6px 12px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
-            Approve next handoff
-          </button>
-          <button id="calSimulateLoadBtn" style="padding:6px 12px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
-            Simulate team load shift
-          </button>
-          <select id="calWeekSelect" style="padding:6px 10px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
-            <option>This Week</option>
-            <option>Next Week</option>
-          </select>
-          <button id="calFiltersBtn" style="padding:6px 12px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-            ⚙ Filters
-          </button>
-          <select id="calendarEngineerSelect" style="padding:6px 10px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
-            ${engineersList.map(e => `<option value="${e.name}" ${e.name === selectedEng ? "selected" : ""}>${e.name}'s Calendar</option>`).join("")}
-          </select>
-          <button id="autoAssignCalendarBtn" style="padding:7px 16px; background:#5b21b6; color:#ffffff; border:none; border-radius:8px; font-size:12.5px; font-weight:800; cursor:pointer; box-shadow:0 3px 10px rgba(91,33,182,0.2);">
-            + Auto-Assign
-          </button>
-        </div>
-      </div>
-
-      <!-- Engineer Workload Chips Row -->
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; flex-shrink:0;">
-        <span style="font-size:10.5px; font-weight:800; color:#64748b; letter-spacing:0.06em; margin-right:2px;">ENGINEER:</span>
-        ${engineersList.map(e => {
-          const isSelected = e.name === selectedEng;
-          const bg = isSelected ? "#f3e8ff" : "#ffffff";
-          const border = isSelected ? "2px solid #7c3aed" : "1px solid #e2e8f0";
-          const textCol = isSelected ? "#6b21a8" : "#334155";
-          return `
-            <div class="eng-cal-chip" data-engineer="${e.name}" style="display:flex; align-items:center; gap:5px; padding:4px 10px; background:${bg}; border:${border}; border-radius:16px; font-size:11.5px; font-weight:700; color:${textCol}; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-              <span style="width:7px; height:7px; border-radius:50%; background:${e.dot};"></span>
-              <span>${e.name}</span>
-              <span style="font-size:10px; color:#64748b; font-weight:600; margin-left:1px;">${e.hours}</span>
-            </div>`;
-        }).join("")}
-      </div>
-
-      <!-- Daily Capacity Summary Cards (7 Days) -->
-      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; margin-bottom:10px; flex-shrink:0;">
-        ${capacityDays.map(cd => `
-          <div style="background:#ffffff; border:1px solid ${cd.active ? "#cbd5e1" : "#e2e8f0"}; border-radius:10px; padding:8px 10px; box-shadow:0 1px 4px rgba(0,0,0,0.015);">
-            <div style="font-size:10px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:2px;">${cd.day}</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:4px;">
-              <span style="font-weight:800; color:#dc2626;">${cd.hours}</span>
-              <span style="font-size:10px; font-weight:700; color:#64748b;">${cd.pct}</span>
-            </div>
-            <!-- Segmented load bar -->
-            <div style="display:flex; gap:2px; margin-bottom:3px;">
-              ${Array.from({ length: cd.total }).map((_, i) => `
-                <div style="flex:1; height:5px; border-radius:2px; background:${i < cd.load ? "#ef4444" : "#e2e8f0"};"></div>
-              `).join("")}
-            </div>
-            <div style="font-size:10px; color:#64748b; text-align:center; font-weight:600;">${cd.tasks}</div>
-          </div>
-        `).join("")}
-      </div>
-
-      <!-- Main Timed Calendar Grid Table -->
-      <div style="flex:1; min-height:0; display:flex; flex-direction:column; background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; box-shadow:0 4px 16px rgba(0,0,0,0.02); overflow:hidden; position:relative; box-sizing:border-box;">
-        
-        <!-- Red Current Time Line Indicator -->
-        <div style="position:absolute; top:${currentTimeTop}px; left:80px; right:0; height:2px; background:#ef4444; z-index:10; pointer-events:none;">
-          <span style="position:absolute; left:-72px; top:-9px; background:#ef4444; color:#ffffff; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; white-space:nowrap; box-shadow:0 2px 6px rgba(239,68,68,0.3);">${currentTimeStr}</span>
-          <span style="position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:#ef4444; box-shadow:0 0 0 2px #ffffff;"></span>
-        </div>
-
-        <!-- Day Columns Header -->
-        <div style="display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); border-bottom:1px solid #e2e8f0; background:#ffffff; box-sizing:border-box; flex-shrink:0;">
-          <div style="padding:10px; font-size:10.5px; font-weight:700; color:#94a3b8; border-right:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; box-sizing:border-box;">
-            GMT+5:30
-          </div>
-          ${dayColumns.map((col, idx) => `
-            <div style="padding:10px; text-align:center; ${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; font-size:12px; font-weight:800; color:#334155; display:flex; align-items:center; justify-content:center; gap:5px; box-sizing:border-box; min-width:0;">
-              <span>${col.day.split(" ")[0]}</span>
-              <span style="${col.active ? "background:#5b21b6; color:#ffffff; width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;" : ""}">${col.dateNum}</span>
-            </div>
-          `).join("")}
-        </div>
-
-        <!-- Hourly Schedule Canvas (9 AM to 6 PM) -->
-        <div style="flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns: 80px repeat(7, minmax(0, 1fr)); box-sizing:border-box;">
-          <!-- Left Time Axis (9 AM to 6 PM) -->
-          <div style="border-right:1px solid #e2e8f0; background:#fafafa; display:grid; grid-template-rows: repeat(10, 48px); text-align:center; font-size:10.5px; font-weight:700; color:#94a3b8; padding-top:6px; box-sizing:border-box;">
-            <div>9 AM</div>
-            <div>10 AM</div>
-            <div>11 AM</div>
-            <div>12 PM</div>
-            <div>1 PM</div>
-            <div>2 PM</div>
-            <div>3 PM</div>
-            <div>4 PM</div>
-            <div>5 PM</div>
-            <div>6 PM</div>
-          </div>
-
-          <!-- 7 Day Task Event Columns -->
-          ${dayColumns.map((col, idx) => `
-            <div style="${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; padding:8px; display:flex; flex-direction:column; gap:8px; background:#ffffff; box-sizing:border-box; min-width:0;">
-              ${col.events.map(evt => `
-                <div class="cal-event-card" data-title="${evt.title}" style="background:${evt.bg}; border:1px solid ${evt.border}; border-radius:8px; padding:8px; box-shadow:0 1px 4px rgba(0,0,0,0.02); transition:all 0.2s; cursor:pointer; min-width:0; box-sizing:border-box;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; min-width:0;">
-                    <div style="display:flex; align-items:center; gap:5px; min-width:0;">
-                      <span style="font-size:11px; flex-shrink:0;">📄</span>
-                      <strong style="font-size:11px; color:${evt.textCol}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;">${evt.title}</strong>
-                    </div>
-                    <span style="color:#94a3b8; font-size:11px; font-weight:800; cursor:pointer; flex-shrink:0;">⋮</span>
-                  </div>
-                  <div style="font-size:10px; color:${evt.textCol}; font-weight:700; margin-bottom:6px;">${evt.time}</div>
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:3px;">
-                      <span style="width:16px; height:16px; border-radius:50%; background:#5b21b6; color:#fff; font-size:8.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">${(evt.owner||"K")[0]}</span>
-                      <span style="font-size:10px; font-weight:700; color:#334155;">${evt.owner}</span>
-                    </div>
-                    <span style="font-size:8.5px; font-weight:900; padding:1px 4px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol}; flex-shrink:0;">${evt.priority}</span>
-                  </div>
-                </div>
-              `).join("")}
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
 // ─── Project Genome & Mutation Predictor ─────────────────────────────────────
 
 /**
@@ -4698,7 +3876,7 @@ function buildCurrentGenome() {
  * Compute similarity score (0-100) between two genomes
  */
 function computeGenomeSimilarity(g1, g2) {
-  const keys = ["workload","bugCount","apiCount","meetingLoad","reviewLoad","blockerCount","overdueCount"];
+  const keys = ["workload", "bugCount", "apiCount", "meetingLoad", "reviewLoad", "blockerCount", "overdueCount"];
   let totalDiff = 0;
   let maxPossible = 0;
   for (const k of keys) {
@@ -4715,13 +3893,13 @@ function computeGenomeSimilarity(g1, g2) {
  */
 function detectMutations(current, matchedPast) {
   const fields = {
-    workload:    { label: "Total tasks" },
-    bugCount:    { label: "Bug/defect count" },
-    apiCount:    { label: "Pending API tasks" },
+    workload: { label: "Total tasks" },
+    bugCount: { label: "Bug/defect count" },
+    apiCount: { label: "Pending API tasks" },
     meetingLoad: { label: "Meeting-sourced tasks" },
-    reviewLoad:  { label: "Code review load" },
-    blockerCount:{ label: "Blockers" },
-    overdueCount:{ label: "Overdue items" }
+    reviewLoad: { label: "Code review load" },
+    blockerCount: { label: "Blockers" },
+    overdueCount: { label: "Overdue items" }
   };
   return Object.entries(fields).map(([k, meta]) => {
     const cur = current[k] || 0;
@@ -4736,10 +3914,10 @@ function detectMutations(current, matchedPast) {
  */
 function predictRisks(mutations, similarityScore, matchedOutcome) {
   const risks = [];
-  const bugMut   = mutations.find(m => m.field === "bugCount");
-  const workMut  = mutations.find(m => m.field === "workload");
-  const meetMut  = mutations.find(m => m.field === "meetingLoad");
-  const apiMut   = mutations.find(m => m.field === "apiCount");
+  const bugMut = mutations.find(m => m.field === "bugCount");
+  const workMut = mutations.find(m => m.field === "workload");
+  const meetMut = mutations.find(m => m.field === "meetingLoad");
+  const apiMut = mutations.find(m => m.field === "apiCount");
   const blockMut = mutations.find(m => m.field === "blockerCount");
   const overdueMut = mutations.find(m => m.field === "overdueCount");
 
@@ -4794,10 +3972,10 @@ async function runGenomeAnalysis() {
 
     // Synthetic historical sprint genomes (always available, no backend needed)
     const syntheticPast = [
-      { sprintLabel: "Sprint 5",  workload: 22, p1Count: 3, bugCount: 5, apiCount: 4, meetingLoad: 6, ownerCount: 4, reviewLoad: 8,  blockerCount: 3, overdueCount: 4, velocity: 38, outcome: "delayed" },
-      { sprintLabel: "Sprint 8",  workload: 14, p1Count: 1, bugCount: 2, apiCount: 1, meetingLoad: 2, ownerCount: 5, reviewLoad: 4,  blockerCount: 1, overdueCount: 1, velocity: 72, outcome: "healthy" },
-      { sprintLabel: "Sprint 10", workload: 18, p1Count: 2, bugCount: 3, apiCount: 3, meetingLoad: 4, ownerCount: 4, reviewLoad: 6,  blockerCount: 2, overdueCount: 2, velocity: 55, outcome: "delayed" },
-      { sprintLabel: "Sprint 11", workload: 12, p1Count: 0, bugCount: 1, apiCount: 2, meetingLoad: 3, ownerCount: 5, reviewLoad: 3,  blockerCount: 0, overdueCount: 0, velocity: 85, outcome: "healthy" },
+      { sprintLabel: "Sprint 5", workload: 22, p1Count: 3, bugCount: 5, apiCount: 4, meetingLoad: 6, ownerCount: 4, reviewLoad: 8, blockerCount: 3, overdueCount: 4, velocity: 38, outcome: "delayed" },
+      { sprintLabel: "Sprint 8", workload: 14, p1Count: 1, bugCount: 2, apiCount: 1, meetingLoad: 2, ownerCount: 5, reviewLoad: 4, blockerCount: 1, overdueCount: 1, velocity: 72, outcome: "healthy" },
+      { sprintLabel: "Sprint 10", workload: 18, p1Count: 2, bugCount: 3, apiCount: 3, meetingLoad: 4, ownerCount: 4, reviewLoad: 6, blockerCount: 2, overdueCount: 2, velocity: 55, outcome: "delayed" },
+      { sprintLabel: "Sprint 11", workload: 12, p1Count: 0, bugCount: 1, apiCount: 2, meetingLoad: 3, ownerCount: 5, reviewLoad: 3, blockerCount: 0, overdueCount: 0, velocity: 85, outcome: "healthy" },
     ];
 
     // Find best historical match
@@ -4807,18 +3985,18 @@ async function runGenomeAnalysis() {
       if (score > bestScore) { bestScore = score; bestMatch = past; }
     }
 
-    const mutations     = detectMutations(current, bestMatch);
-    const risks         = predictRisks(mutations, bestScore, bestMatch.outcome);
+    const mutations = detectMutations(current, bestMatch);
+    const risks = predictRisks(mutations, bestScore, bestMatch.outcome);
     const recommendations = risks.map(r => r.recommendation);
 
-    genomeState.currentGenome   = current;
-    genomeState.pastGenomes     = syntheticPast;
-    genomeState.matchedSprint   = bestMatch;
+    genomeState.currentGenome = current;
+    genomeState.pastGenomes = syntheticPast;
+    genomeState.matchedSprint = bestMatch;
     genomeState.similarityScore = bestScore;
-    genomeState.mutations       = mutations;
-    genomeState.risks           = risks;
+    genomeState.mutations = mutations;
+    genomeState.risks = risks;
     genomeState.recommendations = recommendations;
-    genomeState.lastAnalyzed    = new Date().toLocaleTimeString();
+    genomeState.lastAnalyzed = new Date().toLocaleTimeString();
 
     // Optional AI narrative via Electron IPC (never blocks if unavailable)
     if (window.taskPilotDesktop?.invoke && risks.length > 0) {
@@ -4899,8 +4077,8 @@ function renderProjectGenomePage() {
           </button>
           <button id="genomeRunBtn" style="padding:9px 20px; background:${g.loading ? "#626f86" : "#0c66e4"}; color:#ffffff; border:none; border-radius:8px; font-size:12.5px; font-weight:700; cursor:${g.loading ? "not-allowed" : "pointer"}; display:flex; align-items:center; gap:8px;" ${g.loading ? "disabled" : ""}>
             ${g.loading
-              ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Analyzing...`
-              : `${current ? "Re-Analyze Sprint" : "Analyze Sprint"}`}
+      ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Analyzing...`
+      : `${current ? "Re-Analyze Sprint" : "Analyze Sprint"}`}
           </button>
         </div>
       </div>
@@ -4913,10 +4091,10 @@ function renderProjectGenomePage() {
           <p style="color:#626f86;max-width:480px;margin:0 auto 20px;">Click "Analyze Sprint" to build a genetic fingerprint of the current sprint and compare it against historical patterns to predict risks.</p>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:540px;margin:0 auto;text-align:left;">
             ${[
-              { icon:`<svg width="20" height="20" fill="none" stroke="#0c66e4" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>`, title:"Data Sources", desc:"Jira, GitHub, Slack, Emails, Meetings" },
-              { icon:`<svg width="20" height="20" fill="none" stroke="#6554c0" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>`, title:"Feature Extraction", desc:"Workload, bugs, dependencies, reviews" },
-              { icon:`<svg width="20" height="20" fill="none" stroke="#de350b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`, title:"Risk Prediction", desc:"Bottlenecks, overload, delays — with %s" }
-            ].map(s => `
+        { icon: `<svg width="20" height="20" fill="none" stroke="#0c66e4" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>`, title: "Data Sources", desc: "Jira, GitHub, Slack, Emails, Meetings" },
+        { icon: `<svg width="20" height="20" fill="none" stroke="#6554c0" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>`, title: "Feature Extraction", desc: "Workload, bugs, dependencies, reviews" },
+        { icon: `<svg width="20" height="20" fill="none" stroke="#de350b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`, title: "Risk Prediction", desc: "Bottlenecks, overload, delays — with %s" }
+      ].map(s => `
               <div style="background:#fff;border:1px solid #dfe3ea;border-radius:8px;padding:12px;">
                 <div style="margin-bottom:6px;">${s.icon}</div>
                 <strong style="font-size:12px;color:#172b4d;">${s.title}</strong>
@@ -4932,11 +4110,11 @@ function renderProjectGenomePage() {
           <!-- KPI Row -->
           <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
             ${[
-              { label:"Similarity to past sprint", value:`${g.similarityScore}%`, sub: matched ? `vs ${matched.sprintLabel}` : "", color: g.similarityScore >= 80 ? "#de350b" : g.similarityScore >= 60 ? "#974f0c" : "#22a06b" },
-              { label:"Mutations detected", value: g.mutations.length, sub:"Changed signals", color:"#6554c0" },
-              { label:"Predicted risks", value: g.risks.length, sub:"With confidence scores", color: g.risks.length > 2 ? "#de350b" : "#22a06b" },
-              { label:"Outcome prediction", value: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "At Risk" : "On Track", sub:`Based on ${matched?.sprintLabel || "history"}`, color: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "#de350b" : "#22a06b" }
-            ].map(k => `
+      { label: "Similarity to past sprint", value: `${g.similarityScore}%`, sub: matched ? `vs ${matched.sprintLabel}` : "", color: g.similarityScore >= 80 ? "#de350b" : g.similarityScore >= 60 ? "#974f0c" : "#22a06b" },
+      { label: "Mutations detected", value: g.mutations.length, sub: "Changed signals", color: "#6554c0" },
+      { label: "Predicted risks", value: g.risks.length, sub: "With confidence scores", color: g.risks.length > 2 ? "#de350b" : "#22a06b" },
+      { label: "Outcome prediction", value: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "At Risk" : "On Track", sub: `Based on ${matched?.sprintLabel || "history"}`, color: matched?.outcome === "delayed" && g.similarityScore >= 70 ? "#de350b" : "#22a06b" }
+    ].map(k => `
               <div style="background:#fff;border:1px solid #dfe3ea;border-radius:10px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
                 <p style="margin:0 0 2px;font-size:10px;color:#626f86;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${k.label}</p>
                 <span style="font-size:22px;font-weight:800;color:${k.color};">${k.value}</span>
@@ -5023,7 +4201,7 @@ function renderProjectGenomePage() {
               <div style="display:grid;gap:6px;">
                 ${g.recommendations.length > 0 ? g.recommendations.map((rec, i) => `
                   <div style="display:flex;align-items:flex-start;gap:6px;padding:6px;background:#f4fff9;border:1px solid #b7e4ce;border-radius:8px;">
-                    <span style="width:16px;height:16px;background:#22a06b;color:#fff;border-radius:50%;display:grid;place-items:center;font-size:9.5px;font-weight:800;flex-shrink:0;">${i+1}</span>
+                    <span style="width:16px;height:16px;background:#22a06b;color:#fff;border-radius:50%;display:grid;place-items:center;font-size:9.5px;font-weight:800;flex-shrink:0;">${i + 1}</span>
                     <span style="font-size:11px;color:#172b4d;line-height:1.25;">${escapeHtml(rec)}</span>
                   </div>
                 `).join("") : `<div style="font-size:11px;color:#626f86;text-align:center;padding:10px;">No recommendations.</div>`}
@@ -5036,9 +4214,9 @@ function renderProjectGenomePage() {
             <h3 style="margin:0 0 8px;font-size:12.5px;color:#172b4d;display:flex;align-items:center;gap:6px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>Genome Library — Historical Sprints</h3>
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
               ${g.pastGenomes.map(past => {
-                const sim = computeGenomeSimilarity(current, past);
-                const isMatch = past.sprintLabel === matched?.sprintLabel;
-                return `
+      const sim = computeGenomeSimilarity(current, past);
+      const isMatch = past.sprintLabel === matched?.sprintLabel;
+      return `
                   <div style="padding:6px 8px;border-radius:6px;border:${isMatch ? "2px solid #de350b" : "1px solid #dfe3ea"};background:${isMatch ? "#fff5f4" : "#f8f9fa"};display:flex;justify-content:space-between;align-items:center;">
                     <div>
                       <strong style="font-size:11px;color:#172b4d;">${past.sprintLabel}</strong>
@@ -5049,7 +4227,7 @@ function renderProjectGenomePage() {
                       <span style="font-size:9px;padding:1px 4px;border-radius:4px;background:${past.outcome === "delayed" ? "#ffd5d2" : "#dcfff1"};color:${past.outcome === "delayed" ? "#ae2a19" : "#216e4e"};font-weight:700;">${past.outcome === "delayed" ? "Delayed" : "On Time"}</span>
                     </div>
                   </div>`;
-              }).join("")}
+    }).join("")}
             </div>
           </div>
 
@@ -5114,9 +4292,9 @@ function renderManagerCommandStrip(selected) {
         <p class="eyebrow">Sprint Genome</p>
         <h2>${genomeReady ? `${similarityScore}% match` : "Analyze sprint"}</h2>
         <p>${genomeReady
-          ? `Current sprint is ${similarityScore}% similar to a past sprint. ${topRisk ? `Top risk: ${topRisk.label} (${topRisk.pct}%).` : ""}`
-          : "Run the Genome Analyzer to predict risks from historical sprint patterns."
-        }</p>
+      ? `Current sprint is ${similarityScore}% similar to a past sprint. ${topRisk ? `Top risk: ${topRisk.label} (${topRisk.pct}%).` : ""}`
+      : "Run the Genome Analyzer to predict risks from historical sprint patterns."
+    }</p>
       </article>
       <article class="hero-card priority" style="cursor: pointer;" data-nav="analytics">
         <p class="eyebrow">Manager action</p>
@@ -5183,16 +4361,16 @@ function renderWorkloadChart(ownerLoad) {
     ${legend}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:10px;">
       ${owners.map((o, i) => {
-        const col = COLORS[i % COLORS.length];
-        const pct = o.count ? Math.round(o.done / o.count * 100) : 0;
-        const isOverloaded = o.count >= 8 || o.p1 >= 3;
-        return `<div style="padding:7px 9px;background:#fff;border:1px solid #e8e0d5;border-left:3px solid ${col};border-radius:7px;font-size:11px;">
+    const col = COLORS[i % COLORS.length];
+    const pct = o.count ? Math.round(o.done / o.count * 100) : 0;
+    const isOverloaded = o.count >= 8 || o.p1 >= 3;
+    return `<div style="padding:7px 9px;background:#fff;border:1px solid #e8e0d5;border-left:3px solid ${col};border-radius:7px;font-size:11px;">
           <strong style="color:#172b4d;display:block;margin-bottom:2px;">${escapeHtml(o.owner)}</strong>
           <div style="color:#64748b;">${o.count} tasks · ${o.p1} P1</div>
           <div style="color:${o.blockers > 0 ? "#974f0c" : "#64748b"};">${o.blockers} blocker${o.blockers !== 1 ? "s" : ""}</div>
           ${isOverloaded ? `<span style="font-size:10px;color:#de350b;font-weight:700;">⚠ Overloaded</span>` : ""}
         </div>`;
-      }).join("")}
+  }).join("")}
     </div>`;
 }
 
@@ -5200,7 +4378,7 @@ function renderWorkloadChart(ownerLoad) {
 function renderDependencyGraph() {
   // Find tasks that are either blocking or blocked by others
   const blockingTasks = state.prioritized.filter(t => t.isBlocking && !isTaskCompleted(t.id));
-  const blockedTasks  = state.prioritized.filter(t => t.isBlocked  && !isTaskCompleted(t.id));
+  const blockedTasks = state.prioritized.filter(t => t.isBlocked && !isTaskCompleted(t.id));
 
   // Fall back: use dependency keyword analysis if graph data not populated
   const keywordBlocked = state.prioritized.filter(t =>
@@ -5209,7 +4387,7 @@ function renderDependencyGraph() {
   );
 
   const allBlockers = blockingTasks.length > 0 ? blockingTasks : [];
-  const allBlocked  = blockedTasks.length  > 0 ? blockedTasks  : keywordBlocked;
+  const allBlocked = blockedTasks.length > 0 ? blockedTasks : keywordBlocked;
 
   const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
 
@@ -5273,7 +4451,7 @@ function renderDependencyGraph() {
         </div>` : ""}
       <div style="padding:8px 10px;background:#f8f5f0;border-radius:6px;font-size:11px;color:#64748b;border-left:3px solid #6554c0;display:flex;align-items:flex-start;gap:6px;">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-        Resolving blocking tasks first will cascade ${allBlockers.reduce((s,t) => s + (t.blocksCount||1), 0)} downstream item${allBlockers.reduce((s,t) => s + (t.blocksCount||1), 0) !== 1 ? "s" : ""} into action automatically.
+        Resolving blocking tasks first will cascade ${allBlockers.reduce((s, t) => s + (t.blocksCount || 1), 0)} downstream item${allBlockers.reduce((s, t) => s + (t.blocksCount || 1), 0) !== 1 ? "s" : ""} into action automatically.
       </div>
     </div>`;
 }
@@ -5333,7 +4511,7 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
       const isP1 = t.severity === "P1";
       const badgeBg = isP1 ? "#ffe4e6" : "#e9f2ff";
       const badgeText = isP1 ? "#de350b" : "#0c66e4";
-      
+
       // Clean up "Due in 14d" format
       let dueLabel = t.due || (isP1 ? "Tomorrow" : "Sprint");
       if (dueLabel.toLowerCase().includes("due in ")) {
@@ -5595,13 +4773,13 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <!-- Leaderboard List -->
             <div style="display:flex; flex-direction:column; gap:10px;">
               ${[
-                { name: "Riya", pts: "3150 pts", hours: "115.5h", avatarBg: "#eff6ff", textCol: "#2563eb" },
-                { name: "Vikram", pts: "3120 pts", hours: "117.0h", avatarBg: "#fdf2f8", textCol: "#db2777" },
-                { name: "Aisha", pts: "3090 pts", hours: "112.5h", avatarBg: "#f0fdf4", textCol: "#16a34a" },
-                { name: "Rohan", pts: "2970 pts", hours: "109.5h", avatarBg: "#f3e8ff", textCol: "#9333ea" },
-                { name: "Karan", pts: "2820 pts", hours: "105.0h", avatarBg: "#fffbeb", textCol: "#d97706" },
-                { name: "Arjun", pts: "2730 pts", hours: "99.0h", avatarBg: "#ecfeff", textCol: "#0891b2" }
-              ].map(eng => `
+      { name: "Riya", pts: "3150 pts", hours: "115.5h", avatarBg: "#eff6ff", textCol: "#2563eb" },
+      { name: "Vikram", pts: "3120 pts", hours: "117.0h", avatarBg: "#fdf2f8", textCol: "#db2777" },
+      { name: "Aisha", pts: "3090 pts", hours: "112.5h", avatarBg: "#f0fdf4", textCol: "#16a34a" },
+      { name: "Rohan", pts: "2970 pts", hours: "109.5h", avatarBg: "#f3e8ff", textCol: "#9333ea" },
+      { name: "Karan", pts: "2820 pts", hours: "105.0h", avatarBg: "#fffbeb", textCol: "#d97706" },
+      { name: "Arjun", pts: "2730 pts", hours: "99.0h", avatarBg: "#ecfeff", textCol: "#0891b2" }
+    ].map(eng => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:1px solid #f1f5f9; border-radius:10px; background:#fafafa;">
                   <div style="display:flex; align-items:center; gap:10px;">
                     <div style="width:30px; height:30px; border-radius:50%; background:${eng.avatarBg}; color:${eng.textCol}; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center;">${eng.name[0]}</div>
@@ -5636,12 +4814,12 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
             <!-- Activity Items -->
             <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:16px;">
               ${managerTaskPosts.length === 0
-                ? `<p style="color:#64748b; font-size:12.5px; font-style:italic; text-align:center; padding:20px 0; margin:0;">No updates posted to Team Portal yet.</p>`
-                : managerTaskPosts.slice(0, 4).map(post => {
-                    const sev = post.priority || "P2";
-                    const sevColor = {"P1":"#de350b","P2":"#c2410c","P3":"#1d4ed8","P4":"#15803d"}[sev]||"#64748b";
-                    const sevBg = {"P1":"#ffe4e6","P2":"#ffedd5","P3":"#dbeafe","P4":"#dcfce7"}[sev]||"#e2e8f0";
-                    return `
+      ? `<p style="color:#64748b; font-size:12.5px; font-style:italic; text-align:center; padding:20px 0; margin:0;">No updates posted to Team Portal yet.</p>`
+      : managerTaskPosts.slice(0, 4).map(post => {
+        const sev = post.priority || "P2";
+        const sevColor = { "P1": "#de350b", "P2": "#c2410c", "P3": "#1d4ed8", "P4": "#15803d" }[sev] || "#64748b";
+        const sevBg = { "P1": "#ffe4e6", "P2": "#ffedd5", "P3": "#dbeafe", "P4": "#dcfce7" }[sev] || "#e2e8f0";
+        return `
                       <div style="display:flex; align-items:flex-start; gap:12px; border-left:2px solid #818cf8; padding-left:12px;">
                         <span style="width:20px; height:20px; border-radius:50%; background:#e0e7ff; color:#4f46e5; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">+</span>
                         <div style="flex:1;">
@@ -5650,15 +4828,15 @@ function renderManagerDashboard_inner(selected, insights, p1Tasks, blockers, sla
                             <span style="padding:1px 6px; border-radius:4px; background:${sevBg}; color:${sevColor}; font-size:9.5px; font-weight:800;">${sev}</span>
                           </div>
                           <div style="display:flex; gap:10px; align-items:center; margin-top:4px; font-size:11px; color:#64748b;">
-                            <span>Assignee: ${escapeHtml(post.assignment?.recommendedAssignee||"Unassigned")}</span>
-                            <span>Deadline: ${escapeHtml(post.deadline||"TBD")}</span>
-                            <span style="font-size:11px; color:#94a3b8;">${new Date(post.postedAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>
+                            <span>Assignee: ${escapeHtml(post.assignment?.recommendedAssignee || "Unassigned")}</span>
+                            <span>Deadline: ${escapeHtml(post.deadline || "TBD")}</span>
+                            <span style="font-size:11px; color:#94a3b8;">${new Date(post.postedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                           </div>
                         </div>
                       </div>
                     `;
-                  }).join("")
-              }
+      }).join("")
+    }
             </div>
           </div>
 
@@ -5962,8 +5140,8 @@ function renderPortalPost(post) {
         </div>
         <span style="font-size:10px;color:#626f86;">${new Date(post.postedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
       </div>
-      <div class="post-meta">Team: ${escapeHtml(post.team||"")} · Deadline: ${escapeHtml(post.deadline||"TBD")} · Score: ${post.assignment?.priorityScore||"—"}</div>
-      <span class="post-assignee">Assignee: ${escapeHtml(post.assignment?.recommendedAssignee||"Unassigned")}</span>
+      <div class="post-meta">Team: ${escapeHtml(post.team || "")} · Deadline: ${escapeHtml(post.deadline || "TBD")} · Score: ${post.assignment?.priorityScore || "—"}</div>
+      <span class="post-assignee">Assignee: ${escapeHtml(post.assignment?.recommendedAssignee || "Unassigned")}</span>
       ${post.assignment?.riskLevel ? `<span class="mgr-risk-badge ${post.assignment.riskLevel}" style="margin-left:6px;">${post.assignment.riskLevel}</span>` : ""}
     </div>
   `;
@@ -5972,22 +5150,22 @@ function renderPortalPost(post) {
 function renderManagerQueries() {
   return `
     <div class="quick-queries">
-      ${["Who is overloaded?","Show P1 risks","Blockers needing decisions","Team standup summary","Suggest rebalancing"]
-        .map(q=>`<button data-query="${escapeHtml(q)}">${q}</button>`).join("")}
+      ${["Who is overloaded?", "Show P1 risks", "Blockers needing decisions", "Team standup summary", "Suggest rebalancing"]
+      .map(q => `<button data-query="${escapeHtml(q)}">${q}</button>`).join("")}
     </div>
   `;
 }
 
 function renderManagerLane(severity) {
   const laneTasks = state.prioritized.filter(t => t.severity === severity).slice(0, 4);
-  const col = {"P1":"#de350b","P2":"#ffab00","P3":"#22a06b"}[severity];
+  const col = { "P1": "#de350b", "P2": "#ffab00", "P3": "#22a06b" }[severity];
   return `
     <div class="mgr-lane">
       <div class="mgr-lane-head" style="color:${col};">
         ${severity} <span class="mgr-lane-count">${laneTasks.length}</span>
       </div>
-      ${laneTasks.map(t=>`
-        <div class="mgr-lane-card ${selectedTaskId===t.id?"selected":""}" data-task="${t.id}">
+      ${laneTasks.map(t => `
+        <div class="mgr-lane-card ${selectedTaskId === t.id ? "selected" : ""}" data-task="${t.id}">
           <strong>${t.canonicalTitle}</strong>
           <span>${t.sources.join(" · ")}</span>
         </div>`).join("")}
@@ -6046,7 +5224,7 @@ function renderEngineerPortalPage() {
 function renderTeamWorkload(isManager) {
   // Build teammate rows from all tasks in state
   const ownerMap = {};
-  
+
   // Make sure all 10 engineers exist in the map, so they are always displayed
   const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
   TEAM_MEMBERS.forEach(name => {
@@ -6073,7 +5251,7 @@ function renderTeamWorkload(isManager) {
   });
 
   const teammates = Object.values(ownerMap).sort((a, b) => b.total - a.total);
-  
+
   const totalDone = teammates.reduce((s, t) => s + t.done, 0);
   const totalWorking = teammates.reduce((s, t) => s + t.working, 0);
   const totalTodo = teammates.reduce((s, t) => s + t.todo, 0);
@@ -6208,10 +5386,10 @@ function renderTeamWorkload(isManager) {
             </span>
             <div style="display:flex; gap:-5px; overflow:hidden;">
               ${["Utkarsh", "Meera", "Riya", "Rohan"].map((n, i) => {
-                const colors = ["#eff6ff","#fffbeb","#f0fdf4","#fdf2f8"];
-                const text = ["#2563eb","#d97706","#16a34a","#db2777"];
-                return `<div style="width:14px; height:14px; border-radius:50%; background:${colors[i]}; color:${text[i]}; border:1px solid #ffffff; font-size:7px; font-weight:800; display:flex; align-items:center; justify-content:center;">${n[0]}</div>`;
-              }).join("")}
+    const colors = ["#eff6ff", "#fffbeb", "#f0fdf4", "#fdf2f8"];
+    const text = ["#2563eb", "#d97706", "#16a34a", "#db2777"];
+    return `<div style="width:14px; height:14px; border-radius:50%; background:${colors[i]}; color:${text[i]}; border:1px solid #ffffff; font-size:7px; font-weight:800; display:flex; align-items:center; justify-content:center;">${n[0]}</div>`;
+  }).join("")}
             </div>
           </div>
         </div>
@@ -6248,17 +5426,17 @@ function renderTeamWorkload(isManager) {
       <!-- Tier 2 Engineer Cards Grid -->
       <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; margin-bottom:10px;">
         ${teammates.map((eng, idx) => {
-          const pct = eng.total ? Math.round(eng.done / eng.total * 100) : 40;
-          const colors = ["#0052cc", "#22a06b", "#6554c0", "#de350b", "#ffab00", "#0052cc", "#22a06b", "#6554c0", "#de350b", "#ffab00"];
-          const lightBgs = ["#eff6ff", "#f0fdf4", "#faf5ff", "#fff1f2", "#fffbeb", "#eff6ff", "#f0fdf4", "#faf5ff", "#fff1f2", "#fffbeb"];
-          const color = colors[idx % colors.length];
-          const bg = lightBgs[idx % lightBgs.length];
-          const initials = eng.name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
-          
-          // Est. Free capacity: workload hours remaining
-          const freeHours = Math.max(0, 40 - (eng.working * 4 + eng.todo * 2));
-          
-          return `
+    const pct = eng.total ? Math.round(eng.done / eng.total * 100) : 40;
+    const colors = ["#0052cc", "#22a06b", "#6554c0", "#de350b", "#ffab00", "#0052cc", "#22a06b", "#6554c0", "#de350b", "#ffab00"];
+    const lightBgs = ["#eff6ff", "#f0fdf4", "#faf5ff", "#fff1f2", "#fffbeb", "#eff6ff", "#f0fdf4", "#faf5ff", "#fff1f2", "#fffbeb"];
+    const color = colors[idx % colors.length];
+    const bg = lightBgs[idx % lightBgs.length];
+    const initials = eng.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+
+    // Est. Free capacity: workload hours remaining
+    const freeHours = Math.max(0, 40 - (eng.working * 4 + eng.todo * 2));
+
+    return `
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(0,0,0,0.01); display:flex; flex-direction:column; justify-content:space-between; min-height:210px; box-sizing:border-box;">
               <div>
                 <!-- Teammate Header -->
@@ -6297,14 +5475,14 @@ function renderTeamWorkload(isManager) {
                   <div style="font-size:9px; font-weight:800; color:#94a3b8; letter-spacing:0.04em; margin-bottom:4px; text-transform:uppercase;">Top Priorities</div>
                   <div style="display:flex; flex-direction:column; gap:4px;">
                     ${eng.tasks.filter(t => !isTaskCompleted(t.id)).slice(0, 2).map(t => {
-                      const badgeCol = t.severity === "P1" ? "#de350b" : "#974f0c";
-                      return `
+      const badgeCol = t.severity === "P1" ? "#de350b" : "#974f0c";
+      return `
                         <div style="font-size:10.5px; line-height:1.2; color:#334155; display:flex; align-items:flex-start;">
                           <span style="color:${badgeCol}; font-weight:800; font-size:9px; margin-right:4px; flex-shrink:0;">${t.severity}</span>
                           <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; max-width:130px;" title="${escapeHtml(t.canonicalTitle)}">${escapeHtml(t.canonicalTitle)}</span>
                         </div>
                       `;
-                    }).join("")}
+    }).join("")}
                     ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length > 2 ? `
                       <div style="font-size:9.5px; color:#64748b; margin-top:1px;">+ ${eng.tasks.filter(t => !isTaskCompleted(t.id)).length - 2} more</div>
                     ` : ""}
@@ -6327,7 +5505,7 @@ function renderTeamWorkload(isManager) {
               </div>
             </div>
           `;
-        }).join("")}
+  }).join("")}
       </div>
 
       <!-- AI Workload Insights Footer Row -->
@@ -7581,53 +6759,26 @@ function renderMeetingMemory() {
                   <span class="meeting-detail-info-value">${escapeHtml(activeMeeting.extractedFrom || activeMeeting.source)}</span>
                 </div>
               </div>
-            ` : ""}
 
-              <div class="meeting-action-buttons" style="display:flex; gap:8px;">
-                <button class="primary" data-open-external="${meetUrl}" style="display:flex; align-items:center; gap:6px; background:#16a34a; border:none; padding: 6px 12px; font-weight:600;">
+              <!-- Actions Bar -->
+              <div style="display:flex; gap:8px; margin-top:4px;">
+                <button class="primary" data-open-external="${meetUrl}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#16a34a; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">
                   Join Call
                 </button>
-                <button class="secondary" id="analyzeMeetingBtn" data-meet-detail="${activeMeeting.id}" style="display:flex; align-items:center; gap:6px;">
+                <button class="secondary" id="analyzeMeetingBtn" data-meet-detail="${activeMeeting.id}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; font-size:11.5px; font-weight:600; padding:7px 12px; border-radius:6px;">
                   Analyze with AI
                 </button>
                 ${activeMeeting.savedToCalendar || activeMeeting.status === "Scheduled"
-                  ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; display:flex; align-items:center; gap:6px;" disabled>
-                       <span>✓</span> On Calendar
-                     </button>`
-                  : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; gap:6px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border: none;">
-                       Save to Calendar
-                     </button>`
+                  ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; padding:7px 10px; font-size:11.5px; font-weight:700;" disabled>✓ Saved</button>`
+                  : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; background:#0052cc; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">Save to Calendar</button>`
                 }
               </div>
-              <div style="display:flex; justify-content:space-between;">
-                <span style="font-weight:700; color:#64748b;">Suggested Time:</span>
-                <span style="font-weight:600; color:#0f172a;">${escapeHtml(activeMeeting.suggestedDate)} at ${escapeHtml(activeMeeting.suggestedTime)} (${activeMeeting.duration}m)</span>
-              </div>
-              <div style="display:flex; justify-content:space-between;">
-                <span style="font-weight:700; color:#64748b;">Source Context:</span>
-                <span style="font-weight:600; color:#0f172a;">${escapeHtml(activeMeeting.extractedFrom || activeMeeting.source)}</span>
-              </div>
-            </div>
 
-            <!-- Actions Bar -->
-            <div style="display:flex; gap:8px; margin-top:4px;">
-              <button class="primary" data-open-external="${meetUrl}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#16a34a; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">
-                Join Call
-              </button>
-              <button class="secondary" id="analyzeMeetingBtn" data-meet-detail="${activeMeeting.id}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; font-size:11.5px; font-weight:600; padding:7px 12px; border-radius:6px;">
-                Analyze with AI
-              </button>
-              ${activeMeeting.savedToCalendar || activeMeeting.status === "Scheduled"
-        ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; padding:7px 10px; font-size:11.5px; font-weight:700;" disabled>✓ Saved</button>`
-        : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; background:#0052cc; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">Save to Calendar</button>`
-      }
-            </div>
-
-            <!-- Analysis Result Box -->
-            <div id="meetingAnalysisResult" style="font-size:11.5px; color:#334155; border-top:1px solid #e2e8f0; padding-top:10px; display:grid; gap:6px;">
-              ${renderMeetingAnalysisHTML(activeMeeting.id)}
-            </div>
-          ` : `<p style="color:#64748b; text-align:center; padding:20px; font-style:italic;">Select a meeting to view details.</p>`}
+              <!-- Analysis Result Box -->
+              <div id="meetingAnalysisResult" style="font-size:11.5px; color:#334155; border-top:1px solid #e2e8f0; padding-top:10px; display:grid; gap:6px;">
+                ${renderMeetingAnalysisHTML(activeMeeting.id)}
+              </div>
+            ` : `<p style="color:#64748b; text-align:center; padding:20px; font-style:italic;">Select a meeting to view details.</p>`}
         </div>
 
       </div>
@@ -7640,8 +6791,8 @@ function renderMeetingCard(m, priorityColor, typeIcon) {
   const pColor = priorityColor(m.urgencyLabel || m.priority);
 
   return `
-    <div class="meeting-card-btn ${isActive ? "selected" : ""}" data-meet-id="${m.id}"
-      style="background:${isActive ? '#f0f7ff' : '#ffffff'}; border:1.5px solid ${isActive ? '#0052cc' : '#e2e8f0'}; border-radius:8px; padding:10px 12px; text-align:left; cursor:pointer; transition:all 0.15s ease; position:relative; box-shadow:${isActive ? '0 2px 8px rgba(0,82,204,0.12)' : 'none'};">
+  < div class="meeting-card-btn ${isActive ? "selected" : ""}" data - meet - id="${m.id}"
+style = "background:${isActive ? '#f0f7ff' : '#ffffff'}; border:1.5px solid ${isActive ? '#0052cc' : '#e2e8f0'}; border-radius:8px; padding:10px 12px; text-align:left; cursor:pointer; transition:all 0.15s ease; position:relative; box-shadow:${isActive ? '0 2px 8px rgba(0,82,204,0.12)' : 'none'};" >
       
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:6px;">
         <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">
@@ -7675,14 +6826,14 @@ function renderMeetingCard(m, priorityColor, typeIcon) {
         </button>
       </div>
 
-    </div>
+    </div >
   `;
 }
 
 function renderMeetingAnalysisHTML(meetId) {
   const analysis = analyzedMeetings[meetId];
   if (!analysis) {
-    return `<p style="color:#626f86; font-size:12px;">Click <strong>Analyze with AI</strong> to extract decisions, action items, and follow-up meetings using TaskPilot AI.</p>`;
+    return `< p style = "color:#626f86; font-size:12px;" > Click < strong > Analyze with AI</strong > to extract decisions, action items, and follow - up meetings using TaskPilot AI.</p> `;
   }
 
   // Attendance Recommendation Block
@@ -7694,7 +6845,7 @@ function renderMeetingAnalysisHTML(meetId) {
     const bgCol = sw.recommendAttend ? "#f4fff9" : "#fff4f2";
     const borderCol = sw.recommendAttend ? "#b7e4ce" : "#ffd5d2";
     shouldworkHTML = `
-      <div style="background:${bgCol}; border:1px solid ${borderCol}; border-radius:6px; padding:12px; margin-top:8px;">
+  < div style = "background:${bgCol}; border:1px solid ${borderCol}; border-radius:6px; padding:12px; margin-top:8px;" >
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#626f86;">AI Attendance recommendation</strong>
           <span style="font-size:12px; font-weight:800; color:${recommendColor}; padding:2px 8px; border-radius:12px; background:#fff; border:1px solid ${borderCol};">
@@ -7707,15 +6858,15 @@ function renderMeetingAnalysisHTML(meetId) {
         <div style="font-size:12px; color:#44546f; line-height:1.4;">
           ${escapeHtml(sw.reasoning)}
         </div>
-      </div>
-    `;
+      </div >
+  `;
   }
 
   // Simulated Transcript Block
   let transcriptHTML = "";
   if (analysis.transcript && analysis.transcript.length > 0) {
     transcriptHTML = `
-      <div style="margin-top:12px; border:1px solid #dfe3ea; border-radius:6px; background:#fff; overflow:hidden;">
+  < div style = "margin-top:12px; border:1px solid #dfe3ea; border-radius:6px; background:#fff; overflow:hidden;" >
         <div style="background:#fafbfc; border-bottom:1px solid #dfe3ea; padding:8px 12px; font-weight:700; font-size:12px; color:#172b4d; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="const box = this.nextElementSibling; box.style.display = box.style.display === 'none' ? 'grid' : 'none';">
           <span>💬 Meeting Transcript</span>
           <span style="font-size:10px; color:#626f86;">Click to Toggle</span>
@@ -7728,25 +6879,28 @@ function renderMeetingAnalysisHTML(meetId) {
             </div>
           `).join("")}
         </div>
-      </div>
-    `;
+      </div >
+  `;
   }
 
   return `
-    <div style="display:grid; gap:8px;">
-      <div style="background:#f7f8fa; padding:10px; border-radius:6px; font-size:13px;">
-        <strong>Summary:</strong> ${escapeHtml(analysis.summary || "")}
-      </div>
-      ${shouldworkHTML}
-      ${analysis.decisions && analysis.decisions.length > 0 ? `
+  < div style = "display:grid; gap:8px;" >
+    <div style="background:#f7f8fa; padding:10px; border-radius:6px; font-size:13px;">
+      <strong>Summary:</strong> ${escapeHtml(analysis.summary || "")}
+    </div>
+      ${ shouldworkHTML }
+      ${
+  analysis.decisions && analysis.decisions.length > 0 ? `
         <div>
           <strong style="font-size:12px; color:#626f86; text-transform:uppercase; letter-spacing:0.05em;">Key Decisions</strong>
           <ul style="padding-left:16px; margin:4px 0; font-size:12px; color:#44546f; line-height:1.5;">
             ${analysis.decisions.map(d => `<li>${escapeHtml(d)}</li>`).join("")}
           </ul>
         </div>
-      ` : ""}
-      ${analysis.actionItems && analysis.actionItems.length > 0 ? `
+      ` : ""
+}
+      ${
+  analysis.actionItems && analysis.actionItems.length > 0 ? `
         <div>
           <strong style="font-size:12px; color:#626f86; text-transform:uppercase; letter-spacing:0.05em;">Action Items</strong>
           <div style="display:grid; gap:4px; margin-top:4px;">
@@ -7758,8 +6912,10 @@ function renderMeetingAnalysisHTML(meetId) {
             `).join("")}
           </div>
         </div>
-      ` : ""}
-      ${analysis.followUpMeetings && analysis.followUpMeetings.length > 0 ? `
+      ` : ""
+}
+      ${
+  analysis.followUpMeetings && analysis.followUpMeetings.length > 0 ? `
         <div>
           <strong style="font-size:12px; color:#626f86; text-transform:uppercase; letter-spacing:0.05em;">Follow-up Meetings</strong>
           ${analysis.followUpMeetings.map((f, i) => `
@@ -7772,14 +6928,17 @@ function renderMeetingAnalysisHTML(meetId) {
             </div>
           `).join("")}
         </div>
-      ` : ""}
-      ${analysis.risks && analysis.risks.length > 0 ? `
+      ` : ""
+}
+      ${
+  analysis.risks && analysis.risks.length > 0 ? `
         <div style="background:#fff4f2; border-left:3px solid #de350b; padding:8px; border-radius:4px; font-size:12px; color:#6b1a0a;">
           <strong>Risks:</strong> ${analysis.risks.join("; ")}
         </div>
-      ` : ""}
-      ${transcriptHTML}
-    </div>
+      ` : ""
+}
+      ${ transcriptHTML }
+    </div >
   `;
 }
 
@@ -7787,7 +6946,7 @@ function renderMeetingAnalysisHTML(meetId) {
 function renderHiddenAsks() {
   const unstructured = state.flattened.filter(t => ["message", "note"].includes(t.type));
   return `
-    <section class="board" style="padding:18px;">
+  < section class="board" style = "padding:18px;" >
       <div class="section-head">
         <div>
           <p class="eyebrow">NLP Extraction Pipeline</p>
@@ -7815,7 +6974,7 @@ function renderHiddenAsks() {
           </div>
         `).join("")}
       </div>
-    </section>
+    </section >
   `;
 }
 
@@ -7833,11 +6992,11 @@ function renderJiraBoard() {
   const byStatus = groupByStatus(allTasks);
 
   return `
-    <div class="scrum-shell" id="scrumShell">
-      <!-- Source Tree + title bar -->
-      ${renderSourceTree()}
+  < div class="scrum-shell" id = "scrumShell" >
+      < !--Source Tree + title bar-- >
+  ${ renderSourceTree() }
 
-      <!-- Filters bar -->
+      < !--Filters bar-- >
       <div class="scrum-filters" id="scrumFilters">
         <div class="scrum-search-wrap">
           <span class="scrum-search-icon"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></span>
@@ -7861,16 +7020,16 @@ function renderJiraBoard() {
         </div>
       </div>
 
-      <!-- Kanban columns -->
+      <!--Kanban columns-- >
       <div class="scrum-kanban" id="scrumKanban">
         ${renderScrumColumns(byStatus)}
       </div>
 
-      <!-- Task list for selected source (below tree) -->
-      <div class="scrum-task-stream" id="scrumTaskStream">
-        ${renderScrumStream(allTasks)}
-      </div>
-    </div>
+      <!--Task list for selected source(below tree)-- >
+  <div class="scrum-task-stream" id="scrumTaskStream">
+    ${renderScrumStream(allTasks)}
+  </div>
+    </div >
   `;
 }
 
@@ -7880,24 +7039,24 @@ function renderWorkspaceHub() {
   function sourceDeepLink(sourceId, taskId) {
     const map = {
       jira: `https://jira.atlassian.com/browse/${taskId}`,
-      servicenow: `https://support.servicenow.com/now/nav/ui/classic/params/target/task_list.do?sysparm_query=number=${taskId}`,
-      github: taskId.startsWith("PR") ? `https://github.com/pulls` : `https://github.com/issues`,
-      email: `https://outlook.office.com/mail/`,
+servicenow: `https://support.servicenow.com/now/nav/ui/classic/params/target/task_list.do?sysparm_query=number=${taskId}`,
+  github: taskId.startsWith("PR") ? `https://github.com/pulls` : `https://github.com/issues`,
+    email: `https://outlook.office.com/mail/`,
       slack: `https://app.slack.com/`,
-      notes: `https://meet.google.com/`
+        notes: `https://meet.google.com/`
     };
-    return map[sourceId] || "#";
+return map[sourceId] || "#";
   }
 
-  const workspaceSources = sources.map(s => ({
-    ...s,
-    tasks: state.prioritized.filter(t => t.sources.includes(s.name) && !completedTaskIds.includes(t.id)).slice(0, 6)
-  }));
+const workspaceSources = sources.map(s => ({
+  ...s,
+  tasks: state.prioritized.filter(t => t.sources.includes(s.name) && !completedTaskIds.includes(t.id)).slice(0, 6)
+}));
 
-  const activeWsSource = workspaceActiveSource || sources[0]?.id;
-  const activeSource = workspaceSources.find(s => s.id === activeWsSource) || workspaceSources[0];
+const activeWsSource = workspaceActiveSource || sources[0]?.id;
+const activeSource = workspaceSources.find(s => s.id === activeWsSource) || workspaceSources[0];
 
-  return `
+return `
     <div class="ws-shell">
       <!-- Source tabs (Unstop-style sidebar) -->
       <nav class="ws-source-nav">
@@ -7926,16 +7085,16 @@ function renderWorkspaceHub() {
 
         <div class="ws-task-list">
           ${!activeSource?.tasks.length
-      ? `<div style="padding:48px;text-align:center;color:#626f86;">
+    ? `<div style="padding:48px;text-align:center;color:#626f86;">
                 <p style="margin:0 0 10px;display:flex;justify-content:center;color:#22a06b;"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></p>
                 <h3 style="margin:0 0 6px;color:#172b4d;">All clear in ${activeSource?.name}!</h3>
                 <p style="margin:0;font-size:13px;">No open tasks from this source.</p>
                </div>`
-      : activeSource.tasks.map(t => {
-        const deepLink = sourceDeepLink(activeWsSource, t.aliases[0] || t.id);
-        const isWorking = workingTaskIds.includes(t.id);
-        const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[t.severity] || "#626f86";
-        return `
+    : activeSource.tasks.map(t => {
+      const deepLink = sourceDeepLink(activeWsSource, t.aliases[0] || t.id);
+      const isWorking = workingTaskIds.includes(t.id);
+      const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[t.severity] || "#626f86";
+      return `
                   <div class="ws-task-card">
                     <div class="ws-task-left">
                       <span class="ws-sev-chip" style="background:${sevColor}22;color:${sevColor};">${t.severity}</span>
@@ -7960,8 +7119,8 @@ function renderWorkspaceHub() {
                       ${!isWorking ? `<button class="tp-btn-start" data-task-start="${t.id}">▶ Start</button>` : `<button class="tp-btn-done" data-task-complete="${t.id}">✓ Done</button>`}
                     </div>
                   </div>`;
-      }).join("")
-    }
+    }).join("")
+  }
         </div>
       </div>
     </div>
@@ -8053,8 +7212,8 @@ function renderScrumColumns(byStatus) {
 
 function renderScrumCard(task, status) {
   const isDone = status === "Done";
-  const sevColors = { P1:"#de350b", P2:"#974f0c", P3:"#216e4e", P4:"#626f86" };
-  const srcIcons = { "jira":"J", "github":"G", "servicenow":"SN", "email":"✉", "slack":"S", "notes":"M", "meetings":"Cal" };
+  const sevColors = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e", P4: "#626f86" };
+  const srcIcons = { "jira": "J", "github": "G", "servicenow": "SN", "email": "✉", "slack": "S", "notes": "M", "meetings": "Cal" };
   const srcIcon = srcIcons[task.sourceId] || task.sourceId?.[0]?.toUpperCase() || "?";
   const mins = task.execution?.estimatedMinutes || 60;
   const effort = mins <= 60 ? "Easy" : mins <= 120 ? "Medium" : "Hard";
@@ -8876,9 +8035,9 @@ function renderMyAnalyticsPage() {
             </div>
           </div>
           ${renderLineChart(a.series, [
-            { key: "done", color: "#0c66e4" },
-            { key: "onTime", color: "#22a06b" }
-          ])}
+    { key: "done", color: "#0c66e4" },
+    { key: "onTime", color: "#22a06b" }
+  ])}
         </div>
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
           <h3 style="margin:0 0 12px;font-size:14px;">Work by Source</h3>
@@ -8891,9 +8050,9 @@ function renderMyAnalyticsPage() {
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
           <h3 style="margin:0 0 12px;font-size:14px;">By Priority</h3>
           ${Object.entries(a.sevMap).map(([sev, d]) => {
-            const col = { P1:"#de350b", P2:"#974f0c", P3:"#216e4e" }[sev] || "#64748b";
-            const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
-            return `
+    const col = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[sev] || "#64748b";
+    const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
+    return `
               <div style="margin:8px 0;">
                 <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
                   <span style="font-weight:800;color:${col};">${sev}</span>
@@ -8903,16 +8062,16 @@ function renderMyAnalyticsPage() {
                   <div style="width:${pct}%;height:100%;background:${col};border-radius:4px;"></div>
                 </div>
               </div>`;
-          }).join("")}
+  }).join("")}
         </div>
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
           <h3 style="margin:0 0 10px;font-size:14px;">Completed Tasks</h3>
           <div style="max-height:200px;overflow-y:auto;display:grid;gap:5px;">
             ${a.done.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:20px;">Complete tasks to see them here.</p>` :
-              a.done.map(t => {
-                const col = srcChartColor(t.sources?.[0]);
-                const dl = deadlineStyle(t.due, true);
-                return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${col};border-radius:6px;">
+      a.done.map(t => {
+        const col = srcChartColor(t.sources?.[0]);
+        const dl = deadlineStyle(t.due, true);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${col};border-radius:6px;">
                   <span style="color:#22a06b;font-weight:800;font-size:14px;">✓</span>
                   <div style="flex:1;min-width:0;">
                     <div style="font-size:12px;font-weight:600;color:#172b4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle)}</div>
@@ -8923,8 +8082,8 @@ function renderMyAnalyticsPage() {
                     </div>
                   </div>
                 </div>`;
-              }).join("")
-            }
+      }).join("")
+    }
           </div>
         </div>
 
@@ -8979,18 +8138,18 @@ function renderMyAnalyticsPage() {
               <line x1="38" y1="90" x2="390" y2="90" stroke="#cbd5e1" stroke-width="1"/>
               <text x="33" y="93" font-size="7.5" fill="#94a3b8" text-anchor="end">0</text>
               ${weeklyData.map((b, i) => {
-    const x = 57 + i * 47;
-    const h = Math.max(2, (b.val / maxWeekly) * 80);
-    const y = 90 - h;
-    const isToday = i === todayIdx;
-    return `
+      const x = 57 + i * 47;
+      const h = Math.max(2, (b.val / maxWeekly) * 80);
+      const y = 90 - h;
+      const isToday = i === todayIdx;
+      return `
                   <rect x="${x - 15}" y="${y}" width="30" height="${h}" rx="3"
                     fill="${isToday ? '#0c66e4' : '#93c5fd'}"
                     stroke="${isToday ? '#0052cc' : 'none'}" stroke-width="0.5"/>
                   <text x="${x}" y="103" font-size="8.5" fill="${isToday ? '#0c66e4' : '#64748b'}" text-anchor="middle" font-weight="${isToday ? '800' : '600'}">${b.day}</text>
                   <text x="${x}" y="${y - 3}" font-size="7.5" fill="#172b4d" text-anchor="middle" font-weight="700">${b.val}</text>
                 `;
-  }).join("")}
+    }).join("")}
             </svg>
           </div>
         </div>
@@ -9134,7 +8293,7 @@ function renderPremiumSourceBars(sourceMap) {
     const d = matched || { total: 0, done: 0, onTime: 0 };
     const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
     const onTimePct = d.done ? Math.round((d.onTime / d.done) * 100) : 0;
-    
+
     return `
       <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
@@ -9211,11 +8370,11 @@ function renderEngineerAnalyticsManager() {
         <!-- KPI mini row -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
           ${[
-            { l:"Assigned", v:a.mine.length, c:"#8b5cf6" },
-            { l:"Done",     v:a.done.length, c:"#22c55e" },
-            { l:"On Time",  v:a.onTime.length, c:"#f97316" },
-            { l:"Late",     v:a.late.length, c:"#ef4444" }
-          ].map(k => `
+        { l: "Assigned", v: a.mine.length, c: "#8b5cf6" },
+        { l: "Done", v: a.done.length, c: "#22c55e" },
+        { l: "On Time", v: a.onTime.length, c: "#f97316" },
+        { l: "Late", v: a.late.length, c: "#ef4444" }
+      ].map(k => `
             <div style="text-align:center;padding:12px 6px;background:#ffffff;border-radius:10px;border:1px solid #f1f5f9;box-shadow:0 1px 3px rgba(0,0,0,0.02);">
               <div style="font-size:24px;font-weight:800;color:${k.c};">${k.v}</div>
               <div style="font-size:11px;color:#64748b;font-weight:600;margin-top:2px;">${k.l}</div>
@@ -9278,10 +8437,10 @@ function renderEngineerAnalyticsManager() {
             style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;margin-bottom:10px;box-sizing:border-box;outline:none;">
           <div style="display:grid;gap:6px;max-height:450px;overflow-y:auto;">
             ${filtered.map(name => {
-              const a = buildEngineerAnalytics(name);
-              const rate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
-              const isSelected = analyticsSelectedEngineer === name;
-              return `
+    const a = buildEngineerAnalytics(name);
+    const rate = a.mine.length ? Math.round((a.done.length / a.mine.length) * 100) : 0;
+    const isSelected = analyticsSelectedEngineer === name;
+    return `
                 <button
                   data-select-engineer="${escapeHtml(name)}"
                   style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:1px solid ${isSelected ? "#c084fc" : "#e2e8f0"};background:${isSelected ? "#faf5ff" : "#ffffff"};cursor:pointer;text-align:left;width:100%;transition:all 0.2s;">
@@ -9294,11 +8453,11 @@ function renderEngineerAnalyticsManager() {
                   </div>
                   <div style="width:36px;height:36px;flex-shrink:0;">
                     <svg viewBox="0 0 36 10" style="overflow:visible;">
-                      ${a.series.map((s, i) => `<rect x="${i*5}" y="${10 - Math.min(10, s.done * 2)}" width="4" height="${Math.min(10, s.done * 2)}" rx="1" fill="${isSelected ? "#8b5cf6" : "#94a3b8"}"/>`).join("")}
+                      ${a.series.map((s, i) => `<rect x="${i * 5}" y="${10 - Math.min(10, s.done * 2)}" width="4" height="${Math.min(10, s.done * 2)}" rx="1" fill="${isSelected ? "#8b5cf6" : "#94a3b8"}"/>`).join("")}
                     </svg>
                   </div>
                 </button>`;
-            }).join("")}
+  }).join("")}
             ${filtered.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:16px;">No engineers found.</p>` : ""}
           </div>
         </div>
@@ -9415,9 +8574,9 @@ function renderWorkloadAnalyticsPage() {
             <!-- Stacked Workload Bar Rows -->
             <div style="display: flex; flex-direction: column; gap: 14px;">
               ${workloadData.map(eng => {
-                const p1Pct = (eng.p1 / maxVal) * 100;
-                const blockerPct = (eng.blockers / maxVal) * 100;
-                return `
+    const p1Pct = (eng.p1 / maxVal) * 100;
+    const blockerPct = (eng.blockers / maxVal) * 100;
+    return `
                   <div style="display: flex; flex-direction: column; gap: 6px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12.5px;">
                       <span style="font-weight: 600; color: #334155;">${eng.name}</span>
@@ -9431,7 +8590,7 @@ function renderWorkloadAnalyticsPage() {
                     </div>
                   </div>
                 `;
-              }).join("")}
+  }).join("")}
             </div>
           </div>
 
@@ -9474,10 +8633,10 @@ function renderWorkloadAnalyticsPage() {
             <!-- Dependency list cards -->
             <div style="display: flex; flex-direction: column; gap: 8px;">
               ${[
-                { title: "VP Product: sprint risk review", owner: "Karan", note: "Needs schema approval", severity: "Critical", border: pastelOrange, pillBg: "#fff7ed", pillColor: "#c2410c" },
-                { title: "Resolve OAuth token refresh failures", owner: "Rohan", note: "Waiting on auth logs", severity: "High", border: "#fcd34d", pillBg: "#fffbeb", pillColor: "#b45309" },
-                { title: "Fix partner API schema mismatch", owner: "Neha", note: "Waiting for sandbox access", severity: "Standard", border: pastelLavender, pillBg: "#f5f3ff", pillColor: "#6d28d9" }
-              ].map(task => `
+      { title: "VP Product: sprint risk review", owner: "Karan", note: "Needs schema approval", severity: "Critical", border: pastelOrange, pillBg: "#fff7ed", pillColor: "#c2410c" },
+      { title: "Resolve OAuth token refresh failures", owner: "Rohan", note: "Waiting on auth logs", severity: "High", border: "#fcd34d", pillBg: "#fffbeb", pillColor: "#b45309" },
+      { title: "Fix partner API schema mismatch", owner: "Neha", note: "Waiting for sandbox access", severity: "Standard", border: pastelLavender, pillBg: "#f5f3ff", pillColor: "#6d28d9" }
+    ].map(task => `
                 <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid ${task.border}; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
                   <div>
                     <div style="font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 2px;">${task.title}</div>
@@ -10079,7 +9238,7 @@ function renderCalendarPermissionModal() {
         <h3 style="margin-top:0;">Calendar Access Requested</h3>
         <p style="font-size:14px; line-height:1.5; color:#34414f;">
           TaskPilot is requesting access to write to your Calendar events to save meeting slot:<br>
-          <strong>"${selectedMeetingToSave.title}"</strong> on ${new Date(selectedMeetingToSave.startTime).toLocaleDateString()} at ${new Date(selectedMeetingToSave.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.
+          <strong>"${selectedMeetingToSave.title}"</strong> on ${new Date(selectedMeetingToSave.startTime).toLocaleDateString()} at ${new Date(selectedMeetingToSave.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
         </p>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
           <button class="secondary" id="denyCalendarBtn">Deny</button>
@@ -10138,29 +9297,29 @@ function renderAddJiraModal() {
 }
 function simulateWorkloadShift() {
   pushCompanion("agent", "🐾 Starting workload balancing simulation... I'll distribute active tasks to balance team load. Bark!");
-  
+
   let intervalId = setInterval(() => {
     // 1. Get current active tasks (excluding completed ones)
     const activeTasks = state.prioritized.filter(t => !completedTaskIds.includes(t.id));
-    
+
     // 2. Count active tasks per owner (among team members)
     const TEAM_MEMBERS = ["Utkarsh", "Meera", "Riya", "Rohan", "Neha", "Aisha", "Sanya", "Arjun", "Vikram", "Karan"];
     const counts = {};
     TEAM_MEMBERS.forEach(m => counts[m] = 0);
-    
+
     activeTasks.forEach(t => {
       const o = t.owner || "Unassigned";
       if (TEAM_MEMBERS.includes(o)) {
         counts[o]++;
       }
     });
-    
+
     // 3. Find the overloaded and underloaded engineers
     let maxOwner = null;
     let maxCount = -1;
     let minOwner = null;
     let minCount = Infinity;
-    
+
     TEAM_MEMBERS.forEach(m => {
       if (counts[m] > maxCount) {
         maxCount = counts[m];
@@ -10171,7 +9330,7 @@ function simulateWorkloadShift() {
         minOwner = m;
       }
     });
-    
+
     // 4. Check if they are balanced or if we can't balance further
     if (maxCount - minCount <= 1 || maxCount <= 0) {
       clearInterval(intervalId);
@@ -10180,18 +9339,18 @@ function simulateWorkloadShift() {
       pushCompanion("agent", balancedMsg);
       return;
     }
-    
+
     // 5. Find a task belonging to maxOwner to transfer
     const taskToTransfer = activeTasks.find(t => t.owner === maxOwner);
     if (!taskToTransfer) {
       clearInterval(intervalId);
       return;
     }
-    
+
     // Transfer the task
     const oldOwner = maxOwner;
     const newOwner = minOwner;
-    
+
     // Update local sources and addedTasks via aliases
     const aliases = taskToTransfer.aliases || [taskToTransfer.id];
     sources.forEach(source => {
@@ -10208,7 +9367,7 @@ function simulateWorkloadShift() {
         reassignedTaskOwners[item.id] = newOwner;
       }
     });
-    
+
     // Add activity feed update
     const shiftMsg = `Reassigned "${taskToTransfer.canonicalTitle}" from ${oldOwner} to ${newOwner} (balanced: ${oldOwner} count ${maxCount - 1}, ${newOwner} count ${minCount + 1})`;
     managerActivityFeed.unshift({
@@ -10216,11 +9375,11 @@ function simulateWorkloadShift() {
       time: new Date().toLocaleTimeString(),
       color: "#0c66e4"
     });
-    
+
     // Push companion message and local notification
     pushCompanion("agent", `🐾 Transferring "${taskToTransfer.canonicalTitle}" from ${oldOwner} to ${newOwner} to balance the load. Ruff!`);
     triggerLocalNotification("Workload Reassigned", `Task "${taskToTransfer.canonicalTitle}" assigned to ${newOwner}.`);
-    
+
     // Update local state and render
     state = buildState(sources, calendarBlocks);
     render();
@@ -10436,11 +9595,11 @@ function bindEvents() {
 
     // 1c. Diagnostics journey card modal — full inline logic
     const DIAG_JOURNEY = [
-      {id:"user",tier:"User",label:"End Users",icon:"",color:"#2563eb",bg:"#eff6ff",desc:"Engineers, Managers and Admins access the platform",features:[{name:"Login Page",status:"ok",detail:"Google OAuth + Supabase Auth working"},{name:"Profile Switcher",status:"ok",detail:"Switch between Admin/Engineer/Manager"},{name:"Sidebar Navigation",status:"ok",detail:"All nav items routing correctly"},{name:"Settings Popover",status:"ok",detail:"Gear icon → Settings + Sign out"}]},
-      {id:"engineer",tier:"Engineer",label:"Engineer Dashboard",icon:"",color:"#7c3aed",bg:"#f5f3ff",desc:"Task prioritization, AI scans, execution briefs",features:[{name:"Run Autonomous Scan",status:"ok",detail:"Gemini-powered task analysis"},{name:"Today's Priorities",status:"ok",detail:"P1-P3 queue rendering correctly"},{name:"Execution Brief",status:"ok",detail:"PDF export works"},{name:"AI Companion Chat",status:"ok",detail:"Gemini chat dock functional"},{name:"Jira Integration",status:"ok",detail:"Add task modal live"}]},
-      {id:"manager",tier:"Manager",label:"Manager Dashboard",icon:"",color:"#0d9488",bg:"#f0fdfa",desc:"Team oversight, SLA tracking, weekly standup gen",features:[{name:"Team Capacity View",status:"ok",detail:"Agent assignment visible"},{name:"Approve Handoff",status:"ok",detail:"Complete priority button working"},{name:"Weekly Standup AI",status:"ok",detail:"Gemini standup generator live"},{name:"SLA Risk Board",status:"ok",detail:"P1 tasks flagged correctly"},{name:"Dataset Insights",status:"warn",detail:"Offline mode fallback active"}]},
-      {id:"auth",tier:"Auth",label:"Google Auth + Supabase",icon:"",color:"#ea580c",bg:"#fff7ed",desc:"Authentication, session management, row-level security",features:[{name:"Google OAuth Login",status:"ok",detail:"OAuth2 flow verified"},{name:"Supabase Session",status:"ok",detail:"JWT tokens refreshing"},{name:"Email Allowlist",status:"ok",detail:"Only allowed emails can log in"},{name:"RLS Policies",status:"ok",detail:"Row-level security enforced"},{name:"Logout + Cleanup",status:"ok",detail:"Session cleared on sign out"}]},
-      {id:"architecture",tier:"Architecture",label:"Full AI Pipeline",icon:"",color:"#0f766e",bg:"#f0fdfa",desc:"Agents, LLMs, data ingestion, orchestration, outputs",features:[{name:"Jira/Slack/GitHub Triggers",status:"ok",detail:"All webhooks active"},{name:"NVIDIA cuDF Pipeline",status:"ok",detail:"GPU data processing online"},{name:"Google BigQuery Warehouse",status:"ok",detail:"Schema synced"},{name:"Orchestrator Agent (ADK)",status:"ok",detail:"Multi-agent routing live"},{name:"Gemini 2.5 Flash",status:"ok",detail:"Vertex AI connected"},{name:"NVIDIA NIM Nemotron",status:"ok",detail:"NIM endpoint healthy"},{name:"Supabase DB Output",status:"ok",detail:"Write pipeline active"},{name:"Alerts & Notifications",status:"error",detail:"Slack webhook 403 — token expired"}]}
+      { id: "user", tier: "User", label: "End Users", icon: "", color: "#2563eb", bg: "#eff6ff", desc: "Engineers, Managers and Admins access the platform", features: [{ name: "Login Page", status: "ok", detail: "Google OAuth + Supabase Auth working" }, { name: "Profile Switcher", status: "ok", detail: "Switch between Admin/Engineer/Manager" }, { name: "Sidebar Navigation", status: "ok", detail: "All nav items routing correctly" }, { name: "Settings Popover", status: "ok", detail: "Gear icon → Settings + Sign out" }] },
+      { id: "engineer", tier: "Engineer", label: "Engineer Dashboard", icon: "", color: "#7c3aed", bg: "#f5f3ff", desc: "Task prioritization, AI scans, execution briefs", features: [{ name: "Run Autonomous Scan", status: "ok", detail: "Gemini-powered task analysis" }, { name: "Today's Priorities", status: "ok", detail: "P1-P3 queue rendering correctly" }, { name: "Execution Brief", status: "ok", detail: "PDF export works" }, { name: "AI Companion Chat", status: "ok", detail: "Gemini chat dock functional" }, { name: "Jira Integration", status: "ok", detail: "Add task modal live" }] },
+      { id: "manager", tier: "Manager", label: "Manager Dashboard", icon: "", color: "#0d9488", bg: "#f0fdfa", desc: "Team oversight, SLA tracking, weekly standup gen", features: [{ name: "Team Capacity View", status: "ok", detail: "Agent assignment visible" }, { name: "Approve Handoff", status: "ok", detail: "Complete priority button working" }, { name: "Weekly Standup AI", status: "ok", detail: "Gemini standup generator live" }, { name: "SLA Risk Board", status: "ok", detail: "P1 tasks flagged correctly" }, { name: "Dataset Insights", status: "warn", detail: "Offline mode fallback active" }] },
+      { id: "auth", tier: "Auth", label: "Google Auth + Supabase", icon: "", color: "#ea580c", bg: "#fff7ed", desc: "Authentication, session management, row-level security", features: [{ name: "Google OAuth Login", status: "ok", detail: "OAuth2 flow verified" }, { name: "Supabase Session", status: "ok", detail: "JWT tokens refreshing" }, { name: "Email Allowlist", status: "ok", detail: "Only allowed emails can log in" }, { name: "RLS Policies", status: "ok", detail: "Row-level security enforced" }, { name: "Logout + Cleanup", status: "ok", detail: "Session cleared on sign out" }] },
+      { id: "architecture", tier: "Architecture", label: "Full AI Pipeline", icon: "", color: "#0f766e", bg: "#f0fdfa", desc: "Agents, LLMs, data ingestion, orchestration, outputs", features: [{ name: "Jira/Slack/GitHub Triggers", status: "ok", detail: "All webhooks active" }, { name: "NVIDIA cuDF Pipeline", status: "ok", detail: "GPU data processing online" }, { name: "Google BigQuery Warehouse", status: "ok", detail: "Schema synced" }, { name: "Orchestrator Agent (ADK)", status: "ok", detail: "Multi-agent routing live" }, { name: "Gemini 2.5 Flash", status: "ok", detail: "Vertex AI connected" }, { name: "NVIDIA NIM Nemotron", status: "ok", detail: "NIM endpoint healthy" }, { name: "Supabase DB Output", status: "ok", detail: "Write pipeline active" }, { name: "Alerts & Notifications", status: "error", detail: "Slack webhook 403 — token expired" }] }
     ];
     const _sIcon = s => s === 'ok'
       ? '<span style="display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:50%;background:#dcfce7;"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round"/></svg></span>'
@@ -10698,7 +9857,7 @@ function bindEvents() {
     autoAssignCalendarBtn.addEventListener("click", () => {
       autoAssignCalendarBtn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Auto-Assigning...';
       autoAssignCalendarBtn.disabled = true;
-      
+
       setTimeout(() => {
         assignRandomTasks();
         autoAssignCalendarBtn.innerHTML = '+ Auto-Assign';
@@ -11437,15 +10596,15 @@ function bindEvents() {
       const taskId = btn.dataset.taskId;
       const task = state.prioritized.find(t => t.id === taskId);
       if (!task) return;
-      
+
       // Calculate best assignee based on lowest current load
       const owners = datasetInsights().ownerLoad;
-      const best = owners.sort((a,b) => a.count - b.count)[0];
+      const best = owners.sort((a, b) => a.count - b.count)[0];
       const recommendedAssignee = best?.owner || "Utkarsh";
-      
+
       task.owner = recommendedAssignee;
       triggerLocalNotification("Task Assigned", `Assigned "${task.canonicalTitle}" to ${recommendedAssignee} successfully.`);
-      
+
       const post = {
         id: `MGR-${Date.now().toString().slice(-5)}`,
         title: task.canonicalTitle,
@@ -11554,7 +10713,7 @@ function bindEvents() {
   };
 
   document.querySelector("#dashAskAiSubmitBtn")?.addEventListener("click", handleDashAskAi);
-  
+
   // Also support pressing Enter key in input field
   document.addEventListener("keydown", (e) => {
     if (e.target && e.target.id === "dashAskAiInput" && e.key === "Enter") {
