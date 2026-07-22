@@ -577,6 +577,9 @@ let showCalendarTaskModal = false;
 let showTeammateTasksModal = false;
 let selectedTeammateName = "";
 let showRecommendationsModal = false;
+let showCalendarPermissionModal = false;
+let showFilePreviewModal = false;
+let filePreviewData = null;
 
 let engineerPresenceStatus = localStorage.getItem("taskpilot:engineerPresence") || "online";
 let managerPresenceStatus = localStorage.getItem("taskpilot:managerPresence") || "online";
