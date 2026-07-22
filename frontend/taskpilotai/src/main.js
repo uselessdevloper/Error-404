@@ -2087,7 +2087,7 @@ function renderPageContent(selected, executionBrief, dynamicPlan) {
     case "genome":
       return renderProjectGenomePage();
     case "calendar-ai":
-      return activeProfile === "manager" ? renderCalendarAI() : renderEngineerCalendar();
+      return renderCalendarAI();
     case "eng-calendar":
       return renderEngineerCalendar();
     case "incidents":
