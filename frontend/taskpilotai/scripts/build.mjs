@@ -1,9 +1,11 @@
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { renderHtml } from "./render-html.mjs";
 import "./sync-datasets.mjs";
 
-const root = resolve(".");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = resolve(__dirname, "..");
 const dist = join(root, "dist");
 try {
   if (existsSync(dist)) {

@@ -20,7 +20,7 @@ async function callProvider(provider, prompt, { model, maxTokens = 512, temperat
     if (!apiKey) throw new Error("NVIDIA_API_KEY not set");
     url = "https://integrate.api.nvidia.com/v1/chat/completions";
     headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
-    body = { model: model || "nvidia/llama-3.1-nemotron-70b-instruct", messages: [{ role: "user", content: prompt }], temperature, max_tokens: maxTokens };
+    body = { model: model || "meta/llama-3.1-8b-instruct", messages: [{ role: "user", content: prompt }], temperature, max_tokens: maxTokens };
   } else if (provider === "grok") {
     apiKey = process.env.GROK_API_KEY;
     if (!apiKey) throw new Error("GROK_API_KEY not set");

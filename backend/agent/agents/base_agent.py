@@ -52,7 +52,7 @@ class BaseAgent:
                         self.model = "grok-3-mini"
                     elif fb == "NVIDIA_API_KEY":
                         self.provider = "nvidia"
-                        self.model = "nvidia/llama-3.1-nemotron-70b-instruct"
+                        self.model = "meta/llama-3.1-8b-instruct"
                     break
             
             if not api_key:

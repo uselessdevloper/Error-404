@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const defaultRoot = resolve(__dirname, "..");
 
 // Strip only top-level ES import statements (lines starting with "import ")
 // The greedy regex /import .*?;\n/g incorrectly matches @import url() inside CSS strings
@@ -10,7 +14,7 @@ function stripImports(src) {
     .join("\n");
 }
 
-export function renderHtml(root = resolve(".")) {
+export function renderHtml(root = defaultRoot) {
   const css = readFileSync(join(root, "src/styles.css"), "utf8");
   const generated = readFileSync(join(root, "src/generated/backendData.js"), "utf8")
     .replace("export const backendData", "const backendData");

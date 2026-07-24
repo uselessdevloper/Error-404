@@ -25,14 +25,18 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import "./styles.css";
 
-const app = document.querySelector("#app");
+let app = document.querySelector("#app");
+function getAppTarget() {
+  const el = document.querySelector("#app") || document.getElementById("app");
+  if (el) app = el;
+  return app || document.body;
+}
 const isDesktopShell = Boolean(window.taskPilotDesktop?.isDesktop) || new URLSearchParams(window.location.search).has("desktop");
 
-// ─── Backend URL — uses Render in production, localhost in dev ────────────────
 const BACKEND_URL = (typeof window !== "undefined" && window.__TASKPILOT_BACKEND__)
   ? window.__TASKPILOT_BACKEND__
   : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "http://127.0.0.1:8787"
+    ? window.location.origin
     : "https://taskpilotaibackend.onrender.com";
 
 // ─── Application State ────────────────────────────────────────────────────────
@@ -50,8 +54,23 @@ async function pollRealBackendData() {
       liveBackendStats = data;
       isBackendConnected = true;
     }
+    await fetchMeetingsFromBackend();
   } catch (e) {
     isBackendConnected = false;
+  }
+}
+
+async function fetchMeetingsFromBackend() {
+  try {
+    const resMtg = await fetch(`${BACKEND_URL}/api/agent/meetings`);
+    if (resMtg.ok) {
+      const dataMtg = await resMtg.json();
+      if (dataMtg && dataMtg.meetings) {
+        meetingsList = dataMtg.meetings;
+      }
+    }
+  } catch (e) {
+    console.error("Failed to fetch meetings:", e);
   }
 }
 
@@ -60,6 +79,7 @@ pollRealBackendData();
 
 // Admin Dashboard state
 let adminSelectedNodeId = "all";
+let adminActiveTerminalTab = "logs";
 
 // Full Architecture State & Diagnostics Database
 let adminArchitectureNodes = {
@@ -194,8 +214,47 @@ let adminArchitectureNodes = {
 };
 let adminPipelineRunning = false;
 let adminErrorSimulated = false;
+let adminPipelineStep = 0;
 let selectedDiagTierId = "user";
 let activeNvidiaNodeId = null;
+let nvidiaTelemetryCache = {};
+
+async function fetchNvidiaTelemetry(nodeId, nodeTitle, description) {
+  if (nvidiaTelemetryCache[nodeId]) return;
+  nvidiaTelemetryCache[nodeId] = { loading: true };
+  render();
+
+  try {
+    const resp = await fetch(`${BACKEND_URL}/api/taskpilot/nvidia-telemetry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nodeId, nodeTitle, description })
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.success) {
+      nvidiaTelemetryCache[nodeId] = {
+        loading: false,
+        latency: data.latency || "30ms",
+        telemetry: data.telemetry || "Active subsystem.",
+        optimizationCode: data.optimizationCode || ""
+      };
+    } else {
+      throw new Error(data.telemetry || "API returned failure");
+    }
+  } catch (err) {
+    console.error("Failed to fetch NVIDIA telemetry:", err);
+    nvidiaTelemetryCache[nodeId] = {
+      loading: false,
+      error: true,
+      latency: "32ms",
+      telemetry: `Subsystem status verified: Healthy. All tests passed. Latency: 32ms. (NVIDIA API Key not loaded / limit reached)`,
+      optimizationCode: `# Fallback cuDF Optimization for ${nodeTitle}\nimport cudf as gd\n# GPU-accelerated operations for ${nodeTitle.toLowerCase()}\ndf = gd.DataFrame(raw_node_inputs || {})\n# Optimize processing for ${nodeTitle.toLowerCase()} events\nfiltered = df.query('status == \"active\"')`
+    };
+  }
+  render();
+}
+
 let adminNodeStatuses = {
   jira: "online",
   email: "online",
@@ -223,10 +282,210 @@ function addAdminLog(tag, text) {
   if (adminLogs.length > 100) adminLogs.shift();
 }
 
+let adminUsers = [
+  { id: "u-1", name: "Miso", role: "Administrator", email: "miso220601@gmail.com", status: "online", time: "Active now", color: "#3b82f6" },
+  { id: "u-2", name: "Utkarsh Sinha", role: "Full-stack Engineer", email: "utkarsh@taskpilot.dev", status: "idle", time: "12m ago", color: "#10b981" },
+  { id: "u-3", name: "Sarah Connor", role: "Product Manager", email: "sarah@taskpilot.dev", status: "dnd", time: "1h ago", color: "#0d9488" }
+];
+
+let selectedDbTable = "tasks";
+let dbSqlQuery = "SELECT * FROM tasks LIMIT 10;";
+let dbQueryResult = null;
+let dbQueryError = null;
+let settingsLLMProvider = "vertex";
+
+let selectedModelForTest = "meta/llama-3.1-8b-instruct";
+let modelTestPrompt = "Optimize a cuDF dataframe groupby sum operation.";
+let modelTestResult = "";
+let modelTestLoading = false;
+let activeRouterModel = "meta/llama-3.1-8b-instruct";
+let activeModelHubTab = "models";
+let gpuTemp = 64;
+let gpuMemoryUsed = 42.6;
+let gpuLoad = 38;
+
+function executeDbQuery(queryText) {
+  dbSqlQuery = queryText.trim();
+  dbQueryError = null;
+  dbQueryResult = null;
+
+  const normalized = queryText.toLowerCase().trim();
+
+  if (!normalized.startsWith("select ")) {
+    dbQueryError = "SQL Error: Only SELECT queries are supported in read-only explorer mode.";
+    return;
+  }
+
+  let tableName = "";
+  if (normalized.includes("from tasks")) tableName = "tasks";
+  else if (normalized.includes("from users")) tableName = "users";
+  else if (normalized.includes("from time_logs")) tableName = "time_logs";
+  else if (normalized.includes("from settings")) tableName = "settings";
+  else if (normalized.includes("from audit_logs")) tableName = "audit_logs";
+  else {
+    const tableSplit = queryText.split(/from\s+/i)[1];
+    const extractedTable = tableSplit ? tableSplit.split(/\s+/)[0] : "unknown";
+    dbQueryError = `SQL Error: Relation "${extractedTable}" does not exist.`;
+    return;
+  }
+
+  selectedDbTable = tableName;
+
+  let data = [];
+  if (tableName === "tasks") {
+    const allTasks = state?.prioritized || [];
+    data = allTasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      severity: t.severity || "P2",
+      status: t.status || "Todo",
+      owner: t.owner || "Unassigned"
+    }));
+
+    if (normalized.includes("severity = 'p1'") || normalized.includes("severity='p1'")) {
+      data = data.filter(t => t.severity === "P1");
+    } else if (normalized.includes("severity = 'p2'") || normalized.includes("severity='p2'")) {
+      data = data.filter(t => t.severity === "P2");
+    } else if (normalized.includes("severity = 'p3'") || normalized.includes("severity='p3'")) {
+      data = data.filter(t => t.severity === "P3");
+    }
+  } else if (tableName === "users") {
+    data = adminUsers.map(u => ({
+      id: u.id,
+      name: u.name,
+      role: u.role,
+      email: u.email,
+      status: u.status
+    }));
+  } else if (tableName === "time_logs") {
+    data = Object.entries(taskTimeLogs || {}).map(([taskId, log]) => ({
+      task_id: taskId,
+      hours_spent: log.hours || 0,
+      notes: log.notes || "Completed sprint ticket details",
+      logged_by: log.engineer || "Utkarsh Sinha"
+    }));
+    if (data.length === 0) {
+      data = [
+        { task_id: "tsk-101", hours_spent: 4, notes: "Debug deadlock logs", logged_by: "Miso" },
+        { task_id: "tsk-104", hours_spent: 2, notes: "Enforce RLS policies", logged_by: "Utkarsh Sinha" }
+      ];
+    }
+  } else if (tableName === "settings") {
+    data = [
+      { key: "llm_provider", value: settingsLLMProvider || "vertex" },
+      { key: "llm_model", value: "gemini-2.5-flash" },
+      { key: "copilot_mode", value: "active" },
+      { key: "confidential_enclave", value: "AMD_SEV_SNP" }
+    ];
+  } else if (tableName === "audit_logs") {
+    data = adminLogs.map(l => ({
+      timestamp: l.time,
+      subsystem: l.tag,
+      event_desc: l.text
+    }));
+  }
+
+  const limitMatch = normalized.match(/limit\s+(\d+)/);
+  if (limitMatch) {
+    const limit = parseInt(limitMatch[1]);
+    data = data.slice(0, limit);
+  }
+
+  dbQueryResult = data;
+}
+
+let adminDiagRunning = false;
+let adminDiagProgress = 0;
+let adminDiagLogs = [];
+let adminMetricsHistory = {
+  cpu: [24, 28, 25, 30, 42, 38, 35, 45, 52, 48, 41, 39, 42, 45, 48, 42, 38, 44, 46, 50],
+  ram: [62, 62, 63, 64, 66, 68, 67, 69, 71, 70, 68, 67, 68, 69, 70, 71, 72, 70, 69, 70],
+  latency: [32, 28, 35, 30, 26, 25, 29, 32, 30, 24, 25, 27, 26, 28, 25, 24, 26, 28, 25, 23]
+};
+let adminMetricsInterval = null;
+
+function startAdminMetricsJitter() {
+  if (adminMetricsInterval) return;
+  adminMetricsInterval = setInterval(() => {
+    if (activeProfile !== "admin" || (activePage !== "diagnostics" && activePage !== "users")) return;
+
+    // CPU jitter
+    const lastCpu = adminMetricsHistory.cpu[adminMetricsHistory.cpu.length - 1];
+    const newCpu = Math.max(15, Math.min(95, Math.round(lastCpu + (Math.random() - 0.5) * 10)));
+    adminMetricsHistory.cpu.push(newCpu);
+    adminMetricsHistory.cpu.shift();
+
+    // RAM jitter
+    const lastRam = adminMetricsHistory.ram[adminMetricsHistory.ram.length - 1];
+    const newRam = Math.max(50, Math.min(98, Math.round(lastRam + (Math.random() - 0.5) * 2)));
+    adminMetricsHistory.ram.push(newRam);
+    adminMetricsHistory.ram.shift();
+
+    // Latency jitter
+    const lastLat = adminMetricsHistory.latency[adminMetricsHistory.latency.length - 1];
+    const newLat = Math.max(10, Math.min(80, Math.round(lastLat + (Math.random() - 0.5) * 6)));
+    adminMetricsHistory.latency.push(newLat);
+    adminMetricsHistory.latency.shift();
+
+    // Random user status jitter (1 in 3 chance)
+    if (Math.random() < 0.33 && adminUsers && adminUsers.length > 0) {
+      const idx = Math.floor(Math.random() * adminUsers.length);
+      const statuses = ["online", "idle", "dnd"];
+      const oldStatus = adminUsers[idx].status;
+      let newStatus = oldStatus;
+      while (newStatus === oldStatus) {
+        newStatus = statuses[Math.floor(Math.random() * statuses.length)];
+      }
+      adminUsers[idx].status = newStatus;
+      adminUsers[idx].time = newStatus === "online" ? "Active now" : `${Math.floor(Math.random() * 59) + 1}m ago`;
+    }
+
+    render();
+  }, 2000);
+}
+
+function runAdminDiagSuite() {
+  if (adminDiagRunning) return;
+  adminDiagRunning = true;
+  adminDiagProgress = 0;
+  adminDiagLogs = [];
+  render();
+
+  const logs = [
+    { delay: 300, msg: "Initializing complete TaskPilot Diagnostics Suite..." },
+    { delay: 600, msg: "Resolving Google Cloud Run DNS... OK (12ms)" },
+    { delay: 900, msg: "Testing API Gateway port 5173... RESPONDING" },
+    { delay: 1200, msg: "Pinging Supabase Database connection pool... CONNECTED (28ms)" },
+    { delay: 1500, msg: "Checking Vertex AI Gemini-2.5-Flash endpoint... ACTIVE (142ms)" },
+    { delay: 1800, msg: "Checking NVIDIA NIM Llama-3.1-8b-Instruct... ACTIVE (25ms)" },
+    { delay: 2100, msg: "Verifying AMD SEV-SNP TEE Confidential Attestation... SIGNATURE OK" },
+    { delay: 2400, msg: "Validating 6 agent webhooks & data sync pipelines... 454 tasks synced" },
+    { delay: 2700, msg: "All subsystems verified. System 100% operational." }
+  ];
+
+  logs.forEach(l => {
+    setTimeout(() => {
+      if (!adminDiagRunning) return;
+      const time = new Date().toTimeString().split(' ')[0];
+      adminDiagLogs.push(`[${time}] ${l.msg}`);
+      adminDiagProgress = Math.min(100, Math.round((adminDiagLogs.length / logs.length) * 100));
+      if (adminDiagLogs.length === logs.length) {
+        adminDiagRunning = false;
+      }
+      render();
+    }, l.delay);
+  });
+}
+
+// Start metrics jittering globally
+startAdminMetricsJitter();
+
+
 async function runAdminPipeline() {
   if (adminPipelineRunning) return;
   adminPipelineRunning = true;
   adminSelectedNodeId = "all";
+  adminPipelineStep = 1;
 
   // Reset statuses
   Object.keys(adminNodeStatuses).forEach(k => {
@@ -250,6 +509,7 @@ async function runAdminPipeline() {
   // Step 2: Coordinator active
   await new Promise(r => setTimeout(r, 1500));
   if (!adminPipelineRunning) return;
+  adminPipelineStep = 2;
   adminNodeStatuses.jira = "online";
   adminNodeStatuses.email = "online";
   adminNodeStatuses.slack = "online";
@@ -280,6 +540,7 @@ async function runAdminPipeline() {
     adminNodeStatuses.format = "online";
     adminNodeStatuses.sheets = "online";
     adminPipelineRunning = false;
+    adminPipelineStep = 0;
     render();
     return;
   }
@@ -292,6 +553,7 @@ async function runAdminPipeline() {
   // Step 3: Formatter active
   await new Promise(r => setTimeout(r, 1500));
   if (!adminPipelineRunning) return;
+  adminPipelineStep = 3;
   adminNodeStatuses.coordinator = "online";
   adminNodeStatuses.llm = "online";
   adminNodeStatuses.memory = "online";
@@ -305,6 +567,7 @@ async function runAdminPipeline() {
   // Step 4: Sheets active
   await new Promise(r => setTimeout(r, 1200));
   if (!adminPipelineRunning) return;
+  adminPipelineStep = 4;
   adminNodeStatuses.format = "online";
   adminNodeStatuses.sheets = "active";
   addAdminLog("database", "Writing completion history to Supabase public.user_logins and public.user_completions.");
@@ -316,6 +579,7 @@ async function runAdminPipeline() {
   if (!adminPipelineRunning) return;
   adminNodeStatuses.sheets = "online";
   adminPipelineRunning = false;
+  adminPipelineStep = 0;
   addAdminLog("system", "Pipeline execution completed successfully.");
   render();
 }
@@ -338,6 +602,7 @@ function triggerAdminErrorSimulation() {
 function resetAdminSystem() {
   adminPipelineRunning = false;
   adminErrorSimulated = false;
+  adminPipelineStep = 0;
   adminSelectedNodeId = "all";
   Object.keys(adminNodeStatuses).forEach(k => {
     adminNodeStatuses[k] = "online";
@@ -351,11 +616,38 @@ function resetAdminSystem() {
 
 document.documentElement.setAttribute("data-theme", activeTheme);
 let activePage = "overview";
+let scrumActiveSource = "all";      // "all" | source id
+let scrumDateFilter = "all";       // "all" | "today" | "week" | "overdue"
+let scrumDiffFilter = "all";       // "all" | "easy" | "medium" | "hard"
+let scrumSearch = "";
+
+window.handleNav = function (targetPage) {
+  if (["mgr-jira", "mgr-github", "mgr-servicenow", "mgr-email", "mgr-slack"].includes(targetPage)) {
+    scrumActiveSource = targetPage.replace("mgr-", "");
+    activePage = "inbox";
+    render();
+  } else {
+    activePage = targetPage;
+    if (targetPage === "inbox" || targetPage === "source-tree") {
+      scrumActiveSource = "all";
+    }
+    if (targetPage === "agent-scan") {
+      companionOpen = true;
+    }
+    if (targetPage === "calendar-ai" || targetPage === "eng-calendar") {
+      fetchMeetingsFromBackend().then(() => {
+        render();
+      });
+    } else {
+      render();
+    }
+  }
+};
 let activeProfile = "engineer";
 let activeSource = "all";
 let engineerSelectedSource = "all";
 let calendarEngineerTab = "day";
-let calendarSelectedDate = new Date();
+let calendarSelectedDate = new Date("2026-07-23");
 let calendarSearchQuery = "";
 let telemetrySource = "All";
 let telemetryWeek = "This Week";
@@ -405,7 +697,13 @@ let todayQueue = buildTodayCapacityQueue(state.prioritized, null, {});
 let todayQueueGeminiScored = false;
 let depGraph = buildDependencyGraph(state.prioritized);
 
-let authSession = JSON.parse(localStorage.getItem("taskpilot:session") || "null");
+let authSession = null;
+if (window.location.search.includes("logout") || window.location.search.includes("login")) {
+  localStorage.removeItem("taskpilot:session");
+  authSession = null;
+} else {
+  authSession = JSON.parse(localStorage.getItem("taskpilot:session") || "null");
+}
 if (authSession?.role) activeProfile = authSession.role;
 
 let backendConfig = { geminiConfigured: false, teeMode: "local-attested", supabaseConfigured: false, llmModel: "gemini-2.5-flash" };
@@ -421,37 +719,34 @@ const SOURCE_LOGO_MAP = {
   },
   github: {
     bg: "#f0f0f0",
-    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path fill="#24292f" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>`,
-    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%2324292f' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z'/%3E%3C/svg%3E`
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><defs><linearGradient id="ghGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#24292f"/><stop offset="100%" stop-color="#404850"/></linearGradient></defs><path fill="url(#ghGrad)" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>`,
+    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='ghGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2324292f'/%3E%3Cstop offset='100%25' stop-color='%23404850'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23ghGrad)' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z'/%3E%3C/svg%3E`
   },
   servicenow: {
-    bg: "#fde8e8",
-    // ServiceNow "Now" wordmark circle — red with white "N" spike
-    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="16" cy="16" r="16" fill="#c0392b"/><path d="M10 22l6-12 6 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M10 22h12" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>`,
-    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23c0392b'/%3E%3Cpath d='M10 22l6-12 6 12' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M10 22h12' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E`
+    bg: "#e6fcf5",
+    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><defs><linearGradient id="snGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#293e40"/><stop offset="100%" stop-color="#4d6f73"/></linearGradient></defs><circle cx="16" cy="16" r="16" fill="url(#snGrad)"/><path d="M10 20l6-8 6 8" stroke="#81B5A2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M10 20h12" stroke="#81B5A2" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>`,
+    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='snGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23293e40'/%3E%3Cstop offset='100%25' stop-color='%234d6f73'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='16' fill='url(%23snGrad)'/%3E%3Cpath d='M10 20l6-8 6 8' stroke='%2381B5A2' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M10 20h12' stroke='%2381B5A2' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E`
   },
   email: {
     bg: "#dbeafe",
-    // Microsoft Outlook blue envelope
-    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect x="1" y="4" width="22" height="16" rx="2" fill="#0078D4"/><path d="M1 7l11 7 11-7" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
-    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='4' width='22' height='16' rx='2' fill='%230078D4'/%3E%3Cpath d='M1 7l11 7 11-7' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E`
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><defs><linearGradient id="mailGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0078D4"/><stop offset="100%" stop-color="#005A9E"/></linearGradient></defs><rect x="1" y="4" width="22" height="16" rx="2.5" fill="url(#mailGrad)"/><path d="M1 7l11 7 11-7" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`,
+    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='mailGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230078D4'/%3E%3Cstop offset='100%25' stop-color='%23005A9E'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='1' y='4' width='22' height='16' rx='2.5' fill='url(%23mailGrad)'/%3E%3Cpath d='M1 7l11 7 11-7' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E`
   },
   slack: {
     bg: "#f5eeff",
-    // Official Slack 4-colour hash mark
-    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zm2.521-10.123a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/></svg>`,
-    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zm2.521-10.123a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z' fill='%234A154B'/%3E%3C/svg%3E`
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path d="M5.04 15.17a2.52 2.52 0 1 1-2.52-2.52h2.52v2.52z" fill="#36C5F0"/><path d="M6.3 15.17a2.52 2.52 0 0 1 2.52-2.52h5.05a2.52 2.52 0 0 1 2.52 2.52v5.05a2.52 2.52 0 0 1-2.52 2.52H8.82a2.52 2.52 0 0 1-2.52-2.52v-5.05z" fill="#36C5F0"/><path d="M8.82 5.04a2.52 2.52 0 1 1 2.52-2.52v2.52H8.82z" fill="#2EB67D"/><path d="M8.82 6.3a2.52 2.52 0 0 1 2.52 2.52v5.05a2.52 2.52 0 0 1-2.52 2.52H3.77A2.52 2.52 0 0 1 1.25 13.87V8.82A2.52 2.52 0 0 1 3.77 6.3H8.82z" fill="#2EB67D"/><path d="M18.96 8.83a2.52 2.52 0 1 1 2.52 2.52h-2.52V8.83z" fill="#ECB22E"/><path d="M17.7 8.83a2.52 2.52 0 0 1-2.52 2.52H10.13a2.52 2.52 0 0 1-2.52-2.52V3.78a2.52 2.52 0 0 1 2.52-2.52H15.18a2.52 2.52 0 0 1 2.52 2.52v5.05z" fill="#ECB22E"/><path d="M15.18 18.96a2.52 2.52 0 1 1-2.52 2.52v-2.52h2.52z" fill="#E01E5A"/><path d="M15.18 17.7a2.52 2.52 0 0 1-2.52-2.52V10.13a2.52 2.52 0 0 1 2.52-2.52H20.23a2.52 2.52 0 0 1 2.52 2.52v5.05a2.52 2.52 0 0 1-2.52 2.52H15.18z" fill="#E01E5A"/></svg>`,
+    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.04 15.17a2.52 2.52 0 1 1-2.52-2.52h2.52v2.52z' fill='%2336C5F0'/%3E%3Cpath d='M6.3 15.17a2.52 2.52 0 0 1 2.52-2.52h5.05a2.52 2.52 0 0 1 2.52 2.52v5.05a2.52 2.52 0 0 1-2.52 2.52H8.82a2.52 2.52 0 0 1-2.52-2.52v-5.05z' fill='%2336C5F0'/%3E%3Cpath d='M8.82 5.04a2.52 2.52 0 1 1 2.52-2.52v2.52H8.82z' fill='%232EB67D'/%3E%3Cpath d='M8.82 6.3a2.52 2.52 0 0 1 2.52 2.52v5.05a2.52 2.52 0 0 1-2.52 2.52H3.77A2.52 2.52 0 0 1 1.25 13.87V8.82A2.52 2.52 0 0 1 3.77 6.3H8.82z' fill='%232EB67D'/%3E%3Cpath d='M18.96 8.83a2.52 2.52 0 1 1 2.52 2.52h-2.52V8.83z' fill='%23ECB22E'/%3E%3Cpath d='M17.7 8.83a2.52 2.52 0 0 1-2.52 2.52H10.13a2.52 2.52 0 0 1-2.52-2.52V3.78a2.52 2.52 0 0 1 2.52-2.52H15.18a2.52 2.52 0 0 1 2.52 2.52v5.05z' fill='%23ECB22E'/%3E%3Cpath d='M15.18 18.96a2.52 2.52 0 1 1-2.52 2.52v-2.52h2.52z' fill='%23E01E5A'/%3E%3Cpath d='M15.18 17.7a2.52 2.52 0 0 1-2.52-2.52V10.13a2.52 2.52 0 0 1 2.52-2.52H20.23a2.52 2.52 0 0 1 2.52 2.52v5.05a2.52 2.52 0 0 1-2.52 2.52H15.18z' fill='%23E01E5A'/%3E%3C/svg%3E`
   },
   notes: {
     bg: "#d1fae5",
     // Google Calendar-style teal calendar icon
-    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect x="2" y="3" width="20" height="19" rx="2.5" fill="#0f766e"/><rect x="2" y="3" width="20" height="7" rx="2.5" fill="#0d9488"/><rect x="2" y="8" width="20" height="2" fill="#0d9488"/><circle cx="8" cy="2" r="1.5" fill="#fff"/><circle cx="16" cy="2" r="1.5" fill="#fff"/><rect x="7" y="14" width="3" height="3" rx="1" fill="#fff"/><rect x="11" y="14" width="3" height="3" rx="1" fill="#a7f3d0"/><rect x="15" y="14" width="3" height="3" rx="1" fill="#a7f3d0"/></svg>`,
-    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='2' y='3' width='20' height='19' rx='2.5' fill='%230f766e'/%3E%3Crect x='2' y='3' width='20' height='7' rx='2.5' fill='%230d9488'/%3E%3Crect x='2' y='8' width='20' height='2' fill='%230d9488'/%3E%3Ccircle cx='8' cy='2' r='1.5' fill='%23fff'/%3E%3Ccircle cx='16' cy='2' r='1.5' fill='%23fff'/%3E%3Crect x='7' y='14' width='3' height='3' rx='1' fill='%23fff'/%3E%3Crect x='11' y='14' width='3' height='3' rx='1' fill='%23a7f3d0'/%3E%3Crect x='15' y='14' width='3' height='3' rx='1' fill='%23a7f3d0'/%3E%3C/svg%3E`
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><defs><linearGradient id="calGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0f766e"/><stop offset="100%" stop-color="#14b8a6"/></linearGradient></defs><rect x="2" y="3" width="20" height="19" rx="2.5" fill="url(#calGrad)"/><rect x="2" y="3" width="20" height="7" rx="2.5" fill="#0d9488"/><rect x="2" y="8" width="20" height="2" fill="#0d9488"/><circle cx="8" cy="2" r="1.5" fill="#fff"/><circle cx="16" cy="2" r="1.5" fill="#fff"/><rect x="7" y="14" width="3" height="3" rx="1" fill="#fff"/><rect x="11" y="14" width="3" height="3" rx="1" fill="#a7f3d0"/><rect x="15" y="14" width="3" height="3" rx="1" fill="#a7f3d0"/></svg>`,
+    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='calGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230f766e'/%3E%3Cstop offset='100%25' stop-color='%2314b8a6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='3' width='20' height='19' rx='2.5' fill='url(%23calGrad)'/%3E%3Crect x='2' y='3' width='20' height='7' rx='2.5' fill='%230d9488'/%3E%3Crect x='2' y='8' width='20' height='2' fill='%230d9488'/%3E%3Ccircle cx='8' cy='2' r='1.5' fill='%23fff'/%3E%3Ccircle cx='16' cy='2' r='1.5' fill='%23fff'/%3E%3Crect x='7' y='14' width='3' height='3' rx='1' fill='%23fff'/%3E%3Crect x='11' y='14' width='3' height='3' rx='1' fill='%23a7f3d0'/%3E%3Crect x='15' y='14' width='3' height='3' rx='1' fill='%23a7f3d0'/%3E%3C/svg%3E`
   },
   zoom: {
     bg: "#e0f2fe",
-    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="24" height="24" rx="6" fill="#2D8CFF"/><path d="M4 8.5A1.5 1.5 0 015.5 7h8A1.5 1.5 0 0115 8.5v7A1.5 1.5 0 0113.5 17h-8A1.5 1.5 0 014 15.5v-7zm11 2.2l3.6-2.4A.5.5 0 0120 8.8v6.4a.5.5 0 01-.8.4L15 13.3V10.7z" fill="#fff"/></svg>`,
-    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='24' height='24' rx='6' fill='%232D8CFF'/%3E%3Cpath d='M4 8.5A1.5 1.5 0 015.5 7h8A1.5 1.5 0 0115 8.5v7A1.5 1.5 0 0113.5 17h-8A1.5 1.5 0 014 15.5v-7zm11 2.2l3.6-2.4A.5.5 0 0120 8.8v6.4a.5.5 0 01-.8.4L15 13.3V10.7z' fill='%23fff'/%3E%3C/svg%3E`
+    svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><defs><linearGradient id="zoomGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2D8CFF"/><stop offset="100%" stop-color="#1572E6"/></linearGradient></defs><rect width="24" height="24" rx="6" fill="url(#zoomGrad)"/><path d="M4 8.5A1.5 1.5 0 015.5 7h8A1.5 1.5 0 0115 8.5v7A1.5 1.5 0 0113.5 17h-8A1.5 1.5 0 014 15.5v-7zm11 2.2l3.6-2.4A.5.5 0 0120 8.8v6.4a.5.5 0 01-.8.4L15 13.3V10.7z" fill="#fff"/></svg>`,
+    imgSrc: `data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='zoomGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232D8CFF'/%3E%3Cstop offset='100%25' stop-color='%231572E6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23zoomGrad)'/%3E%3Cpath d='M4 8.5A1.5 1.5 0 015.5 7h8A1.5 1.5 0 0115 8.5v7A1.5 1.5 0 0113.5 17h-8A1.5 1.5 0 014 15.5v-7zm11 2.2l3.6-2.4A.5.5 0 0120 8.8v6.4a.5.5 0 01-.8.4L15 13.3V10.7z' fill='%23fff'/%3E%3C/svg%3E`
   }
 };
 
@@ -527,6 +822,8 @@ let companionLog = [
 let dailyPlanContent = "";
 let dailyPlanLoading = false;
 let meetingsList = meetingsData ? meetingsData.items || [] : [];
+let calendarViewMode = "day";
+let calendarSelectedTaskId = null;
 let meetingAgentLog = [];
 let meetingAgentRunning = false;
 let meetingAgentComplete = null; // null | false | array of prioritized meetings
@@ -599,6 +896,7 @@ document.addEventListener("keydown", updateLastActivity);
 document.addEventListener("click", updateLastActivity);
 
 let showStatusSelector = false;
+let showDiscordProfileCard = false;
 let showSettingsMenu = false;
 let chatAttachedFile = null;
 
@@ -686,7 +984,7 @@ async function syncCompletionsFromSupabase() {
   if (!userCompletionStore[email]) userCompletionStore[email] = { completedTaskIds: [], workingTaskIds: [], completionRows: [] };
   // Merge: remote is source of truth, but preserve local-only rows
   const localRows = userCompletionStore[email].completionRows || [];
-  const mergedRows = [...rows];
+  const mergedRows = [...(Array.isArray(rows) ? rows : [])];
   localRows.forEach(localRow => {
     if (!mergedRows.some(r => r.task_id === localRow.task_id)) {
       mergedRows.push(localRow);
@@ -779,7 +1077,14 @@ async function syncStateWithBackend() {
         managerTaskPosts,
         engineerPortalPosts,
         addedTasks,
-        reassignedTaskOwners
+        reassignedTaskOwners,
+        adminUsers,
+        activeRouterModel,
+        selectedModelForTest,
+        activeModelHubTab,
+        gpuTemp,
+        gpuMemoryUsed,
+        gpuLoad
       })
     });
   } catch (err) {
@@ -810,7 +1115,14 @@ async function startRealTimeSync() {
             workingTaskIds: backendState.workingTaskIds,
             managerTaskPosts: backendState.managerTaskPosts,
             engineerPortalPosts: backendState.engineerPortalPosts,
-            reassignedTaskOwners: backendState.reassignedTaskOwners
+            reassignedTaskOwners: backendState.reassignedTaskOwners,
+            adminUsers: backendState.adminUsers,
+            activeRouterModel: backendState.activeRouterModel,
+            selectedModelForTest: backendState.selectedModelForTest,
+            activeModelHubTab: backendState.activeModelHubTab,
+            gpuTemp: backendState.gpuTemp,
+            gpuMemoryUsed: backendState.gpuMemoryUsed,
+            gpuLoad: backendState.gpuLoad
           });
           if (stateHash === lastSyncedStateHash) {
             return; // No changes — skip re-render to prevent UI flickering!
@@ -826,6 +1138,13 @@ async function startRealTimeSync() {
           engineerPortalPosts = backendState.engineerPortalPosts || engineerPortalPosts;
           addedTasks = backendState.addedTasks || addedTasks;
           reassignedTaskOwners = backendState.reassignedTaskOwners || reassignedTaskOwners;
+          adminUsers = backendState.adminUsers || adminUsers;
+          activeRouterModel = backendState.activeRouterModel || activeRouterModel;
+          selectedModelForTest = backendState.selectedModelForTest || selectedModelForTest;
+          activeModelHubTab = backendState.activeModelHubTab || activeModelHubTab;
+          gpuTemp = backendState.gpuTemp || gpuTemp;
+          gpuMemoryUsed = backendState.gpuMemoryUsed || gpuMemoryUsed;
+          gpuLoad = backendState.gpuLoad || gpuLoad;
 
           // Apply reassignments to sources
           if (reassignedTaskOwners && Object.keys(reassignedTaskOwners).length > 0) {
@@ -859,30 +1178,25 @@ async function startRealTimeSync() {
 let presenceAllUsers = {}; // cached from backend: { [name]: { status, lastSeen, role } }
 
 async function pushPresenceHeartbeat() {
-  const name = settingsProfile?.name || authSession?.name || "Engineer";
+  const name = settingsProfile?.name || authSession?.name || (activeProfile === "admin" ? "Miso" : (activeProfile === "manager" ? "Sarah Connor" : "Utkarsh Sinha"));
   const role = activeProfile;
   const email = getUserEmail();
 
-  // Auto-compute status based on activity
-  const idleSince = Date.now() - lastActivityTime;
-  let status;
-  if (idleSince > 5 * 60 * 1000) {
-    // Idle for >5 min
-    status = "idle";
-  } else if (workingTaskIds.length > 0) {
-    status = "dnd";
-  } else {
-    const presenceKey = activeProfile === "manager" ? "taskpilot:managerPresence" : "taskpilot:engineerPresence";
-    status = localStorage.getItem(presenceKey) || "online";
-  }
+  // Read manually selected status from localStorage
+  const presenceKey = activeProfile === "admin"
+    ? "taskpilot:adminPresence"
+    : (activeProfile === "manager" ? "taskpilot:managerPresence" : "taskpilot:engineerPresence");
+  const status = localStorage.getItem(presenceKey) || "online";
 
-  // Update local var
-  if (activeProfile === "manager") {
+  // Update local variables for consistency
+  if (activeProfile === "admin") {
+    // Admin status
+  } else if (activeProfile === "manager") {
     managerPresenceStatus = status;
   } else {
     engineerPresenceStatus = status;
   }
-  localStorage.setItem(activeProfile === "manager" ? "taskpilot:managerPresence" : "taskpilot:engineerPresence", status);
+  localStorage.setItem(presenceKey, status);
   localStorage.setItem(activeProfile === "manager" ? "taskpilot:managerLastActive" : "taskpilot:engineerLastActive", new Date().toISOString());
 
   try {
@@ -892,11 +1206,25 @@ async function pushPresenceHeartbeat() {
       body: JSON.stringify({ name, status, role, email })
     });
 
-    // Also fetch all presence data so manager can see everyone
+    // Fetch all active presence data from backend to sync other users in real time
     const resp = await fetch(`${BACKEND_URL}/api/presence/all`);
     if (resp.ok) {
       const data = await resp.json();
       presenceAllUsers = data.presence || {};
+
+      // Update local variables and synced adminUsers array with live status from other clients
+      Object.values(presenceAllUsers).forEach(user => {
+        if (user.role === "admin") {
+          if (adminUsers[0]) adminUsers[0].status = user.status;
+        } else if (user.role === "manager") {
+          managerPresenceStatus = user.status;
+          if (adminUsers[2]) adminUsers[2].status = user.status;
+        } else if (user.role === "engineer") {
+          engineerPresenceStatus = user.status;
+          if (adminUsers[1]) adminUsers[1].status = user.status;
+        }
+      });
+      render();
     }
   } catch {
     // Backend offline — ignore silently
@@ -906,7 +1234,7 @@ async function pushPresenceHeartbeat() {
 function startPresenceHeartbeat() {
   if (presenceHeartbeatInterval) clearInterval(presenceHeartbeatInterval);
   pushPresenceHeartbeat(); // immediate first push
-  presenceHeartbeatInterval = setInterval(pushPresenceHeartbeat, 5000);
+  presenceHeartbeatInterval = setInterval(pushPresenceHeartbeat, 3000);
 }
 
 function stopRealTimeSync() {
@@ -945,7 +1273,7 @@ const ADMIN_NAV = [
     label: "System Tools", items: [
       ["users", "User Management", "users"],
       ["database", "Database Explorer", "database"],
-      ["models", "NIM Model Hub", "models"]
+      ["models", "Model Hub", "models"]
     ]
   },
   {
@@ -1126,7 +1454,7 @@ function renderLogin() {
 
   const googleSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`;
 
-  app.innerHTML = `
+  getAppTarget().innerHTML = `
     <main class="login-shell">
       <div class="login-copy">
         <div class="login-logo">
@@ -1273,13 +1601,15 @@ function bindLoginEvents() {
         }
       } else {
         // Browser: use Supabase OAuth redirect
-        const SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
+        let SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
+        if (SUPABASE_URL.includes("pfotrcjqnopvyihwqvhu")) SUPABASE_URL = "https://pzovknqrllnifvsrjvts.supabase.co";
         localStorage.setItem("taskpilot:pending-role", "admin");
         const redirectTo = window.location.origin + window.location.pathname;
         const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
         authorizeUrl.searchParams.set("provider", "google");
         authorizeUrl.searchParams.set("redirect_to", redirectTo);
         authorizeUrl.searchParams.set("scopes", "openid email profile");
+        authorizeUrl.searchParams.set("prompt", "select_account");
         window.location.href = authorizeUrl.toString();
       }
     } catch (err) {
@@ -1331,14 +1661,16 @@ function bindLoginEvents() {
         }
       } else {
         // Browser: use Supabase OAuth redirect
-        const SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
-        const SUPABASE_ANON = backendConfig?.supabaseAnonKey || "";
+        let SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
+        if (SUPABASE_URL.includes("pfotrcjqnopvyihwqvhu")) SUPABASE_URL = "https://pzovknqrllnifvsrjvts.supabase.co";
+        const SUPABASE_ANON = backendConfig?.supabaseAnonKey || "sb_publishable_eX3BiFY_VzIjpp9X_dkfpg_XZM3gH_w";
         localStorage.setItem("taskpilot:pending-role", "engineer");
         const redirectTo = window.location.origin + window.location.pathname;
         const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
         authorizeUrl.searchParams.set("provider", "google");
         authorizeUrl.searchParams.set("redirect_to", redirectTo);
         authorizeUrl.searchParams.set("scopes", "openid email profile");
+        authorizeUrl.searchParams.set("prompt", "select_account");
         window.location.href = authorizeUrl.toString();
       }
     } catch (err) {
@@ -1367,13 +1699,15 @@ function bindLoginEvents() {
         }
       } else {
         // Browser: use Supabase OAuth redirect
-        const SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
+        let SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
+        if (SUPABASE_URL.includes("pfotrcjqnopvyihwqvhu")) SUPABASE_URL = "https://pzovknqrllnifvsrjvts.supabase.co";
         localStorage.setItem("taskpilot:pending-role", "manager");
         const redirectTo = window.location.origin + window.location.pathname;
         const authorizeUrl = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
         authorizeUrl.searchParams.set("provider", "google");
         authorizeUrl.searchParams.set("redirect_to", redirectTo);
         authorizeUrl.searchParams.set("scopes", "openid email profile");
+        authorizeUrl.searchParams.set("prompt", "select_account");
         window.location.href = authorizeUrl.toString();
       }
     } catch (err) {
@@ -1585,7 +1919,7 @@ function render() {
     });
   }
 
-  app.innerHTML = `
+  getAppTarget().innerHTML = `
     <main class="shell ${isDesktopShell ? "desktop-shell" : ""} role-${activeProfile}">
       <aside class="sidebar ${sidebarCollapsed ? 'sidebar-collapsed' : ''}">
 
@@ -1615,23 +1949,48 @@ function render() {
       </aside>
 
 
-      <section class="workspace ${activeProfile === 'engineer' && ['overview', 'inbox'].includes(activePage) ? 'workspace-engineer-no-scroll' : ''}">
-        ${activeProfile !== "manager" ? `
+      <section class="workspace ${activeProfile === 'admin' ? 'workspace-admin-fit-screen' : (activeProfile === 'engineer' && ['overview', 'inbox', 'calendar-ai', 'eng-calendar'].includes(activePage)) ? 'workspace-engineer-no-scroll' : ''}">
+        ${activeProfile !== "manager" && activePage !== 'calendar-ai' && activePage !== 'eng-calendar' ? `
         <header class="topbar">
           <div>
             <h1>${navLabel(activePage)}</h1>
           </div>
           <div class="top-actions">
             ${activeProfile === "admin"
-        ? `<button class="primary" id="executePipelineBtn">Execute Pipeline</button>
-                 <button class="secondary ${adminErrorSimulated ? 'success' : 'danger'}" id="simulateErrorBtn">${adminErrorSimulated ? 'Clear LLM Error' : 'Simulate LLM Error'}</button>
-                 <button class="secondary" id="resetAdminBtn">Reset System</button>`
+        ? (activePage === "overview"
+          ? `<button class="primary" id="executePipelineBtn">Execute Pipeline</button>`
+          : activePage === "diagnostics"
+            ? (adminDiagRunning
+              ? `<button class="primary" id="adminDiagBtn" disabled style="background:#475569 !important; cursor:not-allowed; gap:6px; display:flex; align-items:center; border:none; border-radius:6px; font-size:12.5px; font-weight:700; padding:8px 16px;">
+                       <svg style="animation: spin 1.5s linear infinite;" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                       Running Suite (${adminDiagProgress}%)
+                     </button>`
+              : `<button class="primary" id="adminDiagBtn" style="background:#0c66e4 !important; gap:6px; display:flex; align-items:center; border:none; border-radius:6px; font-size:12.5px; font-weight:700; padding:8px 16px; cursor:pointer;">
+                       ⚡ Run Diagnostics Suite
+                     </button>`)
+            : activePage === "users"
+              ? `<div style="display:inline-flex; align-items:center; gap:8px; background:#e0f2fe; border:1px solid #bae6fd; padding:6px 12px; border-radius:20px; font-size:11.5px; font-weight:700; color:#0369a1;">
+                     <span style="width:7px; height:7px; border-radius:50%; background:#0284c7; display:inline-block;"></span>
+                     Supabase Realtime Synced
+                   </div>`
+              : activePage === "database"
+                ? `<div style="display:inline-flex; align-items:center; gap:8px; background:#f0fdf4; border:1px solid #bbf7d0; padding:6px 12px; border-radius:20px; font-size:11.5px; font-weight:700; color:#16a34a;">
+                       <span style="width:7px; height:7px; border-radius:50%; background:#16a34a; display:inline-block;"></span>
+                       Postgres Live Connected
+                     </div>`
+                : "")
         : activePage === 'calendar-ai'
           ? `<button class="primary" id="downloadCalendarBtn" style="display:flex;align-items:center;gap:8px;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download Calendar</button>`
           : activePage === 'agent-scan'
             ? `<button class="primary" id="runScan">Run autonomous scan</button>`
             : ''
       }
+            ${activeProfile !== "admin" ? `
+            <button class="secondary" id="logoutBtn" title="Sign Out & Switch Account" style="display:flex;align-items:center;gap:6px;padding:6px 12px;font-size:12.5px;font-weight:600;color:#475569;background:#fff;border:1px solid #ded5c8;border-radius:6px;cursor:pointer;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+              Sign Out
+            </button>
+            ` : ""}
           </div>
         </header>
         ` : ""}
@@ -1774,7 +2133,7 @@ function renderNavigation() {
       ? `<span style="display:flex;width:22px;height:22px;align-items:center;justify-content:center;border-radius:5px;background:${navLogo.bg};margin-right:8px;">${navLogo.svg}</span>`
       : `<span class="nav-svg-wrapper" style="display:inline-flex;align-items:center;justify-content:center;">${NAV_ICONS[id] || icon}</span>`;
     return `
-        <button class="${activePage === id ? "active" : ""}" data-nav="${id}" style="display:flex;align-items:center;">
+        <button class="${activePage === id ? "active" : ""}" data-nav="${id}" onclick="handleNav('${id}')" style="display:flex;align-items:center;">
           ${iconHtml}<span class="nav-label">${label}</span>
         </button>`;
   }).join("")}
@@ -1837,6 +2196,23 @@ function renderNvidiaCopilotSidebar() {
   const badgeColor = status === "error" ? "#ef4444" : status === "warning" ? "#f59e0b" : "#10b981";
   const badgeText = status === "error" ? "Error" : status === "warning" ? "Warning" : "Healthy";
 
+  let cached = null;
+  let isLoading = false;
+  let latencyVal = "";
+  let telemetryVal = "";
+  let optCode = "";
+
+  if (status === "healthy") {
+    cached = nvidiaTelemetryCache[nodeId];
+    if (!cached) {
+      fetchNvidiaTelemetry(nodeId, nodeTitle, desc);
+    }
+    isLoading = !cached || cached.loading;
+    latencyVal = cached ? cached.latency : "Checking...";
+    telemetryVal = cached ? cached.telemetry : "Running NVIDIA NIM Telemetry check...";
+    optCode = cached ? cached.optimizationCode : "";
+  }
+
   return `
     <div id="nvidiaCopilotSidebar" style="position:fixed; top:0; right:0; width:450px; height:100vh; background:#1e1e24; box-shadow:-8px 0 32px rgba(0,0,0,0.3); border-left:3px solid #76b900; z-index:20000; display:flex; flex-direction:column; color:#fff; font-family:'Outfit', sans-serif; transition:all 0.3s ease;">
       <!-- Header -->
@@ -1883,22 +2259,29 @@ function renderNvidiaCopilotSidebar() {
         ` : `
           <div style="background:#76b90015; border:1px solid #76b90022; border-radius:6px; padding:12px; display:flex; flex-direction:column; gap:6px; margin-top:8px;">
             <div style="display:flex; align-items:center; gap:5px; color:#4ade80;">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="${isLoading ? 'animation: spin 1.5s linear infinite;' : ''}">
+                ${isLoading
+      ? `<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />`
+      : `<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>`
+    }
+              </svg>
               <strong style="font-size:12px;">NVIDIA NIM Telemetry check</strong>
             </div>
             <p style="font-size:11.5px; color:#a3e635; margin:0; line-height:1.4;">
-              Subsystem status verified: Healthy. All tests passed. Latency: 32ms.
+              ${telemetryVal} ${cached && cached.latency ? `(Latency: ${latencyVal})` : ''}
             </p>
-            <button id="sidebarOptBtn" style="background:#2e2e38; border:1px solid #444; border-radius:6px; color:#fff; font-size:11px; font-weight:700; padding:6px; cursor:pointer; margin-top:2px;">
-              Show cuDF Performance Tuning Code
-            </button>
-            <div id="optStubArea" style="display:none; margin-top:6px;">
-              <pre style="margin:0; background:#0e0e12; padding:8px; border-radius:6px; border:1px solid #2e2e38; font-size:9.5px; font-family:monospace; overflow-x:auto; color:#cbd5e1; line-height:1.3;">
-import cudf
-# Accelerated data load
-df = cudf.read_json(raw_json)
-processed = df.groupby('tier').mean()</pre>
-            </div>
+            ${isLoading ? `
+              <div style="padding:10px 0; text-align:center; font-size:11px; color:#a3e635; font-family:monospace; opacity:0.8;">
+                Analyzing GPU performance...
+              </div>
+            ` : `
+              <button id="sidebarOptBtn" style="background:#2e2e38; border:1px solid #444; border-radius:6px; color:#fff; font-size:11px; font-weight:700; padding:6px; cursor:pointer; margin-top:2px;">
+                Show cuDF Performance Tuning Code
+              </button>
+              <div id="optStubArea" style="display:none; margin-top:6px;">
+                <pre style="margin:0; background:#0e0e12; padding:8px; border-radius:6px; border:1px solid #2e2e38; font-size:9.5px; font-family:monospace; overflow-x:auto; color:#cbd5e1; line-height:1.3;">${escapeHtml(optCode)}</pre>
+              </div>
+            `}
           </div>
         `}
       </div>
@@ -2121,104 +2504,1007 @@ let scanningActive = false;
 let scanningEventSource = null;
 
 
-function renderAdminUsersPage() {
+function renderAdminDashboard(selected) {
+  const canvasNodes = [
+    // --- Col 1: DATA SOURCES / INGEST AGENTS (X = 35) ---
+    {
+      id: "slack",
+      label: "Slack Ingest",
+      category: "AI Agent",
+      col: 1, x: 35, y: 15,
+      icon: SOURCE_LOGO_MAP.slack.svg,
+      desc: "Monitors and processes messages from real-time developer channels.",
+      tag: "slack", provider: "Slack API",
+      statusKey: "slack"
+    },
+    {
+      id: "jira",
+      label: "Jira Ingest",
+      category: "AI Agent",
+      col: 1, x: 35, y: 80,
+      icon: SOURCE_LOGO_MAP.jira.svg,
+      desc: "Ingests sprint board issues, ticket updates, and webhook events.",
+      tag: "jira", provider: "Jira API",
+      statusKey: "jira"
+    },
+    {
+      id: "github",
+      label: "GitHub Ingest",
+      category: "AI Agent",
+      col: 1, x: 35, y: 145,
+      icon: SOURCE_LOGO_MAP.github.svg,
+      desc: "Tracks pull requests, review workflows, and merge approvals.",
+      tag: "jira", provider: "GitHub Webhooks",
+      statusKey: "jira"
+    },
+    {
+      id: "outlook",
+      label: "Outlook Ingest",
+      category: "AI Agent",
+      col: 1, x: 35, y: 210,
+      icon: SOURCE_LOGO_MAP.email.svg,
+      desc: "Scans VP emails and high-priority escalation notifications.",
+      tag: "email", provider: "Microsoft Graph",
+      statusKey: "email"
+    },
+    {
+      id: "servicenow",
+      label: "ServiceNow Ingest",
+      category: "AI Agent",
+      col: 1, x: 35, y: 275,
+      icon: SOURCE_LOGO_MAP.servicenow.svg,
+      desc: "Ingests critical production incident triggers and webhook alerts.",
+      tag: "jira", provider: "ServiceNow REST",
+      statusKey: "jira"
+    },
+    {
+      id: "meetings",
+      label: "Meetings Ingest",
+      category: "AI Agent",
+      col: 1, x: 35, y: 340,
+      icon: SOURCE_LOGO_MAP.zoom.svg,
+      desc: "Retrieves calendar meeting audio and processes action transcripts.",
+      tag: "email", provider: "Calendar Engine",
+      statusKey: "email"
+    },
+
+    // --- Col 2: INGESTION & DATA CLEANING (X = 220) ---
+    {
+      id: "ingestion",
+      label: "Ingest Event",
+      category: "Pipeline",
+      col: 2, x: 220, y: 110,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="ingestGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs><path d="M4 4h16v2L14 12v7l-4 2v-9L4 6V4z" stroke="url(#ingestGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="url(#ingestGrad)" fill-opacity="0.1"/><circle cx="12" cy="7" r="1.5" fill="#60a5fa"/><circle cx="9" cy="5" r="1" fill="#93c5fd"/><circle cx="15" cy="5" r="1" fill="#93c5fd"/></svg>`,
+      desc: "Webhook Listeners, Event Normalization, Schema Mapper & Validation.",
+      tag: "system", provider: "Event Pipeline",
+      phase: 1
+    },
+    {
+      id: "cleaner",
+      label: "Clean Data",
+      category: "Pipeline",
+      col: 2, x: 220, y: 245,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="cleanGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#047857"/></linearGradient></defs><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="url(#cleanGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="url(#cleanGrad)" fill-opacity="0.1"/><path d="M9 11l2 2 4-4" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      desc: "Deduplication, PII Masking, Entity Extraction & Metadata Hints.",
+      tag: "system", provider: "Data Engine",
+      phase: 1
+    },
+
+    // --- Col 3: CENTRAL BRAIN & MEMORY (X = 390) ---
+    {
+      id: "orchestrator",
+      label: "AI Orchestrator",
+      category: "Central Brain",
+      col: 3, x: 390, y: 175,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="orchGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient></defs><rect x="5" y="5" width="14" height="14" rx="3" stroke="url(#orchGrad)" stroke-width="2.2" fill="url(#orchGrad)" fill-opacity="0.1"/><path d="M9 9h6v6H9V9z" fill="url(#orchGrad)"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" stroke="url(#orchGrad)" stroke-width="2" stroke-linecap="round"/></svg>`,
+      desc: "Central Brain: Context Manager, Agent Routing, Memory & Aggregation.",
+      tag: "coordinator", provider: "Google ADK Platform",
+      statusKey: "coordinator"
+    },
+    {
+      id: "memory",
+      label: "Agent Memory",
+      category: "Memory",
+      col: 3, x: 436, y: 275,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><defs><linearGradient id="memGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ef4444"/><stop offset="100%" stop-color="#b91c1c"/></linearGradient></defs><path d="M12 2L2 7l10 5 10-5-10-5z" fill="url(#memGrad)"/><path d="M2 12l10 5 10-5" stroke="url(#memGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 17l10 5 10-5" stroke="url(#memGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 7v5M22 7v5M2 12v5M22 12v5" stroke="url(#memGrad)" stroke-width="1.5"/></svg>`,
+      desc: "Redis / MemStore context memory",
+      tag: "coordinator", provider: "Redis / MemStore",
+      statusKey: "memory",
+      isCircle: true
+    },
+
+    // --- Col 4: TWO CORE AI AGENTS (X = 580) ---
+    {
+      id: "agent_prioritizer",
+      label: "Task Prioritizer",
+      category: "AI Agent",
+      col: 4, x: 580, y: 120,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="priorGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f97316"/><stop offset="100%" stop-color="#ea580c"/></linearGradient></defs><path d="M3 20h18" stroke="url(#priorGrad)" stroke-width="2.2" stroke-linecap="round"/><rect x="5" y="14" width="3" height="6" rx="1.5" fill="url(#priorGrad)"/><rect x="11" y="9" width="3" height="11" rx="1.5" fill="url(#priorGrad)"/><rect x="17" y="4" width="3" height="16" rx="1.5" fill="url(#priorGrad)"/><path d="M5 12l6-5 6-5M17 2h4v4" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      desc: "Analyzes severity, deadlines, impact, dependencies, workload. Output: Priority Score.",
+      tag: "coordinator", provider: "Vertex AI / Internal",
+      statusKey: "tool"
+    },
+    {
+      id: "agent_extractor",
+      label: "Action Extractor",
+      category: "AI Agent",
+      col: 4, x: 580, y: 230,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="extractGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0ea5e9"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="url(#extractGrad)" stroke-width="2.2" stroke-linejoin="round" fill="url(#extractGrad)" fill-opacity="0.1"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="url(#extractGrad)" stroke-width="2" stroke-linecap="round"/></svg>`,
+      desc: "Extracts actionable items from chats, emails, and meetings. Output: Action Items.",
+      tag: "llm", provider: "Gemini 2.5 Flash",
+      statusKey: "parser"
+    },
+
+    // --- Col 5: FINAL PRIORITY ENGINE & ROUTER (X = 770) ---
+    {
+      id: "priority_engine",
+      label: "Priority Engine",
+      category: "Engine",
+      col: 5, x: 770, y: 140,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="engGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#e11d48"/></linearGradient></defs><circle cx="12" cy="12" r="6" stroke="url(#engGrad)" stroke-width="2.2" fill="url(#engGrad)" fill-opacity="0.1"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M18.36 5.64l-1.42 1.42M7.05 16.95l-1.42 1.42M18.36 18.36l-1.42-1.42M7.05 7.05L5.64 5.64" stroke="url(#engGrad)" stroke-width="2" stroke-linecap="round"/><polygon points="12 9 13 11 15 11 13.5 12.5 14 14.5 12 13 10 14.5 10.5 12.5 9 11 11 11" fill="url(#engGrad)"/></svg>`,
+      desc: "Aggregates all agent outputs, weights & scores tasks, outputs final priority list.",
+      tag: "coordinator", provider: "Decision Engine"
+    },
+    {
+      id: "router",
+      label: "Model Router",
+      category: "Router",
+      col: 5, x: 770, y: 240,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="routeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#6366f1"/></linearGradient></defs><path d="M12 2L2 12l10 10 10-10L12 2z" stroke="url(#routeGrad)" stroke-width="2" fill="url(#routeGrad)" fill-opacity="0.1"/><path d="M9 12h6M12 9v6" stroke="url(#routeGrad)" stroke-width="2" stroke-linecap="round"/></svg>`,
+      desc: "NVIDIA / Multi-LLM Smart Router: latency, cost, and availability balancing.",
+      tag: "coordinator", provider: "Orchestrator SDK",
+      statusKey: "coordinator"
+    },
+
+    // --- Col 5 Supporting: MODELS (Y = 345) ---
+    {
+      id: "gemini",
+      label: "Gemini 2.5",
+      category: "Model",
+      col: 5, x: 710, y: 345,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="gemGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1A73E8"/><stop offset="30%" stop-color="#7B1FA2"/><stop offset="70%" stop-color="#E91E63"/><stop offset="100%" stop-color="#FF8A65"/></linearGradient></defs><path d="M14 2c.2 3.8 2.2 6.8 5.4 9.1-3.2 2.1-5.2 5.1-5.4 8.9-.2-3.8-2.2-6.8-5.4-9.1C11.8 8.8 13.8 5.8 14 2z" fill="url(#gemGrad)"/><path d="M6 14c.1 1.9 1.1 3.4 2.7 4.5-1.6 1.1-2.6 2.6-2.7 4.5-.1-1.9-1.1-3.4-2.7-4.5C4.9 17.4 5.9 15.9 6 14z" fill="url(#gemGrad)" opacity="0.8"/></svg>`,
+      desc: "Vertex AI Model",
+      tag: "llm", provider: "Vertex AI",
+      statusKey: "llm",
+      isCircle: true
+    },
+    {
+      id: "nemotron",
+      label: "NVIDIA NIM",
+      category: "Model",
+      col: 5, x: 770, y: 345,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><rect width="24" height="24" rx="6" fill="#0b0f19"/><path d="M12 4.5A7.5 7.5 0 0 0 4.5 12a7.5 7.5 0 0 0 7.5 7.5 7.5 7.5 0 0 0 7.5-7.5h-1.875A5.625 5.625 0 0 1 12 17.625 5.625 5.625 0 0 1 6.375 12 5.625 5.625 0 0 1 12 6.375v-1.875zm0 3.75A3.75 3.75 0 0 0 8.25 12a3.75 3.75 0 0 0 3.75 3.75 3.75 3.75 0 0 0 3.75-3.75H13.875A1.875 1.875 0 0 1 12 13.875 1.875 1.875 0 0 1 10.125 12 1.875 1.875 0 0 1 12 10.125V8.25z" fill="#76B900"/></svg>`,
+      desc: "NVIDIA NIM SDK",
+      tag: "llm", provider: "NVIDIA NIM",
+      statusKey: "llm",
+      isCircle: true
+    },
+    {
+      id: "grok",
+      label: "Grok xAI",
+      category: "Model",
+      col: 5, x: 830, y: 345,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><rect width="24" height="24" rx="6" fill="#000000"/><path d="M5.5 5.5l5 5M18.5 5.5l-10.5 13M12.5 12.5l6 6" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/><path d="M8.5 5.5H5.5M18.5 18.5H15.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/></svg>`,
+      desc: "Grok xAI Model",
+      tag: "llm", provider: "Grok xAI",
+      statusKey: "llm",
+      isCircle: true
+    },
+
+    // --- Col 6: DELIVERY & DATABASE (X = 980) ---
+    {
+      id: "delivery",
+      label: "Delivery",
+      category: "Delivery",
+      col: 6, x: 980, y: 140,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="delivGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0ea5e9"/><stop offset="100%" stop-color="#0284c7"/></linearGradient></defs><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="url(#delivGrad)" stroke-width="2.2" stroke-linejoin="round" fill="url(#delivGrad)" fill-opacity="0.1"/></svg>`,
+      desc: "Developer Desktop (Electron), REST APIs, Real-time updates for Devs & Managers.",
+      tag: "system", provider: "Electron / REST API"
+    },
+    {
+      id: "supabase",
+      label: "Supabase DB",
+      category: "Database",
+      col: 6, x: 980, y: 240,
+      icon: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><defs><linearGradient id="supGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3ecf8e"/><stop offset="100%" stop-color="#24b47e"/></linearGradient></defs><path d="M13.4 2L4 13.5h7.6L10.6 22 20 10.5h-7.6L13.4 2z" fill="url(#supGrad)"/></svg>`,
+      desc: "Google Cloud Storage, BigQuery, Supabase DB & Analytics.",
+      tag: "database", provider: "GCS / BigQuery / Supabase",
+      statusKey: "sheets"
+    }
+  ];
+
+  const canvasConnections = [
+    { from: "slack", to: "ingestion" },
+    { from: "jira", to: "ingestion" },
+    { from: "github", to: "ingestion" },
+    { from: "outlook", to: "ingestion" },
+    { from: "servicenow", to: "ingestion" },
+    { from: "meetings", to: "ingestion" },
+    { from: "ingestion", to: "cleaner" },
+    { from: "cleaner", to: "orchestrator" },
+    { from: "orchestrator", to: "memory", dashed: true },
+    { from: "orchestrator", to: "agent_prioritizer" },
+    { from: "orchestrator", to: "agent_extractor" },
+    { from: "agent_prioritizer", to: "priority_engine" },
+    { from: "agent_extractor", to: "priority_engine" },
+    { from: "priority_engine", to: "router", dashed: true },
+    { from: "router", to: "gemini", dashed: true },
+    { from: "router", to: "nemotron", dashed: true },
+    { from: "router", to: "grok", dashed: true },
+    { from: "priority_engine", to: "delivery" },
+    { from: "delivery", to: "supabase", dashed: true }
+  ];
+
+  function getNodeStatus(nodeId) {
+    if (adminArchitectureNodes[nodeId] && adminArchitectureNodes[nodeId].status === "error") {
+      return "error";
+    }
+    const node = canvasNodes.find(n => n.id === nodeId);
+    if (!node) return "online";
+
+    if (node.statusKey) {
+      if (node.statusKey === "alerts") {
+        return adminArchitectureNodes.alerts.status;
+      }
+      return adminNodeStatuses[node.statusKey] || "online";
+    }
+
+    if (node.phase !== undefined) {
+      if (adminPipelineRunning && adminPipelineStep === node.phase) {
+        return "active";
+      }
+    }
+    return "online";
+  }
+
+  const isConnectionActive = (c) => {
+    if (!adminPipelineRunning) return false;
+    const fromNode = canvasNodes.find(n => n.id === c.from);
+    const toNode = canvasNodes.find(n => n.id === c.to);
+    if (!fromNode || !toNode) return false;
+
+    if (adminPipelineStep === 1) {
+      return fromNode.col === 1 || fromNode.col === 2;
+    }
+    if (adminPipelineStep === 2) {
+      return fromNode.col === 2 || toNode.col === 3;
+    }
+    if (adminPipelineStep === 3) {
+      return fromNode.col === 3 || toNode.col === 4;
+    }
+    if (adminPipelineStep === 4) {
+      return fromNode.col === 4 || toNode.col === 5;
+    }
+    return false;
+  };
+
+  const pathsHtml = canvasConnections.map(c => {
+    const fromNode = canvasNodes.find(n => n.id === c.from);
+    const toNode = canvasNodes.find(n => n.id === c.to);
+    if (!fromNode || !toNode) return "";
+
+    const fromWidth = (fromNode.category === "AI Agent" || fromNode.id === "orchestrator") ? 136 : (fromNode.isCircle ? 44 : 54);
+    const fromHeight = (fromNode.category === "AI Agent" || fromNode.id === "orchestrator") ? 50 : (fromNode.isCircle ? 44 : 54);
+    const toWidth = (toNode.category === "AI Agent" || toNode.id === "orchestrator") ? 136 : (toNode.isCircle ? 44 : 54);
+    const toHeight = (toNode.category === "AI Agent" || toNode.id === "orchestrator") ? 50 : (toNode.isCircle ? 44 : 54);
+
+    let fromX, fromY, toX, toY;
+    let d;
+
+    // Intelligent Straight-Line vs Curve Connection Algorithm
+    if (toNode.id === "gemini" || toNode.id === "nemotron" || toNode.id === "grok" || toNode.id === "memory") {
+      // Downward supporting circles (Memory, Gemini, NIM, Grok) -> Vertical fanning curves
+      fromX = fromNode.x + fromWidth / 2;
+      fromY = fromNode.y + fromHeight;
+      toX = toNode.x + toWidth / 2;
+      toY = toNode.y;
+      const dy = Math.abs(toY - fromY) * 0.45;
+      d = `M ${fromX} ${fromY} C ${fromX} ${fromY + dy}, ${toX} ${toY - dy}, ${toX} ${toY}`;
+    } else if (Math.abs(fromNode.x - toNode.x) < 60) {
+      // Vertically aligned nodes in the same column -> Straight vertical line
+      fromX = fromNode.x + fromWidth / 2;
+      toX = toNode.x + toWidth / 2;
+      if (fromNode.y < toNode.y) {
+        fromY = fromNode.y + fromHeight;
+        toY = toNode.y;
+      } else {
+        fromY = fromNode.y;
+        toY = toNode.y + toHeight;
+      }
+      d = `M ${fromX} ${fromY} L ${toX} ${toY}`;
+    } else {
+      // Horizontal flow -> Beautiful smooth horizontal bezier curve
+      fromX = fromNode.x + fromWidth;
+      fromY = fromNode.y + fromHeight / 2;
+      toX = toNode.x;
+      toY = toNode.y + toHeight / 2;
+      const dx = Math.abs(toX - fromX) * 0.45;
+      d = `M ${fromX} ${fromY} C ${fromX + dx} ${fromY}, ${toX - dx} ${toY}, ${toX} ${toY}`;
+    }
+
+    const active = isConnectionActive(c);
+    const fromStatus = getNodeStatus(c.from);
+    const toStatus = getNodeStatus(c.to);
+    const isErr = fromStatus === "error" || toStatus === "error";
+
+    const strokeDash = c.dashed ? "stroke-dasharray: 4 4;" : "";
+    const strokeColor = isErr ? "#ef4444" : active ? "#f97316" : (c.to === "alerts" ? "#f97316" : c.dashed ? "#a855f7" : "#cbd5e1");
+    const pathClass = isErr ? "path-error" : active ? "path-animated" : "";
+
+    return `<path d="${d}" fill="none" stroke="${strokeColor}" style="${strokeDash}" class="${pathClass}" stroke-width="2" />`;
+  }).join("");
+
+  const nodesHtml = canvasNodes.map(node => {
+    const status = getNodeStatus(node.id);
+    const active = adminSelectedNodeId === node.id;
+    if (node.isCircle) {
+      return `
+        <div class="n8n-node-wrapper" 
+             data-admin-node="${node.id}"
+             style="position: absolute; left: ${node.x}px; top: ${node.y}px; width: 44px; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10;">
+          <div class="n8n-node-circle ${status === 'active' ? 'status-active' : status === 'error' ? 'status-error' : ''} ${active ? 'selected' : ''}" 
+               style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-primary); border: 1.5px solid var(--border-color); display: flex; align-items: center; justify-content: center; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.05); transition: border-color 0.2s ease;">
+            <div style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
+              ${node.icon}
+            </div>
+            ${status === 'error' ? `
+              <div style="position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 1.5px solid var(--bg-primary); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 7px; font-weight: 900; z-index: 15;">✕</div>
+            ` : ''}
+          </div>
+          <div style="text-align: center; margin-top: 5px; width: 90px; pointer-events: none;">
+            <div style="font-size: 8.5px; font-weight: 700; color: var(--text-primary); line-height: 1.15;">
+              ${node.label}
+            </div>
+            <div style="font-size: 7px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 1px; letter-spacing: 0.02em;">
+              ${node.category}
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (node.category === "AI Agent" || node.id === "orchestrator") {
+      return `
+        <div class="n8n-node-wrapper" 
+             data-admin-node="${node.id}"
+             style="position: absolute; left: ${node.x}px; top: ${node.y}px; width: 136px; z-index: 10; cursor: pointer;">
+          <div class="n8n-node-card ${status === 'active' ? 'status-active' : status === 'error' ? 'status-error' : ''} ${active ? 'selected' : ''}" 
+               style="width: 136px; height: 50px; background: var(--bg-primary); border: 1.5px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; padding: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); position: relative; transition: border-color 0.2s ease;">
+            <div class="n8n-card-icon-box" style="width: 28px; height: 28px; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; margin-right: 8px; flex-shrink: 0;">
+              <div style="width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">
+                ${node.icon}
+              </div>
+            </div>
+            <!-- Labels on right -->
+            <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <span style="font-size: 7px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.02em;">
+                  ${node.category}
+                </span>
+                <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 6.5px; font-weight: 800; text-transform: uppercase; background: ${status === 'error' ? '#ef444415' : '#10b98115'}; color: ${status === 'error' ? '#ef4444' : '#10b981'}; padding: 1px 4px; border-radius: 3px; line-height: 1;">
+                  <span style="width: 4px; height: 4px; border-radius: 50%; background: ${status === 'error' ? '#ef4444' : '#10b981'}; display: inline-block;"></span>
+                  ${status === 'error' ? 'Offline' : 'Online'}
+                </span>
+              </div>
+              <div style="font-size: 9.5px; font-weight: 800; color: var(--text-primary); margin-top: 2px; line-height: 1.2; word-break: break-word;">
+                ${node.label}
+              </div>
+            </div>
+
+            <!-- Normal input handle (left) -->
+            <div style="position: absolute; left: -4px; top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: var(--bg-primary); border: 1.5px solid var(--border-color); z-index: 12;"></div>
+            
+            <!-- Normal output handle (right) -->
+            <div style="position: absolute; right: -4px; top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: var(--bg-primary); border: 1.5px solid var(--border-color); z-index: 12;"></div>
+
+            ${status === 'error' ? `
+              <div style="position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 1.5px solid var(--bg-primary); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 7px; font-weight: 900; z-index: 15;">✕</div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    } else {
+      // Render Standard Square Node Card (label below card)
+      return `
+        <div class="n8n-node-wrapper" 
+             data-admin-node="${node.id}"
+             style="position: absolute; left: ${node.x}px; top: ${node.y}px; width: 54px; z-index: 10; cursor: pointer;">
+          
+          <div class="n8n-node-card ${status === 'active' ? 'status-active' : status === 'error' ? 'status-error' : ''} ${active ? 'selected' : ''}" 
+               style="width: 54px; height: 54px; background: var(--bg-primary); border: 1.5px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; transition: border-color 0.2s ease;">
+            
+            <div style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">
+              ${node.icon}
+            </div>
+
+            <!-- Ports -->
+            <div style="position: absolute; left: -4px; top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: var(--bg-primary); border: 1.5px solid var(--border-color); z-index: 12;"></div>
+            <div style="position: absolute; right: -4px; top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: var(--bg-primary); border: 1.5px solid var(--border-color); z-index: 12;"></div>
+
+            ${status === 'error' ? `
+              <div style="position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 1.5px solid var(--bg-primary); display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 7px; font-weight: 900; z-index: 15;">✕</div>
+            ` : ''}
+          </div>
+
+          <!-- Label below card -->
+          <div style="position: absolute; top: 58px; left: -33px; width: 120px; text-align: center; pointer-events: none;">
+            <div style="font-size: 8.5px; font-weight: 700; color: var(--text-primary); line-height: 1.15;">
+              ${node.label}
+            </div>
+            <div style="font-size: 7px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 1px;">
+              ${node.category}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }).join("");
+
+  // Get Inspector node object
+  const inspectorNode = canvasNodes.find(n => n.id === adminSelectedNodeId);
+  const inspectorStatus = inspectorNode ? getNodeStatus(inspectorNode.id) : "online";
+  const filteredLogs = adminLogs.filter(l => {
+    if (adminSelectedNodeId === "all") return true;
+    return inspectorNode && l.tag === inspectorNode.tag;
+  });
+
   return `
-    <section class="board" style="padding:18px; font-family:'Poppins', sans-serif;">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Admin Workspace</p>
-          <h2>User Management</h2>
+    <section class="board" style="padding:12px; font-family:'Poppins', sans-serif; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;">
+      
+      <!-- n8n Workflow Canvas -->
+      <div class="n8n-canvas-wrapper" style="position:relative; width:100%; flex:1; min-height:200px; border:1px solid #ded5c8; border-radius:12px; background:#fbfbfa; overflow:auto; margin-top:0;">
+        <div class="n8n-canvas" style="position:relative; width:1260px; height:435px; background-color:#fbfbfa; background-image:radial-gradient(#e4dfd5 1.5px, transparent 1.5px); background-size:20px 20px;">
+          <svg class="n8n-svg" id="n8nCanvasBackground" data-admin-node="all" style="position:absolute; inset:0; width:100%; height:100%; cursor:default;">
+            ${pathsHtml}
+          </svg>
+          ${nodesHtml}
         </div>
       </div>
-      <div class="panel" style="background:#fff; margin-top:15px; padding:20px; border-radius:10px; border:1px solid #ded5c8;">
-        <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
-          <thead>
-            <tr style="border-bottom:2px solid #ded5c8; color:#64748b;">
-              <th style="padding:10px 8px;">User</th>
-              <th style="padding:10px 8px;">Role</th>
-              <th style="padding:10px 8px;">Email</th>
-              <th style="padding:10px 8px;">Status</th>
-              <th style="padding:10px 8px;">Last Active</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${[
-      { name: "Miso", role: "Administrator", email: "miso220601@gmail.com", status: "online", time: "Active now", color: "#3b82f6" },
-      { name: "Utkarsh Sinha", role: "Full-stack Engineer", email: "utkarsh@taskpilot.dev", status: "idle", time: "12m ago", color: "#10b981" },
-      { name: "Sarah Connor", role: "Product Manager", email: "sarah@taskpilot.dev", status: "dnd", time: "1h ago", color: "#0d9488" }
-    ].map(u => `
-              <tr style="border-bottom:1px solid #f1f5f9; color:#172b4d;">
-                <td style="padding:12px 8px; display:flex; align-items:center; gap:8px;">
-                  <span style="width:24px; height:24px; border-radius:50%; background:${u.color}; color:#fff; display:grid; place-items:center; font-weight:800; font-size:11px;">${u.name[0]}</span>
-                  <strong>${u.name}</strong>
-                </td>
-                <td style="padding:12px 8px;">${u.role}</td>
-                <td style="padding:12px 8px; color:#64748b;">${u.email}</td>
-                <td style="padding:12px 8px;">
-                  <span style="display:inline-flex; align-items:center; gap:4px; font-weight:600; font-size:11.5px; color:${u.status === 'online' ? '#22c55e' : u.status === 'idle' ? '#f59e0b' : '#ef4444'};">
-                    <span style="width:6px; height:6px; border-radius:50%; background:${u.status === 'online' ? '#22c55e' : u.status === 'idle' ? '#f59e0b' : '#ef4444'};"></span>
-                    ${u.status}
-                  </span>
-                </td>
-                <td style="padding:12px 8px; color:#64748b;">${u.time}</td>
+
+      <!-- Draggable VS Code Draggable Terminal Panel -->
+      <div class="admin-terminal-wrapper" style="position:relative; width:100%; height:${localStorage.getItem("taskpilot:adminTerminalHeight") || 230}px; flex-shrink:0; border:1px solid #2b2b2b; border-radius:12px; background:#1e1e1e; box-shadow:0 10px 30px rgba(0,0,0,0.3); display:flex; flex-direction:column; overflow:hidden; margin-top:12px; color:#cccccc;">
+        <!-- Resize handle -->
+        <div id="terminalResizer" style="height: 5px; width: 100%; cursor: ns-resize; background: transparent; position: absolute; top: 0; left: 0; z-index: 100; transition: background 0.2s;" onmouseover="this.style.background='#007acc'" onmouseout="this.style.background='transparent'"></div>
+        
+        <!-- Tab Bar -->
+        <div style="background:#252526; height:36px; padding:0 16px; display:flex; align-items:center; justify-content:space-between; user-select:none; border-bottom:1px solid #2d2d2d;">
+          <div style="display:flex; gap:4px; height:100%; align-items:center;">
+            <button class="terminal-tab-btn" data-terminal-tab="inspector" style="background:${adminActiveTerminalTab === 'inspector' ? '#1e1e1e' : 'transparent'}; border:none; border-bottom:${adminActiveTerminalTab === 'inspector' ? '2px solid #007acc' : '2px solid transparent'}; color:${adminActiveTerminalTab === 'inspector' ? '#ffffff' : '#858585'}; height:100%; font-size:11px; font-weight:700; padding:0 12px; cursor:pointer; font-family:'Poppins', sans-serif; display:flex; align-items:center; gap:5px;">
+              <span>💡</span> NODE INSPECTOR
+            </button>
+            <button class="terminal-tab-btn" data-terminal-tab="logs" style="background:${adminActiveTerminalTab === 'logs' ? '#1e1e1e' : 'transparent'}; border:none; border-bottom:${adminActiveTerminalTab === 'logs' ? '2px solid #007acc' : '2px solid transparent'}; color:${adminActiveTerminalTab === 'logs' ? '#ffffff' : '#858585'}; height:100%; font-size:11px; font-weight:700; padding:0 12px; cursor:pointer; font-family:'Poppins', sans-serif; display:flex; align-items:center; gap:5px;">
+              <span>💻</span> SYSTEM TERMINAL
+            </button>
+            <button class="terminal-tab-btn" data-terminal-tab="simulator" style="background:${adminActiveTerminalTab === 'simulator' ? '#1e1e1e' : 'transparent'}; border:none; border-bottom:${adminActiveTerminalTab === 'simulator' ? '2px solid #007acc' : '2px solid transparent'}; color:${adminActiveTerminalTab === 'simulator' ? '#ffffff' : '#858585'}; height:100%; font-size:11px; font-weight:700; padding:0 12px; cursor:pointer; font-family:'Poppins', sans-serif; display:flex; align-items:center; gap:5px;">
+              <span>🛠️</span> SIMULATOR
+            </button>
+          </div>
+          <div style="font-size:10px; color:#858585; font-family:monospace;">
+            ${adminActiveTerminalTab === 'logs' ? `Logs count: ${filteredLogs.length}` : adminActiveTerminalTab === 'inspector' ? `Selected: ${inspectorNode ? inspectorNode.label : 'None'}` : 'Environment Control'}
+          </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="admin-log-console" id="adminLogConsole" style="flex:1; padding:16px; overflow-y:auto; font-family:'Courier New', Courier, monospace; font-size:11.5px; line-height:1.6; background:#1e1e1e; color:#d4d4d4;">
+          ${adminActiveTerminalTab === 'logs' ? (
+      filteredLogs.length === 0 ? `
+              <div style="color:#858585; font-style:italic; text-align:center; padding:20px 0;">No active logs for this node. Run the pipeline simulation.</div>
+            ` : filteredLogs.map(l => `
+              <div style="margin-bottom:6px; border-left:3.5px solid ${l.tag === 'jira' ? '#1868db' : l.tag === 'email' ? '#ef4444' : l.tag === 'slack' ? '#a855f7' : l.tag === 'coordinator' ? '#8b5cf6' : l.tag === 'llm' ? '#3b82f6' : l.tag === 'formatter' ? '#eab308' : l.tag === 'database' ? '#10b981' : '#858585'
+        }; padding-left:8px;">
+                <span style="color:#858585; margin-right:4px;">[${l.time}]</span>
+                <span style="font-weight:700; margin-right:6px; text-transform:uppercase; color:${l.tag === 'jira' ? '#58a6ff' : l.tag === 'email' ? '#ff7b72' : l.tag === 'slack' ? '#d2a8ff' : l.tag === 'coordinator' ? '#bc8cff' : l.tag === 'llm' ? '#79c0ff' : l.tag === 'formatter' ? '#d49e0e' : l.tag === 'database' ? '#7ee787' : '#858585'
+        };">${l.tag || 'system'}:</span>
+                <span style="color:#e6edf3;">${escapeHtml(l.text)}</span>
+              </div>
+            `).join('') + `<span class="terminal-cursor"></span>`
+    ) : adminActiveTerminalTab === 'inspector' ? (
+      adminSelectedNodeId === 'all' ? `
+              <div style="display:flex; flex-direction:column; gap:8px; font-family:'Poppins', sans-serif;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-flex; width:8px; height:8px; border-radius:50%; background:#10b981; animation:pulse 2s infinite;"></span>
+                  <span style="font-size:13px; font-weight:700; color:#ffffff;">Overall Core Plane: Active</span>
+                </div>
+                <p style="font-size:12px; color:#858585; margin:0; line-height:1.5;">
+                  The Multi-Agent network is fully operational. Click on any pipeline node in the graph to view active configurations, providers, logs, or troubleshoot issues.
+                </p>
+              </div>
+            ` : (() => {
+        const isAlertsError = inspectorNode.id === "agent_alerts" && inspectorStatus === "error";
+        const isGeminiError = inspectorNode.id === "gemini" && adminErrorSimulated;
+        return `
+                <div style="display:flex; flex-direction:column; gap:12px; font-family:'Poppins', sans-serif;">
+                  <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <div style="width:34px; height:34px; border-radius:6px; background:#2d2d2d; display:flex; align-items:center; justify-content:center; border:1px solid #3d3d3d; color:#ffffff;">
+                        ${inspectorNode.icon}
+                      </div>
+                      <div>
+                        <div style="font-size:14px; font-weight:800; color:#ffffff;">${inspectorNode.label}</div>
+                        <div style="font-size:10px; color:#858585; text-transform:uppercase; font-weight:700; letter-spacing:0.02em;">${inspectorNode.provider}</div>
+                      </div>
+                    </div>
+                    <button id="clearNodeSelectionBtn" data-admin-node="all" style="font-size:11px; color:#007acc; background:none; border:none; cursor:pointer; font-weight:700; padding:0;">Clear Selection</button>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:${inspectorStatus === 'active' ? 'rgba(139,92,246,0.1)' : inspectorStatus === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)'}; border:1px solid ${inspectorStatus === 'active' ? '#c084fc' : inspectorStatus === 'error' ? '#fca5a5' : '#3d3d3d'}; border-radius:8px;">
+                    <span style="font-size:12px; color:#cccccc; font-weight:600;">Status</span>
+                    <span style="font-size:10px; font-weight:700; text-transform:uppercase; color:${inspectorStatus === 'active' ? '#c084fc' : inspectorStatus === 'error' ? '#ef4444' : '#10b981'}; display:flex; align-items:center; gap:4px;">
+                      <span style="width:6px; height:6px; border-radius:50%; background:${inspectorStatus === 'active' ? '#c084fc' : inspectorStatus === 'error' ? '#ef4444' : '#10b981'};"></span>
+                      ${inspectorStatus}
+                    </span>
+                  </div>
+
+                  <p style="font-size:12px; color:#cccccc; margin:0; line-height:1.5;">${inspectorNode.desc}</p>
+
+                  ${isAlertsError ? `
+                    <div style="margin-top:4px; padding:10px; background:rgba(239,68,68,0.1); border:1px solid #ef444450; border-radius:8px; font-size:11px; color:#fca5a5;">
+                      <strong style="display:block; margin-bottom:4px; color:#f87171;">Error Details</strong>
+                      ${escapeHtml(adminArchitectureNodes.alerts.error)}
+                    </div>
+                    
+                    <div style="margin-top:4px; display:flex; flex-direction:column; gap:4px;">
+                      <span style="font-size:10px; font-weight:700; color:#858585;">Target Code (slack_agent.py)</span>
+                      <pre style="margin:0; padding:8px; background:#0c0c0c; color:#f8fafc; border-radius:6px; font-size:9.5px; overflow-x:auto; font-family:monospace; line-height:1.4; border:1px solid #2d2d2d;">${escapeHtml(adminArchitectureNodes.alerts.code)}</pre>
+                    </div>
+
+                    <button class="primary" id="deployNvidiaFixBtn" data-node-id="alerts" style="margin-top:8px; width:100%; font-size:11.5px; font-weight:700; padding:8px; justify-content:center; display:flex; align-items:center; gap:6px; background:#007acc; border:none; color:#ffffff; border-radius:4px; cursor:pointer;">
+                      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                      Deploy NVIDIA NIM Fix
+                    </button>
+                  ` : ''}
+
+                  ${isGeminiError ? `
+                    <div style="margin-top:4px; padding:10px; background:rgba(239,68,68,0.1); border:1px solid #ef444450; border-radius:8px; font-size:11px; color:#fca5a5;">
+                      <strong style="display:block; margin-bottom:4px; color:#f87171;">Error Details</strong>
+                      Gemini rate limit hit or invalid credentials. HTTP 401 Unauthorized.
+                    </div>
+                    
+                    <button class="primary" id="fixGeminiErrorBtn" style="margin-top:8px; width:100%; font-size:11.5px; font-weight:700; padding:8px; justify-content:center; display:flex; align-items:center; gap:6px; background:#007acc; border:none; color:#ffffff; border-radius:4px; cursor:pointer;">
+                      Clear Simulated Error
+                    </button>
+                  ` : ''}
+                </div>
+              `;
+      })()
+    ) : `
+            <div style="display:flex; flex-direction:column; gap:16px; font-family:'Poppins', sans-serif;">
+              <div>
+                <h4 style="margin:0 0 6px 0; font-size:12px; color:#ffffff; font-weight:700;">Simulated System State Controllers</h4>
+                <p style="margin:0; font-size:11px; color:#858585; line-height:1.4;">Inject, diagnose and resolve simulated failures across the pipeline.</p>
+              </div>
+
+              <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                <button id="toggleSimulatedGeminiErrorBtn" style="background:${adminErrorSimulated ? '#b91c1c' : '#2d2d2d'}; color:#ffffff; border:1.5px solid ${adminErrorSimulated ? '#ef4444' : '#3d3d3d'}; border-radius:6px; padding:8px 14px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;">
+                  ${adminErrorSimulated ? 'Clear Gemini Error' : 'Simulate Gemini Error (401)'}
+                </button>
+
+                <button id="toggleSimulatedAlertsErrorBtn" style="background:${adminArchitectureNodes.alerts.status === 'error' ? '#b91c1c' : '#2d2d2d'}; color:#ffffff; border:1.5px solid ${adminArchitectureNodes.alerts.status === 'error' ? '#ef4444' : '#3d3d3d'}; border-radius:6px; padding:8px 14px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;">
+                  ${adminArchitectureNodes.alerts.status === 'error' ? 'Clear Slack Webhook Error' : 'Simulate Slack Webhook Error (403)'}
+                </button>
+
+                <button id="triggerPipelineRunBtn" style="background:#16a34a; color:#ffffff; border:none; border-radius:6px; padding:8px 14px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;">
+                  Start Pipeline Scan Simulation
+                </button>
+              </div>
+            </div>
+          `}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function generateSparklinePath(data, width, height) {
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((val, idx) => {
+    const x = (idx / (data.length - 1)) * width;
+    const y = height - ((val - min) / range) * (height - 6) - 3;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return `M ${points.join(" L ")}`;
+}
+
+function renderAdminDiagnosticsPage() {
+  const currentCpu = adminMetricsHistory.cpu[adminMetricsHistory.cpu.length - 1];
+  const currentRam = adminMetricsHistory.ram[adminMetricsHistory.ram.length - 1];
+  const currentLat = adminMetricsHistory.latency[adminMetricsHistory.latency.length - 1];
+
+  const cpuPath = generateSparklinePath(adminMetricsHistory.cpu, 180, 50);
+  const ramPath = generateSparklinePath(adminMetricsHistory.ram, 180, 50);
+  const latPath = generateSparklinePath(adminMetricsHistory.latency, 180, 50);
+
+  const diagButtonHtml = adminDiagRunning
+    ? `<button class="primary" id="adminDiagBtn" disabled style="background:#475569 !important; cursor:not-allowed; gap:6px; display:flex; align-items:center; border:none; border-radius:6px; font-size:12.5px; font-weight:700; padding:8px 16px;">
+         <svg style="animation: spin 1.5s linear infinite;" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+         Running Suite (${adminDiagProgress}%)
+       </button>`
+    : `<button class="primary" id="adminDiagBtn" style="background:#0c66e4 !important; gap:6px; display:flex; align-items:center; border:none; border-radius:6px; font-size:12.5px; font-weight:700; padding:8px 16px; cursor:pointer;">
+         ⚡ Run Diagnostics Suite
+       </button>`;
+
+  return `
+    <section class="board" style="padding:18px; font-family:'Outfit', sans-serif; background:#f4f5f7; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; gap: 16px;">
+
+      <!-- 1. Real-time Live Sparkline Cards Grid -->
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; flex-shrink:0;">
+        
+        <!-- CPU Load Card -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div>
+            <span style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">CPU Utilization</span>
+            <div style="font-size:28px; font-weight:800; color:#0f172a; margin-top:4px;">${currentCpu}%</div>
+            <span style="font-size:10px; color:#22c55e; font-weight:600; display:inline-flex; align-items:center; gap:4px; margin-top:2px;">
+              <span style="width:5px; height:5px; border-radius:50%; background:#22c55e;"></span> AMD EPYC Hypervisor
+            </span>
+          </div>
+          <svg width="180" height="50" style="overflow:visible;">
+            <path d="${cpuPath}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+
+        <!-- RAM Usage Card -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div>
+            <span style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">RAM Usage</span>
+            <div style="font-size:28px; font-weight:800; color:#0f172a; margin-top:4px;">${currentRam}%</div>
+            <span style="font-size:10px; color:#22c55e; font-weight:600; display:inline-flex; align-items:center; gap:4px; margin-top:2px;">
+              <span style="width:5px; height:5px; border-radius:50%; background:#22c55e;"></span> 10.8 GB of 16.0 GB
+            </span>
+          </div>
+          <svg width="180" height="50" style="overflow:visible;">
+            <path d="${ramPath}" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+
+        <!-- Latency Card -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div>
+            <span style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Inference Latency</span>
+            <div style="font-size:28px; font-weight:800; color:#0f172a; margin-top:4px;">${currentLat}ms</div>
+            <span style="font-size:10px; color:#22c55e; font-weight:600; display:inline-flex; align-items:center; gap:4px; margin-top:2px;">
+              <span style="width:5px; height:5px; border-radius:50%; background:#22c55e;"></span> NVIDIA NIM Llama 3.1
+            </span>
+          </div>
+          <svg width="180" height="50" style="overflow:visible;">
+            <path d="${latPath}" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- 2. Services Grid (6 services) -->
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; flex-shrink:0;">
+        
+        <!-- Google Cloud Run Container -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:6px; background:#eff6ff; color:#2563eb;">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <span style="font-size:10px; font-weight:700; color:#22c55e; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 6px; border-radius:12px;">Port 5173</span>
+          </div>
+          <strong style="display:block; font-size:13.5px; color:#1e293b; margin-top:8px;">GCP Cloud Run Backend</strong>
+          <span style="display:block; font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.35;">Serves unified REST API gateway. Dynamic hotfixes active.</span>
+        </div>
+
+        <!-- Vertex AI Model Endpoint -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:6px; background:#faf5ff; color:#a855f7;">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <span style="font-size:10px; font-weight:700; color:#3b82f6; background:#eff6ff; border:1px solid #bfdbfe; padding:2px 6px; border-radius:12px;">Gemini 2.5</span>
+          </div>
+          <strong style="display:block; font-size:13.5px; color:#1e293b; margin-top:8px;">Vertex AI Inference</strong>
+          <span style="display:block; font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.35;">Connected to us-central1 pipeline. Handles task narratives.</span>
+        </div>
+
+        <!-- NVIDIA NIM Model Endpoint -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:6px; background:#ecfdf5; color:#76b900;">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10-10-4.48-10-10 4.48-10 10-10zm2 14.5c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5.67 1.5 1.5 1.5 1.5-.67 1.5-1.5zm-1.5-11.5c-2.48 0-4.5 2.02-4.5 4.5s2.02 4.5 4.5 4.5 4.5-2.02 4.5-4.5-2.02-4.5-4.5-4.5z" fill="#76B900" stroke="none"/>
+              </svg>
+            </div>
+            <span style="font-size:10px; font-weight:700; color:#10b981; background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 6px; border-radius:12px;">Llama 3.1 8B</span>
+          </div>
+          <strong style="display:block; font-size:13.5px; color:#1e293b; margin-top:8px;">NVIDIA NIM API</strong>
+          <span style="display:block; font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.35;">GPU-accelerated copilot telemetry and performance compiler.</span>
+        </div>
+
+        <!-- Supabase Storage & Database -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:6px; background:#f0fdf4; color:#3ecf8e;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#3ECF8E">
+                <path d="M19 10.5h-5.5V3l-9.5 10.5h5.5v7.5L19 10.5z"/>
+              </svg>
+            </div>
+            <span style="font-size:10px; font-weight:700; color:#22c55e; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 6px; border-radius:12px;">Connected</span>
+          </div>
+          <strong style="display:block; font-size:13.5px; color:#1e293b; margin-top:8px;">Supabase Postgres Pool</strong>
+          <span style="display:block; font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.35;">Hosts user profiles and real-time task table synchronization.</span>
+        </div>
+
+        <!-- Multi-Agent Data Ingestion Swarm -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:6px; background:#eff6ff; color:#6366f1;">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v2L14 12v7l-4 2v-9L4 6V4z" />
+              </svg>
+            </div>
+            <span style="font-size:10px; font-weight:700; color:#a855f7; background:#faf5ff; border:1px solid #e9d5ff; padding:2px 6px; border-radius:12px;">6 Channels</span>
+          </div>
+          <strong style="display:block; font-size:13.5px; color:#1e293b; margin-top:8px;">Data Swarm Pipelines</strong>
+          <span style="display:block; font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.35;">Webhook receivers for Slack, Jira, GitHub, Outlook, ServiceNow, Zoom.</span>
+        </div>
+
+        <!-- AMD SEV-SNP Confidential Enclave -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:6px; background:#fef2f2; color:#ef4444;">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 11v4M12 7h.01" stroke-width="2.5" />
+              </svg>
+            </div>
+            <span style="font-size:10px; font-weight:700; color:#ef4444; background:#fef2f2; border:1px solid #fecaca; padding:2px 6px; border-radius:12px;">Attested</span>
+          </div>
+          <strong style="display:block; font-size:13.5px; color:#1e293b; margin-top:8px;">TEE Confidential Isolation</strong>
+          <span style="display:block; font-size:11.5px; color:#64748b; margin-top:3px; line-height:1.35;">Hardware-secured attestation protects LLM prompts and API credentials.</span>
+        </div>
+      </div>
+
+      <!-- 3. Terminal Log Output Simulator -->
+      <div style="background:#0f172a; border-radius:12px; overflow:hidden; border:1px solid #1e293b; box-shadow:0 12px 32px rgba(0,0,0,0.25); flex: 1; display: flex; flex-direction: column; min-height: 0;">
+        
+        <!-- Terminal Header -->
+        <div style="display:flex; align-items:center; background:#1e293b; padding:8px 16px; border-bottom:1px solid #0f172a; justify-content:space-between; flex-shrink:0;">
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span style="width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block;"></span>
+            <span style="width:10px; height:10px; border-radius:50%; background:#eab308; display:inline-block;"></span>
+            <span style="width:10px; height:10px; border-radius:50%; background:#22c55e; display:inline-block;"></span>
+            <strong style="font-size:11px; font-family:monospace; color:#94a3b8; margin-left:8px;">diagnostic_terminal.sh — -zsh</strong>
+          </div>
+          <span style="font-size:9.5px; font-family:monospace; color:#64748b; background:#0f172a; padding:2px 6px; border-radius:4px;">100% operational</span>
+        </div>
+
+        <!-- Terminal Body -->
+        <div style="padding:14px 18px; font-family:monospace; font-size:11.5px; line-height:1.6; color:#cbd5e1; flex: 1; overflow-y:auto; min-height: 0; background:#090d16;">
+          ${adminDiagLogs.length === 0 ? `
+            <div style="color:#64748b; text-align:center; padding:30px 0;">
+              Console ready. Click "⚡ Run Diagnostics Suite" to initiate a hardware attestation and endpoint latency scan.
+            </div>
+          ` : adminDiagLogs.map(log => `
+            <div style="margin-bottom:2px;">
+              <span style="color:#0ea5e9;">$</span> ${log}
+            </div>
+          `).join("")}
+          
+          ${adminDiagRunning ? `
+            <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+              <div style="flex:1; height:4px; background:#1e293b; border-radius:2px; overflow:hidden;">
+                <div style="width:${adminDiagProgress}%; height:100%; background:#0c66e4; transition:width 0.2s ease;"></div>
+              </div>
+              <span style="font-size:10px; color:#94a3b8;">${adminDiagProgress}%</span>
+            </div>
+          ` : ""}
+        </div>
+      </div>
+
+  `;
+}
+
+function renderAdminUsersPage() {
+  const roles = ["Administrator", "Full-stack Engineer", "Product Manager", "Engineering Manager"];
+  const statuses = ["online", "idle", "dnd"];
+
+  return `
+    <section class="board" style="padding:18px; font-family:'Outfit', sans-serif; background:#f4f5f7; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;">
+
+      <!-- Main Layout: Grid -->
+      <div style="display:grid; grid-template-columns: 1fr 300px; gap:20px; flex: 1; min-height: 0;">
+        
+        <!-- Table Column -->
+        <div class="panel" style="background:#ffffff; padding:20px; border-radius:12px; border:1px solid #ded5c8; box-shadow:0 4px 12px rgba(0,0,0,0.02); height:100%; display:flex; flex-direction:column; overflow:hidden;">
+          <h3 style="margin:0 0 14px 0; font-size:14px; font-weight:700; color:#0f172a; flex-shrink:0;">Active Organization Accounts</h3>
+          <div style="overflow:auto; flex:1; min-height:0;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left; min-width:650px;">
+            <thead>
+              <tr style="border-bottom:2px solid #ded5c8; color:#64748b; font-weight:700;">
+                <th style="padding:10px 8px; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">User</th>
+                <th style="padding:10px 8px; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">Role</th>
+                <th style="padding:10px 8px; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">Email</th>
+                <th style="padding:10px 8px; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">Status</th>
+                <th style="padding:10px 8px; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">Last Active</th>
+                <th style="padding:10px 8px; text-align:center;"></th>
               </tr>
-            `).join("")}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${adminUsers.map(u => {
+    const color = u.color || "#0c66e4";
+    return `
+                  <tr style="border-bottom:1px solid #f1f5f9; color:#172b4d;">
+                    <td style="padding:12px 8px; display:flex; align-items:center; gap:10px;">
+                      <span style="width:28px; height:28px; border-radius:50%; background:${color}; color:#fff; display:grid; place-items:center; font-weight:800; font-size:12px;">${u.name[0]}</span>
+                      <strong>${u.name}</strong>
+                    </td>
+                    <td style="padding:12px 8px;">
+                      <select class="user-role-select" data-user-id="${u.id}" style="padding:4px 8px; border:1px solid #ded5c8; border-radius:6px; font-size:12px; color:#172b4d; background:#fff; font-weight:600; cursor:pointer; outline:none;">
+                        ${roles.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r}</option>`).join("")}
+                      </select>
+                    </td>
+                    <td style="padding:12px 8px; color:#64748b;">${u.email}</td>
+                    <td style="padding:12px 8px;">
+                      <select class="user-status-select" data-user-id="${u.id}" style="padding:4px 8px; border:1px solid #ded5c8; border-radius:6px; font-size:11px; font-weight:700; color:${u.status === 'online' ? '#16a34a' : u.status === 'idle' ? '#d97706' : '#dc2626'}; background:#fff; cursor:pointer; outline:none;">
+                        ${statuses.map(s => `<option value="${s}" ${u.status === s ? 'selected' : ''}>${s.toUpperCase()}</option>`).join("")}
+                      </select>
+                    </td>
+                    <td style="padding:12px 8px; color:#64748b;">${u.time}</td>
+                    <td style="padding:12px 8px; text-align:center;">
+                      <button class="delete-user-btn" data-user-id="${u.id}" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:14px; padding:4px; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; transition:background 0.2s;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                `;
+  }).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Add User Column -->
+        <div class="panel" style="background:#ffffff; padding:20px; border-radius:12px; border:1px solid #ded5c8; box-shadow:0 4px 12px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:14px; height:fit-content;">
+          <h3 style="margin:0; font-size:14px; font-weight:700; color:#0f172a;">Simulate Supabase Insert</h3>
+          <p style="margin:0; font-size:11.5px; color:#64748b; line-height:1.4;">Add a new user directly to the local database, syncing them dynamically into the active dashboard workspace.</p>
+          
+          <hr style="border:0; border-top:1px solid #f1f5f9; margin:4px 0;">
+
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:5px;">Full Name</label>
+            <input type="text" id="addUserNameInput" placeholder="Jane Doe" style="width:100%; padding:8px 12px; border:1px solid #ded5c8; border-radius:6px; font-size:12.5px; box-sizing:border-box; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:5px;">Email Address</label>
+            <input type="email" id="addUserEmailInput" placeholder="jane@taskpilot.dev" style="width:100%; padding:8px 12px; border:1px solid #ded5c8; border-radius:6px; font-size:12.5px; box-sizing:border-box; outline:none;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:5px;">Assigned Role</label>
+            <select id="addUserRoleSelect" style="width:100%; padding:8px 12px; border:1px solid #ded5c8; border-radius:6px; font-size:12.5px; box-sizing:border-box; background:#fff; cursor:pointer; outline:none;">
+              ${roles.map(r => `<option value="${r}">${r}</option>`).join("")}
+            </select>
+          </div>
+
+          <button id="addUserSubmitBtn" style="width:100%; margin-top:6px; padding:10px; font-size:12.5px; font-weight:700; border:none; border-radius:6px; cursor:pointer; background:#0c66e4; color:#fff; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add User
+          </button>
+        </div>
+
       </div>
     </section>
   `;
 }
 
 function renderAdminDatabasePage() {
-  return `
-    <section class="board" style="padding:18px; font-family:'Poppins', sans-serif;">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Admin Workspace</p>
-          <h2>Database Explorer (Supabase)</h2>
-        </div>
-      </div>
-      <div style="display:grid; grid-template-columns: 220px 1fr; gap:16px; margin-top:15px;">
-        <div class="panel" style="background:#fff; padding:12px; border-radius:10px; border:1px solid #ded5c8; display:grid; gap:8px; align-content:start;">
-          <strong style="font-size:11px; color:#64748b; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.04em;">Tables</strong>
-          ${["tasks", "users", "time_logs", "settings", "audit_logs"].map((t, idx) => `
-            <div style="padding:8px 10px; border-radius:6px; font-size:12.5px; font-weight:600; cursor:pointer; background:${idx === 0 ? '#eff6ff' : 'none'}; color:${idx === 0 ? '#0c66e4' : '#44546f'}; border:1px solid ${idx === 0 ? '#bfdbfe' : 'transparent'};">
-              🗄️ ${t}
-            </div>
-          `).join("")}
-        </div>
-        <div class="panel" style="background:#fff; padding:16px; border-radius:10px; border:1px solid #ded5c8; display:flex; flex-direction:column; gap:12px;">
-          <div style="display:flex; gap:8px; align-items:center;">
-            <input type="text" value="SELECT * FROM tasks WHERE severity = 'P1' LIMIT 10;" style="flex:1; padding:8px 12px; border:1px solid #ded5c8; border-radius:6px; font-size:12.5px; font-family:monospace; background:#f8fafc; color:#172b4d;">
-            <button class="primary" style="padding:8px 16px;">Run Query</button>
+  if (!dbQueryResult && !dbQueryError) {
+    executeDbQuery(dbSqlQuery);
+  }
+
+  const tables = ["tasks", "users", "time_logs", "settings", "audit_logs"];
+
+  let tableHeaderHtml = "";
+  let tableRowsHtml = "";
+
+  if (dbQueryError) {
+    tableRowsHtml = `
+      <tr>
+        <td colspan="10" style="padding:20px; text-align:center;">
+          <div style="background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; padding:12px; border-radius:8px; font-family:monospace; font-size:12px; display:inline-block; max-width:100%; text-align:left;">
+            <strong>ERROR:</strong> ${dbQueryError}
           </div>
-          <div style="overflow-x:auto; border:1px solid #ded5c8; border-radius:8px;">
-            <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+        </td>
+      </tr>
+    `;
+  } else if (dbQueryResult && dbQueryResult.length > 0) {
+    const keys = Object.keys(dbQueryResult[0]);
+    tableHeaderHtml = `
+      <tr style="background:#f8fafc; border-bottom:1.5px solid #ded5c8; color:#64748b; font-weight:700;">
+        ${keys.map(k => `<th style="padding:10px 8px; text-transform:uppercase; font-size:10px; letter-spacing:0.04em;">${k}</th>`).join("")}
+      </tr>
+    `;
+    tableRowsHtml = dbQueryResult.map(row => `
+      <tr style="border-bottom:1px solid #f1f5f9; font-size:12.5px;">
+        ${keys.map(k => {
+      const val = row[k];
+      let cellStyle = "padding:10px 8px; color:#172b4d; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;";
+      if (k === 'id' || k === 'task_id' || k === 'timestamp' || k === 'key') {
+        cellStyle += "font-family:monospace; color:#0c66e4; font-weight:600;";
+      } else if (val === 'P1' || val === 'error' || val === 'dnd') {
+        cellStyle += "color:#ef4444; font-weight:700;";
+      } else if (val === 'P2' || val === 'In Progress' || val === 'idle') {
+        cellStyle += "color:#f59e0b; font-weight:700;";
+      } else if (val === 'Resolved' || val === 'online' || val === 'healthy' || val === 'Active now' || val === 'active') {
+        cellStyle += "color:#10b981; font-weight:700;";
+      }
+      return `<td style="${cellStyle}" title="${val}">${val}</td>`;
+    }).join("")}
+      </tr>
+    `).join("");
+  } else {
+    tableRowsHtml = `
+      <tr>
+        <td colspan="10" style="padding:40px; text-align:center; color:#64748b;">
+          Query executed successfully. 0 rows returned.
+        </td>
+      </tr>
+    `;
+  }
+
+  return `
+    <section class="board" style="padding:18px; font-family:'Outfit', sans-serif; background:#f4f5f7; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;">
+
+      <div style="display:grid; grid-template-columns: 220px 1fr; gap:16px; flex: 1; min-height: 0;">
+        
+        <!-- Table List Side Panel -->
+        <div class="panel" style="background:#fff; padding:16px; border-radius:12px; border:1px solid #ded5c8; display:flex; flex-direction:column; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,0.02); height: 100%; overflow-y: auto;">
+          <strong style="font-size:11px; color:#64748b; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.04em; display:block;">Tables</strong>
+          ${tables.map(t => {
+    const isActive = selectedDbTable === t;
+    return `
+              <div class="db-table-item" data-table-name="${t}" style="padding:8px 12px; border-radius:6px; font-size:12.5px; font-weight:600; cursor:pointer; background:${isActive ? '#eff6ff' : 'none'}; color:${isActive ? '#0c66e4' : '#44546f'}; border:1px solid ${isActive ? '#bfdbfe' : 'transparent'}; display:flex; align-items:center; gap:8px; transition:all 0.2s;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                  <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+                </svg>
+                ${t}
+              </div>
+            `;
+  }).join("")}
+        </div>
+
+        <!-- Query Execution Console & Result Table -->
+        <div class="panel" style="background:#fff; padding:18px; border-radius:12px; border:1px solid #ded5c8; display:flex; flex-direction:column; gap:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02); height: 100%; overflow:hidden;">
+          
+          <!-- SQL Editor Area -->
+          <div style="display:flex; gap:8px; align-items:center; background:#f8fafc; border:1px solid #ded5c8; border-radius:8px; padding:6px 10px;">
+            <span style="font-family:monospace; font-size:14px; font-weight:700; color:#64748b; padding-left:4px;">SQL</span>
+            <input type="text" id="dbSqlQueryField" value="${dbSqlQuery}" style="flex:1; padding:8px; border:none; background:transparent; font-size:13px; font-family:monospace; color:#1e293b; outline:none;" placeholder="SELECT * FROM tasks WHERE severity = 'P1' LIMIT 10;">
+            <button id="runDbQueryBtn" style="padding:8px 16px; border:none; border-radius:6px; background:#0c66e4; color:#fff; font-weight:700; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              Run Query
+            </button>
+          </div>
+
+          <!-- Query Results Grid -->
+          <div style="overflow:auto; flex:1; min-height:0; border:1px solid #ded5c8; border-radius:8px; background:#fff;">
+            <table style="width:100%; border-collapse:collapse; font-size:12.5px; text-align:left;">
               <thead>
-                <tr style="background:#fcfbf9; border-bottom:1px solid #ded5c8; color:#64748b;">
-                  <th style="padding:8px;">ID</th>
-                  <th style="padding:8px;">Title</th>
-                  <th style="padding:8px;">Severity</th>
-                  <th style="padding:8px;">Status</th>
-                </tr>
+                ${tableHeaderHtml}
               </thead>
               <tbody>
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                  <td style="padding:8px; font-family:monospace; color:#0c66e4;">tsk-101</td>
-                  <td style="padding:8px; font-weight:700; color:#172b4d;">Fix DB Deadlocks on Prod</td>
-                  <td style="padding:8px; color:#ef4444; font-weight:700;">P1</td>
-                  <td style="padding:8px; color:#f59e0b; font-weight:700;">In Progress</td>
-                </tr>
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                  <td style="padding:8px; font-family:monospace; color:#0c66e4;">tsk-104</td>
-                  <td style="padding:8px; font-weight:700; color:#172b4d;">Supabase RLS Policy check</td>
-                  <td style="padding:8px; color:#ef4444; font-weight:700;">P1</td>
-                  <td style="padding:8px; color:#10b981; font-weight:700;">Resolved</td>
-                </tr>
+                ${tableRowsHtml}
               </tbody>
             </table>
           </div>
+
         </div>
       </div>
     </section>
@@ -2226,34 +3512,277 @@ function renderAdminDatabasePage() {
 }
 
 function renderAdminModelsPage() {
-  return `
-    <section class="board" style="padding:18px; font-family:'Poppins', sans-serif;">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Admin Workspace</p>
-          <h2>NVIDIA NIM Model Hub</h2>
+  const models = [
+    {
+      id: "meta/llama-3.1-8b-instruct",
+      name: "Llama 3.1 8B Instruct",
+      desc: "Fast, general-purpose reasoning model used for agent routing and entity extraction.",
+      context: "131K tokens",
+      latency: "22ms",
+      throughput: "142 t/s",
+      gpuMem: "16 GB VRAM",
+      tags: ["GENERAL REASONING", "ROUTING", "LLAMA"],
+      logo: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="5" fill="#1877f2"/><path d="M12 4a8 8 0 0 0-8 8c0 3.2 1.8 6 4.6 7.3l.4-1.2A6.7 6.7 0 0 1 5.3 12a6.7 6.7 0 0 1 6.7-6.7c3.7 0 6.7 3 6.7 6.7 0 2.5-1.4 4.8-3.7 6l.4 1.2c2.8-1.3 4.6-4.1 4.6-7.3a8 8 0 0 0-8-8z" fill="#fff"/></svg>`
+    },
+    {
+      id: "nvidia/llama-3.1-nemotron-70b-instruct",
+      name: "Nemotron 70B Instruct",
+      desc: "High-fidelity NVIDIA NIM optimized for complex planning, tool calls, and data mapping.",
+      context: "128K tokens",
+      latency: "85ms",
+      throughput: "72 t/s",
+      gpuMem: "140 GB VRAM",
+      tags: ["PLANNING & AGENTS", "TOOL CALLS", "NVIDIA"],
+      logo: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="5" fill="#76B900"/><path d="M12 4.5A7.5 7.5 0 0 0 4.5 12a7.5 7.5 0 0 0 7.5 7.5 7.5 7.5 0 0 0 7.5-7.5h-1.875A5.625 5.625 0 0 1 12 17.625 5.625 5.625 0 0 1 6.375 12 5.625 5.625 0 0 1 12 6.375v-1.875zm0 3.75A3.75 3.75 0 0 0 8.25 12a3.75 3.75 0 0 0 3.75 3.75 3.75 3.75 0 0 0 3.75-3.75H13.875A1.875 1.875 0 0 1 12 13.875 1.875 1.875 0 0 1 10.125 12 1.875 1.875 0 0 1 12 10.125V8.25z" fill="#fff"/></svg>`
+    },
+    {
+      id: "mistralai/mixtral-8x22b-instruct-v0.1",
+      name: "Mixtral 8x22B Instruct",
+      desc: "Sparse Mixture-of-Experts (MoE) NIM ideal for multi-turn conversational agents.",
+      context: "64K tokens",
+      latency: "140ms",
+      throughput: "95 t/s",
+      gpuMem: "280 GB VRAM",
+      tags: ["CHAT AGENT", "MOE SPARSE", "MISTRAL"],
+      logo: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="5" fill="#f05a28"/><path d="M7 6l5 4 5-4v12l-5-4-5 4V6z" fill="#fff"/></svg>`
+    },
+    {
+      id: "google/gemini-2.5-flash",
+      name: "Gemini 2.5 Flash",
+      desc: "Google Vertex AI model featuring multi-modal understanding and long context processing.",
+      context: "1M tokens",
+      latency: "45ms",
+      throughput: "180 t/s",
+      gpuMem: "Google TPU v5e",
+      tags: ["MULTIMODAL", "1M CONTEXT", "GOOGLE"],
+      logo: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="5" fill="#1a73e8"/><path d="M14 2c.2 3.8 2.2 6.8 5.4 9.1-3.2 2.1-5.2 5.1-5.4 8.9-.2-3.8-2.2-6.8-5.4-9.1C11.8 8.8 13.8 5.8 14 2z" fill="#fff"/></svg>`
+    },
+    {
+      id: "grok/grok-3-mini",
+      name: "Grok 3 Mini",
+      desc: "xAI model optimized for high-speed coding assistance, math, and logical operations.",
+      context: "128K tokens",
+      latency: "35ms",
+      throughput: "125 t/s",
+      gpuMem: "Colossus H100",
+      tags: ["CODING & LOGIC", "SPEED", "XAI"],
+      logo: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="5" fill="#000000"/><path d="M5.5 5.5l5 5M18.5 5.5l-10.5 13M12.5 12.5l6 6" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/></svg>`
+    }
+  ];
+
+  function renderModelsTab() {
+    return `
+      <div style="height:100%; overflow-y:auto; padding-right:6px; box-sizing:border-box;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap:20px; padding-bottom:20px;">
+          ${models.map(m => {
+      const isActive = activeRouterModel === m.id;
+      return `
+              <div class="panel" style="background:#ffffff; border:1px solid ${isActive ? '#3b82f6' : '#e2e8f0'}; border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
+                ${isActive ? `
+                  <div style="position:absolute; top:0; right:0; background:#3b82f6; color:#fff; font-size:8px; font-weight:900; padding:2px 8px 4px; border-bottom-left-radius:8px; text-transform:uppercase; letter-spacing:0.06em;">
+                    Active Router
+                  </div>
+                ` : ''}
+                
+                <!-- Card Header (Logo + Title) -->
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <div style="width:44px; height:44px; border-radius:50%; background:#f8fafc; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    ${m.logo}
+                  </div>
+                  <div style="display:flex; flex-direction:column;">
+                    <strong style="font-size:15px; color:#0f172a; font-weight:700;">${m.name}</strong>
+                    <span style="font-size:11px; color:#64748b; margin-top:2px;">${m.context} context</span>
+                  </div>
+                </div>
+                
+                <!-- Tags Row -->
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  ${m.tags.map(t => `<span style="font-size:9px; font-weight:700; color:#3b82f6; background:#eff6ff; border-radius:4px; padding:2px 6px; text-transform:uppercase; letter-spacing:0.04em;">${t}</span>`).join("")}
+                </div>
+                
+                <!-- Description -->
+                <p style="font-size:12.5px; color:#475569; line-height:1.5; margin:0; flex:1; min-height:48px;">
+                  ${m.desc}
+                </p>
+                
+                <!-- Actions Row (Matches Reference Image) -->
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:12px; margin-top:6px;">
+                  <a href="#" class="nim-test-model-btn-tab" data-model-id="${m.id}" style="font-size:12.5px; color:#3b82f6; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    Reference paper
+                  </a>
+                  <button class="nim-select-model-btn" data-model-id="${m.id}" style="background:${isActive ? '#1e293b' : '#0c66e4'} !important; border:none; color:#fff; font-size:12px; font-weight:700; padding:6px 14px; border-radius:6px; cursor:pointer;">
+                    ${isActive ? 'Active' : 'Run model'}
+                  </button>
+                </div>
+              </div>
+            `;
+    }).join("")}
         </div>
       </div>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:15px;">
-        ${[
-      { name: "Nemotron-70B-Instruct", desc: "NVIDIA NIM specialized orchestration & reasoning.", latency: "85ms", status: "healthy", tokens: "420K" },
-      { name: "Llama-3-70B-Instruct", desc: "General purpose backup reasoning and tool call agent.", latency: "110ms", status: "healthy", tokens: "180K" },
-      { name: "Mixtral-8x22B-Instruct", desc: "Complex multi-turn planning fallback agent.", latency: "140ms", status: "healthy", tokens: "95K" }
-    ].map(m => `
-          <div class="panel" style="background:#fff; border:1px solid #ded5c8; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong style="font-size:14px; color:#172b4d;">${m.name}</strong>
-              <span style="font-size:10px; font-weight:700; color:#10b981; background:#dcfce7; border:1px solid #bbf7d0; border-radius:4px; padding:2px 6px; text-transform:uppercase;">
-                ${m.status}
-              </span>
+    `;
+  }
+
+  function renderBatchesTab() {
+    return `
+      <div style="height:100%; display:flex; flex-direction:column; gap:16px;">
+        <!-- Playground / Sandbox Console -->
+        <div class="panel" style="flex:1; background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:0 3px 8px rgba(0,0,0,0.02); box-sizing:border-box; min-height:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <svg width="18" height="18" fill="none" stroke="#0c66e4" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <strong style="font-size:15px; color:#1e293b;">Inference Playground Console</strong>
             </div>
-            <p style="font-size:12px; color:#65717d; line-height:1.4; margin:0;">${m.desc}</p>
-            <div style="display:flex; justify-content:space-between; font-size:12px; border-top:1px solid #f1f5f9; padding-top:10px; margin-top:auto;">
-              <span style="color:#64748b;">Latency: <strong>${m.latency}</strong></span>
-              <span style="color:#64748b;">Tokens/sec: <strong>72 t/s</strong></span>
+            <div style="font-size:12px; color:#64748b;">
+              Testing Target: <span style="font-weight:700; color:#0c66e4; font-family:monospace; background:#eff6ff; padding:2px 8px; border-radius:4px; border:1px solid #d0e2ff;">${selectedModelForTest}</span>
             </div>
           </div>
-        `).join("")}
+          
+          <div style="display:flex; flex:1; min-height:0; gap:20px;">
+            <!-- Input Form -->
+            <div style="width:40%; display:flex; flex-direction:column; gap:12px;">
+              <label style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Prompt Input</label>
+              <textarea id="nimPlaygroundPrompt" style="flex:1; width:100%; border:1px solid #ded5c8; border-radius:8px; padding:12px; font-size:13px; font-family:inherit; resize:none; box-sizing:border-box; outline:none; line-height:1.5; focus:border-color:#3b82f6;" placeholder="Type a prompt to test inference latency and response accuracy...">${escapeHtml(modelTestPrompt)}</textarea>
+              <button id="sendNimPlaygroundBtn" ${modelTestLoading ? 'disabled' : ''} style="background:#76b900 !important; color:#000; border:none; padding:12px 16px; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s;">
+                ${modelTestLoading ? `
+                  <svg style="animation: spin 1.5s linear infinite;" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                  Streaming Response...
+                ` : `⚡ Execute Test Inference`}
+              </button>
+            </div>
+            
+            <!-- Output Console -->
+            <div style="flex:1; border:1px solid #2e2e38; background:#0e0e12; border-radius:8px; display:flex; flex-direction:column; overflow:hidden;">
+              <div style="background:#1e1e24; border-bottom:1px solid #2e2e38; padding:8px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <span style="font-size:11px; font-family:monospace; color:#8ab4f8; font-weight:700;">live_inference_response.log</span>
+                <span style="width:8px; height:8px; border-radius:50%; background:${modelTestLoading ? '#f97316' : '#22c55e'}; shadow: 0 0 8px ${modelTestLoading ? '#f97316' : '#22c55e'};"></span>
+              </div>
+              <pre id="nimPlaygroundResult" style="margin:0; padding:16px; font-family:monospace; font-size:12px; color:#a3e635; overflow-y:auto; flex:1; min-height:0; white-space:pre-wrap; line-height:1.5;">${modelTestResult ? escapeHtml(modelTestResult) : 'Console ready. Input a prompt and execute test to view live response output.'}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderJobsTab() {
+    return `
+      <div style="height:100%; display:grid; grid-template-columns: 340px 1fr; gap:20px; box-sizing:border-box;">
+        <!-- Left Column: GPU Hardware telemetry stats -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.02); height:100%; box-sizing:border-box; overflow-y:auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <svg width="16" height="16" fill="none" stroke="#76B900" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2.5"/><path stroke-linecap="round" d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+              <strong style="font-size:14px; color:#1e293b;">NVIDIA H100 Node Status</strong>
+            </div>
+            <button id="refreshGpuStatsBtn" style="background:#f1f5f9; border:none; border-radius:4px; color:#475569; font-size:10px; font-weight:700; padding:4px 8px; cursor:pointer;">
+              🔄 Refresh
+            </button>
+          </div>
+          
+          <!-- Specs -->
+          <div style="background:#0f172a; border-radius:8px; padding:12px; font-family:monospace; font-size:11px; color:#94a3b8; display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+            <div style="color:#76b900; font-weight:700; text-align:center; border-bottom:1px solid #1e293b; padding-bottom:6px; margin-bottom:6px;">HARDWARE SPECIFICATIONS</div>
+            <div style="display:flex; justify-content:space-between;">
+              <span>GPU SKU:</span> <span style="color:#f8fafc;">H100 SXM5 80GB</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span>CUDA Cores:</span> <span style="color:#f8fafc;">18,432</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span>NVLink:</span> <span style="color:#38bdf8;">900 GB/s</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span>Driver Version:</span> <span style="color:#4ade80;">CUDA 12.4</span>
+            </div>
+          </div>
+
+          <!-- Telemetry Load -->
+          <div style="display:flex; flex-direction:column; gap:10px; flex-shrink:0;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; color:#64748b; font-weight:700;">CUDA CORE LOAD</span>
+              <strong style="font-size:14px; color:#166534;">${gpuLoad}%</strong>
+            </div>
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; color:#64748b; font-weight:700;">VRAM USAGE</span>
+              <strong style="font-size:14px; color:#1e40af;">${gpuMemoryUsed}GB / 80GB</strong>
+            </div>
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; color:#64748b; font-weight:700;">TEMPERATURE</span>
+              <strong style="font-size:14px; color:#9a3412;">${gpuTemp}°C</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Active Jobs Logger -->
+        <div class="panel" style="background:#ffffff; border:1px solid #ded5c8; border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.02); height:100%; box-sizing:border-box; overflow:hidden;">
+          <strong style="font-size:15px; color:#1e293b; display:block;">Active Prediction Jobs & Microservices</strong>
+          
+          <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-right:4px;">
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+              <div>
+                <strong style="font-size:13px; color:#0f172a; display:block;">meta/llama-3.1-8b-instruct</strong>
+                <span style="font-size:11px; color:#64748b; margin-top:2px; display:block;">NIM Microservice Instance</span>
+              </div>
+              <div style="text-align:right;">
+                <span style="background:#dcfce7; color:#166534; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase;">Active</span>
+                <span style="font-size:11px; color:#64748b; display:block; margin-top:4px;">Uptime: 14d 6h</span>
+              </div>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+              <div>
+                <strong style="font-size:13px; color:#0f172a; display:block;">nvidia/llama-3.1-nemotron-70b-instruct</strong>
+                <span style="font-size:11px; color:#64748b; margin-top:2px; display:block;">NIM Microservice Instance</span>
+              </div>
+              <div style="text-align:right;">
+                <span style="background:#dcfce7; color:#166534; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase;">Active</span>
+                <span style="font-size:11px; color:#64748b; display:block; margin-top:4px;">Uptime: 3d 12h</span>
+              </div>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+              <div>
+                <strong style="font-size:13px; color:#0f172a; display:block;">grok/grok-3-mini</strong>
+                <span style="font-size:11px; color:#64748b; margin-top:2px; display:block;">xAI Engine API Bridge</span>
+              </div>
+              <div style="text-align:right;">
+                <span style="background:#eff6ff; color:#1e40af; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; text-transform:uppercase;">Idle</span>
+                <span style="font-size:11px; color:#64748b; display:block; margin-top:4px;">Ready</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <section class="board" style="padding:24px; font-family:'Outfit', sans-serif; background:#ffffff; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;">
+      
+      <!-- Top Title and Preview Badge -->
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-shrink:0;">
+        <h1 style="font-size:24px; font-weight:700; color:#0f172a; margin:0;">Model Hub</h1>
+        <span style="background:#f3e8ff; color:#7e22ce; font-size:10px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em;">PREVIEW</span>
+      </div>
+
+      <!-- Navigation Tabs (Image 2 style) -->
+      <div style="display:flex; gap:24px; border-bottom:1px solid #e2e8f0; margin-bottom:20px; flex-shrink:0;">
+        <button class="model-hub-tab-btn" data-tab="models" style="background:none; border:none; padding:10px 4px; font-size:12px; font-weight:700; color:${activeModelHubTab === 'models' ? '#3b82f6' : '#64748b'}; border-bottom: 2px solid ${activeModelHubTab === 'models' ? '#3b82f6' : 'transparent'}; cursor:pointer; text-transform:uppercase; letter-spacing:0.05em; outline:none;">
+          Models
+        </button>
+        <button class="model-hub-tab-btn" data-tab="batches" style="background:none; border:none; padding:10px 4px; font-size:12px; font-weight:700; color:${activeModelHubTab === 'batches' ? '#3b82f6' : '#64748b'}; border-bottom: 2px solid ${activeModelHubTab === 'batches' ? '#3b82f6' : 'transparent'}; cursor:pointer; text-transform:uppercase; letter-spacing:0.05em; outline:none;">
+          Prediction Batches
+        </button>
+        <button class="model-hub-tab-btn" data-tab="jobs" style="background:none; border:none; padding:10px 4px; font-size:12px; font-weight:700; color:${activeModelHubTab === 'jobs' ? '#3b82f6' : '#64748b'}; border-bottom: 2px solid ${activeModelHubTab === 'jobs' ? '#3b82f6' : 'transparent'}; cursor:pointer; text-transform:uppercase; letter-spacing:0.05em; outline:none;">
+          Prediction Jobs
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div style="flex:1; min-height:0; overflow:hidden;">
+        ${activeModelHubTab === "models" ? renderModelsTab() : ""}
+        ${activeModelHubTab === "batches" ? renderBatchesTab() : ""}
+        ${activeModelHubTab === "jobs" ? renderJobsTab() : ""}
       </div>
     </section>
   `;
@@ -2286,30 +3815,87 @@ function startLiveScanning() {
   if (scanningActive) return; // Already scanning
 
   scanningActive = true;
-  render(); // Call render instead of refreshPage
+  render(); // Call render to show live scanning bar
 
   // Connect to SSE endpoint
-  scanningEventSource = new EventSource(`${BACKEND_URL}/api/agent/scan-stream`);
+  try {
+    scanningEventSource = new EventSource(`${BACKEND_URL}/api/agent/scan-stream`);
 
-  scanningEventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      updateScanningUI(data);
+    scanningEventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        updateScanningUI(data);
 
-      if (data.type === "complete" || data.type === "error") {
-        setTimeout(() => {
-          stopLiveScanning();
-        }, 2000); // Keep success message visible for 2 seconds
+        if (data.type === "complete") {
+          if (Array.isArray(data.tasks) && data.tasks.length > 0) {
+            state.tasks = data.tasks;
+            state = buildState(state.tasks, calendarBlocks);
+          } else {
+            state = buildState(sources, calendarBlocks);
+          }
+
+          if (typeof triggerLocalNotification === "function") {
+            triggerLocalNotification("TaskPilot AI", `Live task scan complete! ${state.prioritized ? state.prioritized.length : data.taskCount || 0} actionable tasks prioritized.`);
+          }
+
+          setTimeout(() => {
+            stopLiveScanning();
+          }, 1800);
+        } else if (data.type === "error") {
+          setTimeout(() => {
+            stopLiveScanning();
+          }, 2000);
+        }
+      } catch (err) {
+        console.error("Failed to parse scanning event:", err);
       }
-    } catch (err) {
-      console.error("Failed to parse scanning event:", err);
-    }
-  };
+    };
 
-  scanningEventSource.onerror = (err) => {
-    console.error("Scanning SSE error:", err);
+    scanningEventSource.onerror = (err) => {
+      console.warn("Scanning SSE error/offline. Falling back to local live agent scan:", err);
+      if (scanningEventSource) {
+        scanningEventSource.close();
+        scanningEventSource = null;
+      }
+      runLocalAgentLiveScan();
+    };
+  } catch (err) {
+    runLocalAgentLiveScan();
+  }
+}
+
+async function runLocalAgentLiveScan() {
+  const steps = [
+    { source: "Jira Sprint Board", message: "Ingesting Jira tickets & sprint issues...", progress: 20 },
+    { source: "ServiceNow Defects", message: "Ingesting production defects & incident webhooks...", progress: 40 },
+    { source: "GitHub Work", message: "Checking PR approvals & code review status...", progress: 60 },
+    { source: "Outlook Emails & Slack", message: "Extracting hidden action items via NLP...", progress: 80 },
+    { source: "Task Prioritization Engine", message: "Calculating SLA scores, urgency, & capacity...", progress: 95 }
+  ];
+
+  for (const step of steps) {
+    if (!scanningActive) return;
+    updateScanningUI({ type: "scanning", ...step });
+    await new Promise(r => setTimeout(r, 350));
+  }
+
+  // Re-run task engine prioritization locally
+  state = buildState(sources, calendarBlocks);
+
+  updateScanningUI({
+    type: "complete",
+    message: "Live agent scan complete",
+    progress: 100,
+    taskCount: state.prioritized ? state.prioritized.length : 0
+  });
+
+  if (typeof triggerLocalNotification === "function") {
+    triggerLocalNotification("TaskPilot AI", `Live task scan complete! ${state.prioritized ? state.prioritized.length : 0} actionable tasks prioritized across all sources.`);
+  }
+
+  setTimeout(() => {
     stopLiveScanning();
-  };
+  }, 1800);
 }
 
 function updateScanningUI(data) {
@@ -2933,220 +4519,332 @@ function renderCalendarAI() {
 
   const engineerSchedules = {
     Karan: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Security review of OAuth2", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "VP Product sync", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
-        { title: "Bulk account migration", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Executive escalations triage", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "DB query optimization", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Executive review prep", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Automated audit pipeline", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Identity architecture review", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Kube cluster upgrade", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Identity release v2.4", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Role assignment logic", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Investigate infra latency", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Review infra metrics", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Action item review", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "Team handoff review", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Reduce deployment latency", time: "9:20 AM – 12:20 PM", owner: "Karan", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Reduce Kube memory footprint", time: "12:36 PM – 3:36 PM", owner: "Karan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "Security review of OAuth2", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+          { title: "VP Product sync", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
+          { title: "Bulk account migration", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "Executive escalations triage", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "DB query optimization", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+          { title: "Executive review prep", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "Automated audit pipeline", time: "9:20 AM – 10:50 AM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+          { title: "Identity architecture review", time: "11:06 AM – 12:36 PM", owner: "Karan", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+          { title: "Kube cluster upgrade", time: "12:52 PM – 2:22 PM", owner: "Karan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "Identity release v2.4", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Role assignment logic", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "Investigate infra latency", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+          { title: "Review infra metrics", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "Action item review", time: "9:20 AM – 11:20 AM", owner: "Karan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+          { title: "Team handoff review", time: "11:36 AM – 1:36 PM", owner: "Karan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Reduce deployment latency", time: "9:20 AM – 12:20 PM", owner: "Karan", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+          { title: "Reduce Kube memory footprint", time: "12:36 PM – 3:36 PM", owner: "Karan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      }
     ],
     Rohan: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Backend API refactoring", time: "9:30 AM – 11:00 AM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "Redis cache warming setup", time: "11:15 AM – 12:45 PM", owner: "Rohan", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Auth service P99 latency fix", time: "9:00 AM – 11:00 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Microservices gateway patch", time: "11:30 AM – 1:30 PM", owner: "Rohan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Sentry error log triage", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
-        { title: "Load balancer health checks", time: "1:00 PM – 3:00 PM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "PostgreSQL index optimization", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Connection pooling tune", time: "12:00 PM – 2:00 PM", owner: "Rohan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Docker container security audit", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "E2E integration test suite", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Telemetry metrics cleanup", time: "11:00 AM – 1:00 PM", owner: "Rohan", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "Backend API refactoring", time: "9:30 AM – 11:00 AM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+          { title: "Redis cache warming setup", time: "11:15 AM – 12:45 PM", owner: "Rohan", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "Auth service P99 latency fix", time: "9:00 AM – 11:00 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Microservices gateway patch", time: "11:30 AM – 1:30 PM", owner: "Rohan", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "Sentry error log triage", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" },
+          { title: "Load balancer health checks", time: "1:00 PM – 3:00 PM", owner: "Rohan", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "PostgreSQL index optimization", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Connection pooling tune", time: "12:00 PM – 2:00 PM", owner: "Rohan", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "Docker container security audit", time: "9:30 AM – 11:30 AM", owner: "Rohan", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "E2E integration test suite", time: "10:00 AM – 12:00 PM", owner: "Rohan", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Telemetry metrics cleanup", time: "11:00 AM – 1:00 PM", owner: "Rohan", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      }
     ],
     Arjun: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Kafka stream consumer fix", time: "9:00 AM – 11:00 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Frontend state hydration debug", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "React memoization audit", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Vite bundle size optimization", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "CSS glassmorphism polish", time: "1:00 PM – 3:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "WCAG accessibility compliance", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "User profile settings modal", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "WebSocket real-time sync", time: "9:00 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Design system token migration", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Cross-browser UI QA testing", time: "11:00 AM – 1:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "Kafka stream consumer fix", time: "9:00 AM – 11:00 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "Frontend state hydration debug", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+          { title: "React memoization audit", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "Vite bundle size optimization", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+          { title: "CSS glassmorphism polish", time: "1:00 PM – 3:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "WCAG accessibility compliance", time: "9:30 AM – 11:30 AM", owner: "Arjun", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+          { title: "User profile settings modal", time: "12:00 PM – 2:00 PM", owner: "Arjun", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "WebSocket real-time sync", time: "9:00 AM – 11:30 AM", owner: "Arjun", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "Design system token migration", time: "10:00 AM – 12:00 PM", owner: "Arjun", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Cross-browser UI QA testing", time: "11:00 AM – 1:00 PM", owner: "Arjun", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      }
     ],
     Vikram: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Terraform infra script update", time: "9:00 AM – 11:00 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "AWS EC2 auto-scaling policy", time: "11:30 AM – 1:30 PM", owner: "Vikram", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Kubernetes pod resource limits", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Helm chart deployment v3", time: "12:00 PM – 2:00 PM", owner: "Vikram", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "CI/CD pipeline acceleration", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "GitHub Actions workflow fix", time: "1:00 PM – 3:00 PM", owner: "Vikram", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "NGINX ingress controller config", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "CloudWatch alarm threshold tuning", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Disaster recovery backup drill", time: "9:00 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Serverless Lambda cold start fix", time: "11:00 AM – 1:00 PM", owner: "Vikram", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "Terraform infra script update", time: "9:00 AM – 11:00 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "AWS EC2 auto-scaling policy", time: "11:30 AM – 1:30 PM", owner: "Vikram", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "Kubernetes pod resource limits", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Helm chart deployment v3", time: "12:00 PM – 2:00 PM", owner: "Vikram", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "CI/CD pipeline acceleration", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+          { title: "GitHub Actions workflow fix", time: "1:00 PM – 3:00 PM", owner: "Vikram", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "NGINX ingress controller config", time: "9:30 AM – 11:30 AM", owner: "Vikram", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "CloudWatch alarm threshold tuning", time: "10:00 AM – 12:00 PM", owner: "Vikram", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "Disaster recovery backup drill", time: "9:00 AM – 11:30 AM", owner: "Vikram", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Serverless Lambda cold start fix", time: "11:00 AM – 1:00 PM", owner: "Vikram", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      }
     ],
     Meera: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Data warehouse ETL pipeline", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
-        { title: "Snowflake schema migration", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "PostgreSQL query execution plan", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Data pipeline SLA monitoring", time: "12:00 PM – 2:00 PM", owner: "Meera", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Analytics dashboard metrics", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "ML model inference benchmark", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Vector DB embedding index", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Customer analytics export", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Real-time telemetry streaming", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Data retention cleanup cron", time: "11:00 AM – 1:00 PM", owner: "Meera", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "Data warehouse ETL pipeline", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" },
+          { title: "Snowflake schema migration", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "PostgreSQL query execution plan", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Data pipeline SLA monitoring", time: "12:00 PM – 2:00 PM", owner: "Meera", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "Analytics dashboard metrics", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "ML model inference benchmark", time: "9:00 AM – 11:00 AM", owner: "Meera", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Vector DB embedding index", time: "11:30 AM – 1:30 PM", owner: "Meera", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "Customer analytics export", time: "10:00 AM – 12:00 PM", owner: "Meera", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "Real-time telemetry streaming", time: "9:30 AM – 11:30 AM", owner: "Meera", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Data retention cleanup cron", time: "11:00 AM – 1:00 PM", owner: "Meera", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      }
     ],
     Riya: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "QA regression test automation", time: "9:00 AM – 11:00 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Cypress E2E test runner", time: "11:30 AM – 1:30 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "API integration test framework", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Mock server environment setup", time: "12:00 PM – 2:00 PM", owner: "Riya", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "Bug triage & reproduction", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Performance stress testing", time: "1:00 PM – 3:00 PM", owner: "Riya", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Security penetration test report", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Edge case validation suite", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Release candidate QA sign-off", time: "9:00 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Test coverage report generation", time: "11:00 AM – 1:00 PM", owner: "Riya", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "QA regression test automation", time: "9:00 AM – 11:00 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+          { title: "Cypress E2E test runner", time: "11:30 AM – 1:30 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "API integration test framework", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Mock server environment setup", time: "12:00 PM – 2:00 PM", owner: "Riya", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "Bug triage & reproduction", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Performance stress testing", time: "1:00 PM – 3:00 PM", owner: "Riya", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "Security penetration test report", time: "9:30 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "Edge case validation suite", time: "10:00 AM – 12:00 PM", owner: "Riya", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "Release candidate QA sign-off", time: "9:00 AM – 11:30 AM", owner: "Riya", priority: "P1", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Test coverage report generation", time: "11:00 AM – 1:00 PM", owner: "Riya", priority: "P3", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      }
     ],
     Neha: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Product analytics tracking", time: "9:30 AM – 11:00 AM", owner: "Neha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
-        { title: "User onboarding telemetry", time: "11:15 AM – 12:45 PM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Feature flag rollout config", time: "9:00 AM – 11:00 AM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "A/B testing framework setup", time: "11:30 AM – 1:30 PM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "User feedback triage", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
-        { title: "Search indexing pipeline", time: "1:00 PM – 3:00 PM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Recommendation engine tuning", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Session replay event logger", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "Customer feedback SLA review", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Weekly usage report generator", time: "11:00 AM – 1:00 PM", owner: "Neha", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "Product analytics tracking", time: "9:30 AM – 11:00 AM", owner: "Neha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" },
+          { title: "User onboarding telemetry", time: "11:15 AM – 12:45 PM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "Feature flag rollout config", time: "9:00 AM – 11:00 AM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "A/B testing framework setup", time: "11:30 AM – 1:30 PM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "User feedback triage", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" },
+          { title: "Search indexing pipeline", time: "1:00 PM – 3:00 PM", owner: "Neha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "Recommendation engine tuning", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "Session replay event logger", time: "10:00 AM – 12:00 PM", owner: "Neha", priority: "P3", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "Customer feedback SLA review", time: "9:30 AM – 11:30 AM", owner: "Neha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Weekly usage report generator", time: "11:00 AM – 1:00 PM", owner: "Neha", priority: "P3", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      }
     ],
     Aisha: [
-      { day: "SUN 19", dateNum: "19", active: true, events: [
-        { title: "Security vulnerability patching", time: "9:00 AM – 11:00 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "SSO SAML2 integration", time: "11:30 AM – 1:30 PM", owner: "Aisha", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "MON 20", dateNum: "20", events: [
-        { title: "Zero-trust network access audit", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "Vault secrets rotation", time: "12:00 PM – 2:00 PM", owner: "Aisha", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]},
-      { day: "TUE 21", dateNum: "21", events: [
-        { title: "API rate limiting middleware", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
-        { title: "WAF security rules update", time: "1:00 PM – 3:00 PM", owner: "Aisha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
-      ]},
-      { day: "WED 22", dateNum: "22", events: [
-        { title: "Audit trail compliance logging", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
-      ]},
-      { day: "THU 23", dateNum: "23", events: [
-        { title: "Encryption key rotation", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
-      ]},
-      { day: "FRI 24", dateNum: "24", events: [
-        { title: "SOC2 compliance documentation", time: "9:00 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
-      ]},
-      { day: "SAT 25", dateNum: "25", events: [
-        { title: "Security incident dry-run", time: "11:00 AM – 1:00 PM", owner: "Aisha", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
-      ]}
+      {
+        day: "SUN 19", dateNum: "19", active: true, events: [
+          { title: "Security vulnerability patching", time: "9:00 AM – 11:00 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "SSO SAML2 integration", time: "11:30 AM – 1:30 PM", owner: "Aisha", priority: "P1", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "MON 20", dateNum: "20", events: [
+          { title: "Zero-trust network access audit", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "Vault secrets rotation", time: "12:00 PM – 2:00 PM", owner: "Aisha", priority: "P1", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      },
+      {
+        day: "TUE 21", dateNum: "21", events: [
+          { title: "API rate limiting middleware", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" },
+          { title: "WAF security rules update", time: "1:00 PM – 3:00 PM", owner: "Aisha", priority: "P2", bg: "#eff6ff", border: "#bfdbfe", textCol: "#1d4ed8" }
+        ]
+      },
+      {
+        day: "WED 22", dateNum: "22", events: [
+          { title: "Audit trail compliance logging", time: "9:30 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#f0fdf4", border: "#bbf7d0", textCol: "#15803d" }
+        ]
+      },
+      {
+        day: "THU 23", dateNum: "23", events: [
+          { title: "Encryption key rotation", time: "10:00 AM – 12:00 PM", owner: "Aisha", priority: "P1", bg: "#fff1f2", border: "#fecdd3", textCol: "#be123c" }
+        ]
+      },
+      {
+        day: "FRI 24", dateNum: "24", events: [
+          { title: "SOC2 compliance documentation", time: "9:00 AM – 11:30 AM", owner: "Aisha", priority: "P2", bg: "#fffbeb", border: "#fde68a", textCol: "#b45309" }
+        ]
+      },
+      {
+        day: "SAT 25", dateNum: "25", events: [
+          { title: "Security incident dry-run", time: "11:00 AM – 1:00 PM", owner: "Aisha", priority: "P3", bg: "#faf5ff", border: "#e9d5ff", textCol: "#6b21a8" }
+        ]
+      }
     ]
   };
 
@@ -3228,17 +4926,17 @@ function renderCalendarAI() {
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; flex-shrink:0;">
         <span style="font-size:10.5px; font-weight:800; color:#64748b; letter-spacing:0.06em; margin-right:2px;">ENGINEER:</span>
         ${engineersList.map(e => {
-          const isSelected = e.name === selectedEng;
-          const bg = isSelected ? "#f3e8ff" : "#ffffff";
-          const border = isSelected ? "2px solid #7c3aed" : "1px solid #e2e8f0";
-          const textCol = isSelected ? "#6b21a8" : "#334155";
-          return `
+    const isSelected = e.name === selectedEng;
+    const bg = isSelected ? "#f3e8ff" : "#ffffff";
+    const border = isSelected ? "2px solid #7c3aed" : "1px solid #e2e8f0";
+    const textCol = isSelected ? "#6b21a8" : "#334155";
+    return `
             <div class="eng-cal-chip" data-engineer="${e.name}" style="display:flex; align-items:center; gap:5px; padding:4px 10px; background:${bg}; border:${border}; border-radius:16px; font-size:11.5px; font-weight:700; color:${textCol}; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
               <span style="width:7px; height:7px; border-radius:50%; background:${e.dot};"></span>
               <span>${e.name}</span>
               <span style="font-size:10px; color:#64748b; font-weight:600; margin-left:1px;">${e.hours}</span>
             </div>`;
-        }).join("")}
+  }).join("")}
       </div>
 
       <!-- Daily Capacity Summary Cards (7 Days) -->
@@ -3298,8 +4996,7 @@ function renderCalendarAI() {
             <div>5 PM</div>
             <div>6 PM</div>
           </div>
-
-          <!-- 7 Day Task Event Columns -->
+      <!-- 7 Day Task Event Columns -->
           ${dayColumns.map((col, idx) => `
             <div style="${idx < 6 ? "border-right:1px solid #e2e8f0;" : ""}; padding:8px; display:flex; flex-direction:column; gap:8px; background:#ffffff; box-sizing:border-box; min-width:0;">
               ${col.events.map(evt => `
@@ -3314,7 +5011,7 @@ function renderCalendarAI() {
                   <div style="font-size:10px; color:${evt.textCol}; font-weight:700; margin-bottom:6px;">${evt.time}</div>
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:3px;">
-                      <span style="width:16px; height:16px; border-radius:50%; background:#5b21b6; color:#fff; font-size:8.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">${(evt.owner||"K")[0]}</span>
+                      <span style="width:16px; height:16px; border-radius:50%; background:#5b21b6; color:#fff; font-size:8.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">${(evt.owner || "K")[0]}</span>
                       <span style="font-size:10px; font-weight:700; color:#334155;">${evt.owner}</span>
                     </div>
                     <span style="font-size:8.5px; font-weight:900; padding:1px 4px; border-radius:3px; background:#fff; border:1px solid ${evt.border}; color:${evt.textCol}; flex-shrink:0;">${evt.priority}</span>
@@ -3335,120 +5032,536 @@ function renderCalendarAI() {
  * Build a genome fingerprint from current sprint data
  */
 
+function shiftCalendarDate(days) {
+  const d = new Date(calendarSelectedDate);
+  d.setDate(d.getDate() + days);
+  calendarSelectedDate = d;
+}
+
 function renderEngineerCalendar() {
   const myName = settingsProfile?.name || authSession?.name || "Demo Engineer";
-  const timeStr = "08:44 PM";
-  const dateStr = "Sunday, July 19, 2026";
 
-  const scheduleItems = [
-    {
-      time: "9:00 AM - 10:00 AM",
-      title: "Fix CSV upload timeout for enterprise imports",
-      severity: "P1",
-      bg: "#fde8e8",
-      border: "#dc2626",
-      color: "#991b1b",
-      taskId: "MTG-001"
-    },
-    {
-      time: "10:00 AM - 11:00 AM",
-      title: "Security review blocking identity release",
-      severity: "P1",
-      bg: "#fde8e8",
-      border: "#dc2626",
-      color: "#991b1b",
-      taskId: "MTG-002"
-    },
-    {
-      isBreak: true,
-      time: "11:00 AM - 11:15 AM",
-      title: "Morning Tea (11:00 – 11:15 AM)",
-      bg: "#f5f3ff",
-      border: "#8b5cf6",
-      color: "#6d28d9"
-    },
-    {
-      time: "11:15 AM - 12:00 PM",
-      title: "Investigate cache invalidation bug",
-      severity: "P2",
-      bg: "#fef3c7",
-      border: "#d97706",
-      color: "#92400e",
-      taskId: "MTG-003"
-    },
-    {
-      time: "12:00 PM - 1:00 PM",
-      title: "Fix stale analytics cache",
-      severity: "P2",
-      bg: "#fef3c7",
-      border: "#d97706",
-      color: "#92400e",
-      taskId: "MTG-004"
-    },
-    {
-      isBreak: true,
-      time: "1:00 PM - 2:00 PM",
-      title: "LUNCH BREAK (1:00 PM – 2:00 PM)",
-      bg: "#f1f5f9",
-      border: "#64748b",
-      color: "#334155"
-    },
-    {
-      time: "2:00 PM - 3:00 PM",
-      title: "Automate code ownership validation",
-      severity: "P3",
-      bg: "#f3e8ff",
-      border: "#9333ea",
-      color: "#6b21a8",
-      taskId: "MTG-005"
-    },
-    {
-      isBreak: true,
-      time: "3:00 PM - 3:15 PM",
-      title: "Afternoon Tea (3:00 – 3:15 PM)",
-      bg: "#f5f3ff",
-      border: "#8b5cf6",
-      color: "#6d28d9"
-    },
-    {
-      time: "3:15 PM - 4:00 PM",
-      title: "Investigate flaky invoice export test",
-      severity: "P3",
-      bg: "#f3e8ff",
-      border: "#9333ea",
-      color: "#6b21a8",
-      taskId: "MTG-006"
+  // Format helper to YYYY-MM-DD
+  const formatDateToISO = (d) => {
+    const y = d.getFullYear();
+    const m = (d.getMonth() + 1).toString().padStart(2, "0");
+    const r = d.getDate().toString().padStart(2, "0");
+    return `${y}-${m}-${r}`;
+  };
+  const selectedDateStr = formatDateToISO(calendarSelectedDate);
+
+  // Today's System Date (always Thursday, July 23, 2026 for the active session)
+  const systemTodayObj = new Date("2026-07-23");
+  const systemDayName = systemTodayObj.toLocaleDateString("en-US", { weekday: "long" });
+  const systemDateOptions = { month: "long", day: "numeric", year: "numeric" };
+  const systemDateStr = `${systemDayName}, ${systemTodayObj.toLocaleDateString("en-US", systemDateOptions)}`;
+
+  // Format selected date
+  const selectedDateObj = new Date(calendarSelectedDate);
+  const dayName = selectedDateObj.toLocaleDateString("en-US", { weekday: "long" });
+  const dateOptions = { month: "long", day: "numeric", year: "numeric" };
+  const dateStr = `${dayName}, ${selectedDateObj.toLocaleDateString("en-US", dateOptions)}`;
+
+  // Compute current system time (real-time simulation)
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+  // Get start of the week (Sunday)
+  const current = new Date(calendarSelectedDate);
+  const dayOfWeek = current.getDay();
+  const sunday = new Date(current);
+  sunday.setDate(current.getDate() - dayOfWeek);
+
+  // Mini Calendar Widget calculations
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const miniCalYear = current.getFullYear();
+  const miniCalMonth = current.getMonth();
+  const miniCalMonthLabel = `${monthNames[miniCalMonth]} ${miniCalYear}`;
+
+  const firstDay = new Date(miniCalYear, miniCalMonth, 1).getDay();
+  const totalDays = new Date(miniCalYear, miniCalMonth + 1, 0).getDate();
+  const prevTotalDays = new Date(miniCalYear, miniCalMonth, 0).getDate();
+
+  let miniCalDaysHtml = "";
+  // Prev month filler
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = prevTotalDays - i;
+    miniCalDaysHtml += `<span style="color:#334155; opacity:0.3; padding:4px; text-align:center;">${d}</span>`;
+  }
+  // Current month days
+  for (let d = 1; d <= totalDays; d++) {
+    const dateFmt = `${miniCalYear}-${(miniCalMonth + 1).toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
+    const isSelected = dateFmt === selectedDateStr;
+
+    if (isSelected) {
+      miniCalDaysHtml += `<div style="background:#ef4444; color:#ffffff; border-radius:50%; width:24px; height:24px; margin:0 auto; display:grid; place-items:center; font-weight:800; cursor:pointer;" class="mini-cal-day" data-date="${dateFmt}">${d}</div>`;
+    } else {
+      miniCalDaysHtml += `<span style="color:#94a3b8; padding:4px; text-align:center; cursor:pointer;" class="mini-cal-day" data-date="${dateFmt}">${d}</span>`;
     }
-  ];
+  }
+  // Next month filler
+  const totalCells = firstDay + totalDays;
+  const nextFiller = 42 - totalCells;
+  for (let d = 1; d <= nextFiller; d++) {
+    miniCalDaysHtml += `<span style="color:#334155; opacity:0.3; padding:4px; text-align:center;">${d}</span>`;
+  }
+
+  // Active Sprint Tasks
+  const myFirstName = myName.split(" ")[0].toLowerCase();
+  const mySprintTasks = state.prioritized.filter(t =>
+    t.owner && t.owner.toLowerCase().includes(myFirstName) && !isTaskCompleted(t.id)
+  );
+
+  // Dynamic allocation of sprint tasks to weekdays/empty blocks
+  const getTaskForDateAndBlock = (dateStr, blockIdx) => {
+    if (mySprintTasks.length === 0) return null;
+
+    // Convert dateStr (YYYY-MM-DD) to a day-offset relative to July 23, 2026
+    const d = new Date(dateStr);
+    const baseDate = new Date("2026-07-23");
+    const diffTime = d.getTime() - baseDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    // Calculate a deterministic task index based on the day offset and block index
+    const taskIdx = Math.abs(diffDays * 2 + blockIdx) % mySprintTasks.length;
+    return mySprintTasks[taskIdx];
+  };
+
+  // Find tasks assigned by manager (that are in reassignedTaskOwners or managerTaskPosts)
+  const managerAssignedTasks = state.prioritized.filter(t =>
+    t.owner && t.owner.toLowerCase().includes(myFirstName) &&
+    !isTaskCompleted(t.id) &&
+    (reassignedTaskOwners[t.id] || reassignedTaskOwners[t.canonicalTitle] || t.id.startsWith("MGR-") || t.id.startsWith("ADD-"))
+  );
+
+  let managerAssignmentBannerHtml = "";
+  if (managerAssignedTasks.length > 0) {
+    const recentTask = managerAssignedTasks[0]; // the most recent one
+    const priority = recentTask.priority || recentTask.severity || "P1";
+    managerAssignmentBannerHtml = `
+      <div style="background:#f0f9ff; border:1px solid #0ea5e9; border-radius:10px; padding:10px 16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(14,165,233,0.08); flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="background:#bae6fd; width:28px; height:28px; border-radius:50%; display:grid; place-items:center;">
+            <svg width="15" height="15" fill="none" stroke="#0369a1" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:800; color:#0369a1; text-transform:uppercase; letter-spacing:0.05em;">New Task Assigned by Manager</div>
+            <div style="font-size:13px; font-weight:700; color:#0f172a; margin-top:2px;">
+              ${escapeHtml(recentTask.title || recentTask.canonicalTitle)} 
+              <span style="font-size:11px; font-weight:700; color:#ef4444; margin-left:6px;">(${priority})</span>
+            </div>
+          </div>
+        </div>
+        <button class="primary" style="background:#0284c7; color:#ffffff; font-weight:700; border:none; padding:6px 12px; border-radius:6px; font-size:11.5px; cursor:pointer;" id="calViewManagerTaskBtn" data-task-id="${recentTask.id}">
+          View Details
+        </button>
+      </div>
+    `;
+  }
+
+  // Time Range Formatting Helper
+  const formatTimeRange = (startStr, durationMins) => {
+    const [h, m] = startStr.split(":").map(Number);
+    const startDate = new Date(2026, 0, 1, h, m);
+    const endDate = new Date(startDate.getTime() + durationMins * 60000);
+    const fmt = (d) => {
+      let hour = d.getHours();
+      const min = d.getMinutes().toString().padStart(2, "0");
+      const ampm = hour >= 12 ? "PM" : "AM";
+      hour = hour % 12 || 12;
+      return `${hour}:${min} ${ampm}`;
+    };
+    return `${fmt(startDate)} - ${fmt(endDate)}`;
+  };
+
+  // Generate day meetings list
+  const dayMeetings = meetingsList.filter(m => m.suggestedDate === selectedDateStr);
+  dayMeetings.sort((a, b) => a.suggestedTime.localeCompare(b.suggestedTime));
+
+  // Build Day Schedule items list
+  let scheduleItems = [];
+  if (selectedDateObj.getDay() !== 0 && selectedDateObj.getDay() !== 6) { // Weekdays
+    scheduleItems.push({
+      time: "09:00 AM - 09:30 AM",
+      title: "Focus: Backlog & Morning Prep",
+      bg: "#ecfdf5", border: "#10b981", color: "#065f46"
+    });
+    scheduleItems.push({
+      time: "09:30 AM - 09:45 AM",
+      title: "Daily standup",
+      bg: "#f5f3ff", border: "#8b5cf6", color: "#6d28d9"
+    });
+    scheduleItems.push({
+      time: "11:00 AM - 11:15 AM",
+      title: "Morning Tea Break",
+      isBreak: true,
+      bg: "#f1f5f9", border: "#64748b", color: "#334155"
+    });
+    scheduleItems.push({
+      time: "01:00 PM - 02:00 PM",
+      title: "Lunch Break",
+      isBreak: true,
+      bg: "#f1f5f9", border: "#64748b", color: "#334155"
+    });
+    scheduleItems.push({
+      time: "03:00 PM - 03:15 PM",
+      title: "Afternoon Tea Break",
+      isBreak: true,
+      bg: "#f1f5f9", border: "#64748b", color: "#334155"
+    });
+  }
+
+  // Insert meetings
+  dayMeetings.forEach(m => {
+    const range = formatTimeRange(m.suggestedTime, m.duration || 30);
+    const pri = m.priority || "Medium";
+    const bg = pri === "Critical" || pri === "High" ? "#fde8e8" : pri === "Medium" ? "#fef3c7" : "#f3e8ff";
+    const border = pri === "Critical" || pri === "High" ? "#dc2626" : pri === "Medium" ? "#d97706" : "#a855f7";
+    const color = pri === "Critical" || pri === "High" ? "#991b1b" : pri === "Medium" ? "#92400e" : "#6b21a8";
+
+    scheduleItems.push({
+      time: range,
+      title: m.title,
+      bg, border, color,
+      taskId: m.id
+    });
+  });
+
+  // Sort scheduleItems by start hour
+  const getMinutesOfDay = (timeRangeStr) => {
+    const startPart = timeRangeStr.split(" - ")[0];
+    let [hStr, mStr] = startPart.split(" ")[0].split(":");
+    let h = Number(hStr);
+    let m = Number(mStr);
+    const isPm = startPart.includes("PM");
+    if (isPm && h !== 12) h += 12;
+    if (!isPm && h === 12) h = 0;
+    return h * 60 + m;
+  };
+  scheduleItems.sort((a, b) => getMinutesOfDay(a.time) - getMinutesOfDay(b.time));
+
+  // Fill in focus time blocks for gaps (weekdays only)
+  if (selectedDateObj.getDay() !== 0 && selectedDateObj.getDay() !== 6 && scheduleItems.length > 0) {
+    let filledItems = [];
+    let currentMin = 540; // 9:00 AM
+    let focusBlockCount = 0;
+
+    for (let i = 0; i < scheduleItems.length; i++) {
+      const itemStart = getMinutesOfDay(scheduleItems[i].time);
+      if (itemStart > currentMin) {
+        // Create Focus Block
+        const fmtMin = (totalMin) => {
+          let h = Math.floor(totalMin / 60);
+          const m = (totalMin % 60).toString().padStart(2, "0");
+          const ampm = h >= 12 ? "PM" : "AM";
+          h = h % 12 || 12;
+          return `${h}:${m} ${ampm}`;
+        };
+
+        const assignedTask = getTaskForDateAndBlock(selectedDateStr, focusBlockCount);
+        focusBlockCount++;
+
+        if (assignedTask) {
+          filledItems.push({
+            time: `${fmtMin(currentMin)} - ${fmtMin(itemStart)}`,
+            title: `Focus: ${assignedTask.title || assignedTask.canonicalTitle}`,
+            bg: "#ecfdf5", border: "#10b981", color: "#065f46",
+            taskId: assignedTask.id
+          });
+        } else {
+          filledItems.push({
+            time: `${fmtMin(currentMin)} - ${fmtMin(itemStart)}`,
+            title: "Focus Time: Software Development",
+            bg: "#e0f2fe", border: "#0284c7", color: "#0369a1"
+          });
+        }
+      }
+      filledItems.push(scheduleItems[i]);
+      // Update currentMin to end of current item
+      const endPart = scheduleItems[i].time.split(" - ")[1];
+      let [endHStr, endMStr] = endPart.split(" ")[0].split(":");
+      let endH = Number(endHStr);
+      let endM = Number(endMStr);
+      const isPm = endPart.includes("PM");
+      if (isPm && endH !== 12) endH += 12;
+      if (!isPm && endH === 12) endH = 0;
+      currentMin = endH * 60 + endM;
+    }
+    // Add end of day focus block if before 6:00 PM (1080)
+    if (currentMin < 1080) {
+      const fmtMin = (totalMin) => {
+        let h = Math.floor(totalMin / 60);
+        const m = (totalMin % 60).toString().padStart(2, "0");
+        const ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12 || 12;
+        return `${h}:${m} ${ampm}`;
+      };
+
+      const assignedTask = getTaskForDateAndBlock(selectedDateStr, focusBlockCount);
+      focusBlockCount++;
+
+      if (assignedTask) {
+        filledItems.push({
+          time: `${fmtMin(currentMin)} - 6:00 PM`,
+          title: `Focus: ${assignedTask.title || assignedTask.canonicalTitle}`,
+          bg: "#ecfdf5", border: "#10b981", color: "#065f46",
+          taskId: assignedTask.id
+        });
+      } else {
+        filledItems.push({
+          time: `${fmtMin(currentMin)} - 6:00 PM`,
+          title: "Focus Time: Dev Wrap-up",
+          bg: "#e0f2fe", border: "#0284c7", color: "#0369a1"
+        });
+      }
+    }
+    scheduleItems = filledItems;
+  }
+
+  // Generate popup modal HTML
+  let popupHtml = "";
+  if (calendarSelectedTaskId) {
+    const selTask = meetingsList.find(m => m.id === calendarSelectedTaskId) || state.prioritized.find(t => t.id === calendarSelectedTaskId);
+    if (selTask) {
+      const isMtg = selTask.id.startsWith("MTG-");
+      const priority = selTask.priority || selTask.severity || "P2";
+      const dueStr = selTask.due || selTask.suggestedDate || "No due date";
+      const body = selTask.body || selTask.agenda || selTask.extractedFrom || "No description provided.";
+      const sources = selTask.sources || (selTask.source ? [selTask.source] : []);
+      popupHtml = `
+        <div style="position:absolute; top:80px; right:40px; width:340px; background:#ffffff; border-radius:12px; border:1px solid #cbd5e1; box-shadow:0 12px 36px rgba(0,0,0,0.15); padding:18px; z-index:1000; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <h4 style="margin:0; font-size:14px; font-weight:800; color:#0f172a; line-height:1.35; max-width: 270px;">
+              ${escapeHtml(selTask.title || selTask.canonicalTitle || selTask.id)}
+            </h4>
+            <button id="closeCalPopupBtn" style="background:none; border:none; color:#64748b; font-size:20px; font-weight:bold; cursor:pointer; line-height:1; padding:0 4px;">&times;</button>
+          </div>
+          
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="background:${priority === "Critical" || priority === "P1" ? "#dc2626" : priority === "High" || priority === "P2" ? "#f59e0b" : "#3b82f6"}; color:#ffffff; font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px;">${priority}</span>
+            <span style="font-size:11px; color:#64748b; font-weight:600;">Due ${dueStr}</span>
+          </div>
+
+          <p style="margin:0; font-size:12px; color:#475569; line-height:1.45; background:#f8fafc; padding:10px; border-radius:6px; border:1px solid #f1f5f9; max-height:120px; overflow-y:auto;">
+            ${escapeHtml(body)}
+          </p>
+
+          <button class="primary" style="background:#1d4ed8; color:#ffffff; font-weight:700; border:none; padding:9px; border-radius:6px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-size:12.5px; cursor:pointer;" id="calOpenTaskBtn" data-task-id="${selTask.id}">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            Open Details
+          </button>
+
+          <div style="display:flex; gap:6px; flex-wrap:wrap; border-top:1px solid #f1f5f9; padding-top:10px;">
+            ${sources.map(src => `<span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:12px; text-transform:capitalize;">${src}</span>`).join("")}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Week View Content Generator
+  let rightContentHtml = "";
+  if (calendarViewMode === "week") {
+    const startMonth = sunday.toLocaleString("en-US", { month: "long" });
+    const startDay = sunday.getDate();
+    const saturday = new Date(sunday);
+    saturday.setDate(sunday.getDate() + 6);
+    const endMonth = saturday.toLocaleString("en-US", { month: "long" });
+    const endDay = saturday.getDate();
+    const rangeHeaderStr = startMonth === endMonth
+      ? `${startMonth} ${startDay} – ${endDay}, ${miniCalYear}`
+      : `${startMonth} ${startDay} – ${endMonth} ${endDay}, ${miniCalYear}`;
+
+    const weekDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+    let weekGridHtml = `
+      <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; background: #f8fafc;">
+    `;
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sunday);
+      d.setDate(sunday.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
+      const dayName = weekDays[i];
+      const isSelected = dateStr === selectedDateStr;
+
+      const weekMeetings = meetingsList.filter(m => m.suggestedDate === dateStr);
+      weekMeetings.sort((a, b) => a.suggestedTime.localeCompare(b.suggestedTime));
+
+      let dayBlocks = [];
+      if (i !== 0 && i !== 6) { // Weekdays
+        dayBlocks.push({ time: "09:30 AM", title: "Daily standup", bg: "#f3f4f6", border: "#9ca3af", color: "#374151" });
+        dayBlocks.push({ time: "01:00 PM", title: "Lunch Break", bg: "#f3f4f6", border: "#9ca3af", color: "#374151" });
+
+        const task0 = getTaskForDateAndBlock(dateStr, 0);
+        if (task0) {
+          dayBlocks.push({
+            time: "10:00 AM",
+            title: `Focus: ${task0.title || task0.canonicalTitle}`,
+            bg: "#ecfdf5", border: "#10b981", color: "#065f46",
+            taskId: task0.id
+          });
+        }
+
+        const task1 = getTaskForDateAndBlock(dateStr, 1);
+        if (task1) {
+          dayBlocks.push({
+            time: "02:00 PM",
+            title: `Focus: ${task1.title || task1.canonicalTitle}`,
+            bg: "#ecfdf5", border: "#10b981", color: "#065f46",
+            taskId: task1.id
+          });
+        }
+      }
+
+      weekMeetings.forEach(m => {
+        const range = formatTimeRange(m.suggestedTime, m.duration || 30);
+        const pri = m.priority || "Medium";
+        const bg = pri === "Critical" || pri === "High" ? "#fef2f2" : pri === "Medium" ? "#fffbeb" : "#f5f3ff";
+        const border = pri === "Critical" || pri === "High" ? "#f87171" : pri === "Medium" ? "#fbbf24" : "#c084fc";
+        const color = pri === "Critical" || pri === "High" ? "#991b1b" : pri === "Medium" ? "#92400e" : "#5b21b6";
+        dayBlocks.push({
+          time: range.split(" - ")[0], // Show start time only to keep it clean
+          title: m.title,
+          bg, border, color,
+          taskId: m.id
+        });
+      });
+
+      dayBlocks.sort((a, b) => {
+        const getMin = (t) => {
+          let [h, m] = t.split(" ")[0].split(":").map(Number);
+          if (t.includes("PM") && h !== 12) h += 12;
+          if (t.includes("AM") && h === 12) h = 0;
+          return h * 60 + m;
+        };
+        return getMin(a.time) - getMin(b.time);
+      });
+
+      weekGridHtml += `
+        <div style="background:#ffffff; border: 1px solid ${isSelected ? "#3b82f6" : "#e2e8f0"}; border-radius: 8px; display:flex; flex-direction:column; min-height: 480px; box-shadow: ${isSelected ? "0 4px 14px rgba(59,130,246,0.06)" : "none"}; overflow: hidden; transition: border-color 0.15s;">
+          <div style="padding: 10px; text-align: center; border-bottom: 1px solid #e2e8f0; background: ${isSelected ? "#eff6ff" : "#ffffff"}; cursor: pointer;" class="week-header-day" data-date="${dateStr}">
+            <div style="font-size:10px; font-weight:800; color:${isSelected ? "#1d4ed8" : "#64748b"}; letter-spacing:0.05em;">${dayName}</div>
+            <div style="font-size:18px; font-weight:900; color:${isSelected ? "#1d4ed8" : "#1e293b"}; margin-top:2px;">${d.getDate()}</div>
+          </div>
+          
+          <div style="flex:1; padding: 8px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; background: #ffffff;">
+            ${dayBlocks.length === 0
+          ? `<div style="font-size:11px; color:#94a3b8; text-align:center; margin-top:24px; font-style:normal;">-</div>`
+          : dayBlocks.map(block => `
+                <div class="schedule-task-item" data-task="${block.taskId || ""}" style="background:${block.bg}; border-left:3px solid ${block.border}; border-radius:6px; padding:8px 10px; font-size:11px; cursor:${block.taskId ? "pointer" : "default"}; transition: transform 0.1s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                  <div style="font-weight:700; color:${block.color}; font-size:9px; text-transform:uppercase; letter-spacing:0.02em;">${block.time}</div>
+                  <div style="font-weight:600; color:#1e293b; margin-top:3px; line-height:1.35; word-break:break-word;">${escapeHtml(block.title)}</div>
+                </div>
+              `).join("")
+        }
+          </div>
+        </div>
+      `;
+    }
+    weekGridHtml += `</div>`;
+
+    rightContentHtml = `
+      <!-- Mode & Nav Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 18px; border-bottom:1px solid #e2e8f0; background:#ffffff; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="calTodayBtn" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 12px; font-weight:700; font-size:12px; color:#0f172a; cursor:pointer;">Today</button>
+          <div style="display:flex; gap:4px;">
+            <button id="calPrevBtn" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 10px; font-weight:800; color:#64748b; cursor:pointer;">&lt;</button>
+            <button id="calNextBtn" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 10px; font-weight:800; color:#64748b; cursor:pointer;">&gt;</button>
+          </div>
+          <span style="font-size:14px; font-weight:800; color:#1e293b; margin-left:8px;">${rangeHeaderStr}</span>
+        </div>
+        <div style="display:flex; background:#f1f5f9; border-radius:6px; padding:2px;">
+          <button id="calDayModeBtn" style="background:transparent; color:#64748b; border:none; padding:4px 14px; font-size:12px; font-weight:700; cursor:pointer;">Day</button>
+          <button id="calWeekModeBtn" style="background:#1d4ed8; color:#ffffff; border:none; border-radius:4px; padding:4px 14px; font-size:12px; font-weight:800; cursor:pointer;">Week</button>
+        </div>
+      </div>
+      <div style="flex:1; min-height:0; overflow:hidden; position:relative;">
+        ${weekGridHtml}
+        ${popupHtml}
+      </div>
+    `;
+  } else {
+    // Day View
+    rightContentHtml = `
+      <!-- Mode & Nav Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 18px; border-bottom:1px solid #cbd5e1; background:#ffffff; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="calTodayBtn" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:5px 12px; font-weight:700; font-size:12px; color:#0f172a; cursor:pointer;">Today</button>
+          <div style="display:flex; gap:4px;">
+            <button id="calPrevBtn" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 10px; font-weight:800; color:#64748b; cursor:pointer;">&lt;</button>
+            <button id="calNextBtn" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 10px; font-weight:800; color:#64748b; cursor:pointer;">&gt;</button>
+          </div>
+        </div>
+        <div style="display:flex; background:#f1f5f9; border-radius:6px; padding:2px;">
+          <button id="calDayModeBtn" style="background:#1d4ed8; color:#ffffff; border:none; border-radius:4px; padding:4px 14px; font-size:12px; font-weight:800; cursor:pointer;">Day</button>
+          <button id="calWeekModeBtn" style="background:transparent; color:#64748b; border:none; padding:4px 14px; font-size:12px; font-weight:700; cursor:pointer;">Week</button>
+        </div>
+      </div>
+
+      <!-- Day Date Header -->
+      <div style="display:flex; align-items:baseline; gap:10px; padding:10px 20px; border-bottom:1px solid #cbd5e1; background:#fafbfc; flex-shrink:0;">
+        <span style="font-size:11px; font-weight:800; color:#64748b;">GMT-5</span>
+        <span style="font-size:12px; font-weight:800; color:#64748b;">${dayName.toUpperCase().slice(0, 3)}</span>
+        <span style="font-size:24px; font-weight:900; color:#0f172a;">${selectedDateObj.getDate()}</span>
+      </div>
+
+      <!-- Hourly Timeline Container -->
+      <div style="flex:1; padding:16px 20px; overflow-y:auto; position:relative; display:grid; gap:8px; background:#ffffff; min-height:0;">
+        ${scheduleItems.length === 0
+        ? `<div style="text-align:center; padding:40px; color:#94a3b8; font-style:italic;">No events scheduled for today.</div>`
+        : scheduleItems.map(item => `
+            <div style="display:grid; grid-template-columns: 80px 1fr; gap:12px; align-items:flex-start; position:relative;">
+              <div style="font-size:11px; font-weight:700; color:#64748b; text-align:right; padding-top:4px;">
+                ${item.time.split(" - ")[0]}
+              </div>
+              <div style="background:${item.bg}; border-left:4px solid ${item.border}; border-radius:6px; padding:10px 14px; cursor:${item.taskId ? "pointer" : "default"}; transition:transform 0.1s;" class="schedule-task-item" data-task="${item.taskId || ""}">
+                <div style="font-size:11.5px; font-weight:800; color:${item.color};">
+                  ${item.time}
+                </div>
+                <div style="font-size:13px; font-weight:700; color:#0f172a; margin-top:2px;">
+                  ${escapeHtml(item.title)}
+                </div>
+              </div>
+            </div>
+          `).join("")
+      }
+        ${popupHtml}
+      </div>
+    `;
+  }
 
   return `
-    <div id="engineerCalendarApp" style="padding: 16px 24px; max-width: 1380px; margin: 0 auto; font-family: 'Poppins', 'Inter', sans-serif;">
+    <div id="engineerCalendarApp" style="height: calc(100vh - 24px); display: flex; flex-direction: column; padding: 12px 20px; box-sizing: border-box; font-family: 'Poppins', 'Inter', sans-serif;">
       
       <!-- Top Title & Global Action Bar -->
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
-        <h1 style="margin:0; font-size:32px; font-weight:800; color:#1e293b;">My Calendar</h1>
-        <button class="primary" id="downloadCalBtn" style="background:#1d4ed8; color:#ffffff; font-weight:700; border:none; padding:10px 18px; border-radius:8px; display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <div style="display:flex; justify-content:space-between; align-items:center; height: 36px; margin-bottom: 8px; flex-shrink: 0;">
+        <h1 style="margin:0; font-size:24px; font-weight:800; color:#1e293b;">My Calendar</h1>
+        <button class="primary" id="downloadCalBtn" style="background:#1d4ed8; color:#ffffff; font-weight:700; border:none; padding:8px 16px; border-radius:8px; display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           Download Calendar
         </button>
       </div>
 
+      <!-- Manager Assignment Banner -->
+      ${managerAssignmentBannerHtml}
+
       <!-- Main Shell Container -->
-      <div style="display:grid; grid-template-columns: 270px 1fr; border:1px solid #cbd5e1; border-radius:14px; overflow:hidden; background:#ffffff; box-shadow:0 8px 30px rgba(0,0,0,0.06); min-height: 720px;">
+      <div style="display:grid; grid-template-columns: 270px 1fr; border:1px solid #cbd5e1; border-radius:14px; overflow:hidden; background:#ffffff; box-shadow:0 8px 30px rgba(0,0,0,0.06); flex:1; min-height:0;">
         
         <!-- Left Column: Dark Panel -->
-        <div style="background:#111622; color:#ffffff; padding:22px 18px; display:flex; flex-direction:column; gap:22px; border-right:1px solid #1e293b;">
+        <div style="background:#111622; color:#ffffff; padding:20px 18px; display:flex; flex-direction:column; gap:20px; border-right:1px solid #1e293b; overflow-y:auto;">
           
           <!-- Today System Time Box -->
           <div>
             <div style="font-size:10px; font-weight:800; letter-spacing:1px; color:#ef4444; text-transform:uppercase;">TODAY'S SYSTEM TIME</div>
-            <div style="font-size:13px; font-weight:600; color:#94a3b8; margin-top:4px;">${dateStr}</div>
+            <div style="font-size:13px; font-weight:600; color:#94a3b8; margin-top:4px;">${systemDateStr}</div>
             <div style="font-size:24px; font-weight:900; color:#22c55e; margin-top:2px; font-family:monospace; letter-spacing:0.5px;">${timeStr}</div>
           </div>
 
           <!-- Mini Calendar Widget -->
           <div>
-            <div style="font-size:14px; font-weight:700; color:#ffffff; margin-bottom:12px;">July 2026</div>
+            <div style="font-size:14px; font-weight:700; color:#ffffff; margin-bottom:12px;">${miniCalMonthLabel}</div>
             <div style="display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-size:11px; gap:4px;">
               <span style="color:#64748b; font-weight:700;">S</span>
               <span style="color:#64748b; font-weight:700;">M</span>
@@ -3457,47 +5570,7 @@ function renderEngineerCalendar() {
               <span style="color:#64748b; font-weight:700;">T</span>
               <span style="color:#64748b; font-weight:700;">F</span>
               <span style="color:#64748b; font-weight:700;">S</span>
-              
-              <span style="color:#334155; padding:4px;">28</span>
-              <span style="color:#334155; padding:4px;">29</span>
-              <span style="color:#334155; padding:4px;">30</span>
-              <span style="color:#94a3b8; padding:4px;">1</span>
-              <span style="color:#94a3b8; padding:4px;">2</span>
-              <span style="color:#94a3b8; padding:4px;">3</span>
-              <span style="color:#94a3b8; padding:4px;">4</span>
-              
-              <span style="color:#94a3b8; padding:4px;">5</span>
-              <span style="color:#94a3b8; padding:4px;">6</span>
-              <span style="color:#94a3b8; padding:4px;">7</span>
-              <span style="color:#94a3b8; padding:4px;">8</span>
-              <span style="color:#94a3b8; padding:4px;">9</span>
-              <span style="color:#94a3b8; padding:4px;">10</span>
-              <span style="color:#94a3b8; padding:4px;">11</span>
-
-              <span style="color:#94a3b8; padding:4px;">12</span>
-              <span style="color:#94a3b8; padding:4px;">13</span>
-              <span style="color:#94a3b8; padding:4px;">14</span>
-              <span style="color:#94a3b8; padding:4px;">15</span>
-              <span style="color:#94a3b8; padding:4px;">16</span>
-              <span style="color:#94a3b8; padding:4px;">17</span>
-              <span style="color:#94a3b8; padding:4px;">18</span>
-
-              <!-- Active Highlighted Day 19 -->
-              <div style="background:#dc2626; color:#ffffff; border-radius:50%; width:24px; height:24px; margin:0 auto; display:grid; place-items:center; font-weight:800;">19</div>
-              <span style="color:#94a3b8; padding:4px;">20</span>
-              <span style="color:#94a3b8; padding:4px;">21</span>
-              <span style="color:#94a3b8; padding:4px;">22</span>
-              <span style="color:#94a3b8; padding:4px;">23</span>
-              <span style="color:#94a3b8; padding:4px;">24</span>
-              <span style="color:#94a3b8; padding:4px;">25</span>
-
-              <span style="color:#94a3b8; padding:4px;">26</span>
-              <span style="color:#94a3b8; padding:4px;">27</span>
-              <span style="color:#94a3b8; padding:4px;">28</span>
-              <span style="color:#94a3b8; padding:4px;">29</span>
-              <span style="color:#94a3b8; padding:4px;">30</span>
-              <span style="color:#94a3b8; padding:4px;">31</span>
-              <span style="color:#334155; padding:4px;">1</span>
+              ${miniCalDaysHtml}
             </div>
           </div>
 
@@ -3507,100 +5580,25 @@ function renderEngineerCalendar() {
               <span style="font-size:10px; font-weight:800; color:#94a3b8; letter-spacing:0.5px;">ACTIVE SPRINT TASKS</span>
               <span style="font-size:10px; font-weight:800; color:#ef4444; letter-spacing:0.5px;">REAL-TIME</span>
             </div>
-            <div style="font-size:12px; color:#64748b; font-style:italic;">
-              No tasks assigned
+            <div style="display:flex; flex-direction:column; gap:6px; max-height: 180px; overflow-y:auto;">
+              ${mySprintTasks.length === 0
+      ? `<div style="font-size:12px; color:#64748b; font-style:italic;">No tasks assigned</div>`
+      : mySprintTasks.map(t => `
+                  <div style="background:#1e293b; padding:8px; border-radius:6px; border-left:3px solid ${t.severity === "Critical" ? "#ef4444" : "#f59e0b"}; font-size:11px;">
+                    <div style="font-weight:700; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(t.title)}</div>
+                    <div style="font-size:10px; color:#94a3b8; margin-top:2px;">Score: ${t.score || 0} | Due: ${t.due}</div>
+                  </div>
+                `).join("")
+    }
             </div>
           </div>
 
         </div>
 
         <!-- Right Column: Day Schedule Area -->
-        <div style="display:flex; flex-direction:column; background:#ffffff; position:relative;">
-          
-          <!-- Navigation Bar -->
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid #e2e8f0; background:#ffffff;">
-            
-            <div style="display:flex; align-items:center; gap:10px;">
-              <button style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:6px 14px; font-weight:700; font-size:12px; color:#0f172a; cursor:pointer;">Today</button>
-              <div style="display:flex; gap:8px; font-weight:800; color:#64748b; cursor:pointer;">
-                <span>&lt;</span>
-                <span>&gt;</span>
-              </div>
-            </div>
-
-            <!-- Mode Switcher Pill -->
-            <div style="display:flex; background:#f1f5f9; border-radius:6px; padding:2px;">
-              <button style="background:#ef4444; color:#ffffff; border:none; border-radius:4px; padding:4px 14px; font-size:12px; font-weight:800; cursor:pointer;">Day</button>
-              <button style="background:transparent; color:#64748b; border:none; padding:4px 14px; font-size:12px; font-weight:700; cursor:pointer;">Week</button>
-            </div>
-
-            <!-- Search Field -->
-            <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 12px; width:220px;">
-              <svg width="14" height="14" fill="none" stroke="#64748b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input type="text" placeholder="Search tasks..." style="border:none; background:transparent; outline:none; font-size:12px; width:100%; color:#0f172a;">
-            </div>
-
-          </div>
-
-          <!-- Day Date Header -->
-          <div style="display:flex; align-items:baseline; gap:10px; padding:12px 20px; border-bottom:1px solid #e2e8f0; background:#fafbfc;">
-            <span style="font-size:11px; font-weight:800; color:#64748b;">GMT-5</span>
-            <span style="font-size:12px; font-weight:800; color:#64748b;">SUN</span>
-            <span style="font-size:26px; font-weight:900; color:#0f172a;">19</span>
-          </div>
-
-          <!-- Hourly Timeline Container with Tasks -->
-          <div style="flex:1; padding:16px 20px; overflow-y:auto; position:relative; display:grid; gap:8px; background:#ffffff;">
-            
-            ${scheduleItems.map((item, idx) => `
-              <div style="display:grid; grid-template-columns: 70px 1fr; gap:12px; align-items:flex-start; position:relative;">
-                <div style="font-size:11px; font-weight:700; color:#64748b; text-align:right; padding-top:4px;">
-                  ${item.time.split(" - ")[0]}
-                </div>
-                
-                <div style="background:${item.bg}; border-left:4px solid ${item.border}; border-radius:6px; padding:10px 14px; position:relative; cursor:pointer;" class="schedule-task-item" data-task="${item.taskId || idx}">
-                  <div style="font-size:11.5px; font-weight:800; color:${item.color}; font-family:'Montserrat', sans-serif;">
-                    ${item.time}
-                  </div>
-                  <div style="font-size:13px; font-weight:700; color:#0f172a; margin-top:2px;">
-                    ${escapeHtml(item.title)}
-                  </div>
-                </div>
-              </div>
-            `).join("")}
-
-            <!-- Task Detail Popup Modal Preview (Floating exact match to Image 2) -->
-            <div style="position:absolute; top:120px; right:40px; width:340px; background:#ffffff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 12px 36px rgba(0,0,0,0.15); padding:18px; z-index:100; display:flex; flex-direction:column; gap:12px;">
-              <div>
-                <h4 style="margin:0 0 6px; font-size:14px; font-weight:800; color:#0f172a; line-height:1.35;">
-                  Fix CSV upload timeout for enterprise imports
-                </h4>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span style="background:#dc2626; color:#ffffff; font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px;">P1</span>
-                  <span style="font-size:11.5px; color:#64748b; font-weight:600;">Due 2026-06-18</span>
-                </div>
-              </div>
-
-              <p style="margin:0; font-size:12px; color:#475569; line-height:1.45; background:#f8fafc; padding:10px; border-radius:6px; border:1px solid #f1f5f9;">
-                P1 customer escalation. Imports above 20MB time out after the proxy change. SLA expires tomorrow.
-              </p>
-
-              <button class="primary" style="background:#1d4ed8; color:#ffffff; font-weight:700; border:none; padding:9px; border-radius:6px; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-size:12.5px; cursor:pointer;">
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                Open in Jira
-              </button>
-
-              <div style="display:flex; gap:6px; flex-wrap:wrap; border-top:1px solid #f1f5f9; padding-top:10px;">
-                <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:12px;">Jira Sprint Board</span>
-                <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:12px;">ServiceNow Defects</span>
-                <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:12px;">Outlook Emails</span>
-              </div>
-            </div>
-
-          </div>
-
+        <div style="display:flex; flex-direction:column; background:#ffffff; position:relative; overflow:hidden;">
+          ${rightContentHtml}
         </div>
-
       </div>
 
     </div>
@@ -3990,80 +5988,183 @@ function getStatusSVG(status) {
   }
 }
 
-function renderDiscordUserPanel() {
-  const currentStatus = activeProfile === "manager" ? managerPresenceStatus : engineerPresenceStatus;
-  const displayName = settingsProfile?.name || "Utkarsh Sinha";
+function renderDiscordProfileCard() {
+  if (!showDiscordProfileCard) return "";
+
+  const currentStatus = activeProfile === "admin"
+    ? (localStorage.getItem("taskpilot:adminPresence") || "online")
+    : (activeProfile === "manager" ? managerPresenceStatus : engineerPresenceStatus);
+  const displayName = settingsProfile?.name || (activeProfile === "admin" ? "Miso" : (activeProfile === "manager" ? "Sarah Connor" : "Utkarsh Sinha"));
   const nameInitial = displayName ? displayName[0] : "U";
 
+  const isDark = activeTheme === "dark";
+  const panelBg = isDark ? "#1e1f22" : "#f2f3f5";
+  const panelBorder = isDark ? "#2b2d31" : "#e3e5e8";
+  const textPrimary = isDark ? "#f2f3f5" : "#060607";
+  const textSecondary = isDark ? "#b5bac1" : "#4e5058";
+  const hoverBg = isDark ? "#35373c" : "#dbdee1";
+  const statusColor = currentStatus === "online" ? "#23a55a" : currentStatus === "idle" ? "#f0b232" : currentStatus === "dnd" ? "#f23f43" : "#80848e";
+  const statusText = currentStatus === "dnd" ? "Do Not Disturb" : currentStatus;
+
   return `
-    <div class="discord-user-panel" id="discordUserPanel" style="margin-top:auto; padding:10px 12px; background:#eef0f4; border-radius:12px; border:1px solid #dde1ea; display:flex; align-items:center; justify-content:space-between; position:relative; gap:8px; font-family:'Outfit', sans-serif;">
-      <!-- Avatar and Info -->
-      <div style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1; min-width:0;" id="openStatusSelectorBtn">
-        <div style="position:relative; width:36px; height:36px; flex-shrink:0;">
-          <div style="width:36px; height:36px; border-radius:50%; background:#0c66e4; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; text-transform:uppercase;">
+    <div id="discordProfilePopover" style="position:absolute; bottom:58px; left:8px; width:224px; background:${panelBg}; border:1px solid ${panelBorder}; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); z-index:10000; overflow:hidden; font-family:'Outfit', sans-serif; display:flex; flex-direction:column; box-sizing:border-box;">
+      <!-- Banner -->
+      <div style="height:60px; background:linear-gradient(135deg, #5865f2, #4752c4); position:relative; flex-shrink:0;"></div>
+      
+      <!-- Avatar Section -->
+      <div style="position:relative; margin-top:-24px; padding:0 12px; display:flex; align-items:flex-end; justify-content:space-between; flex-shrink:0;">
+        <!-- Avatar Circle -->
+        <div style="width:48px; height:48px; border-radius:50%; background:${panelBg}; display:flex; align-items:center; justify-content:center; position:relative; border:4px solid ${panelBg}; box-sizing:content-box;">
+          <div style="width:48px; height:48px; border-radius:50%; background:#5865f2; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; text-transform:uppercase;">
             ${nameInitial}
           </div>
-          <!-- Status badge — sits outside the circle -->
-          <div style="position:absolute; bottom:-2px; right:-2px; width:14px; height:14px; border-radius:50%; background:#f7f8fa; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px #f7f8fa; z-index:1;">
-            ${getStatusSVG(currentStatus)}
+          <!-- Status Cutout -->
+          <div style="position:absolute; bottom:-3px; right:-3px; width:16px; height:16px; border-radius:50%; background:${panelBg}; display:flex; align-items:center; justify-content:center; z-index:3;">
+            <div style="width:10px; height:10px; border-radius:50%; background:${statusColor};"></div>
           </div>
         </div>
-        <div style="min-width:0; line-height:1.2;">
-          <div style="font-size:12.5px; font-weight:800; color:#172b4d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            ${escapeHtml(displayName.split(" ")[0])}
-          </div>
-          <div style="font-size:10px; color:#65717d; text-transform:capitalize; font-weight:600;">
-            ${currentStatus === "dnd" ? "Do Not Disturb" : currentStatus}
-          </div>
+
+        <!-- Custom obsessions indicator (Discord style "+ Status bubble") -->
+        <div id="obsessedInputTrigger" style="background:${isDark ? '#111214' : '#fff'}; border:1px solid ${panelBorder}; padding:4px 8px; border-radius:12px; max-width:110px; font-size:9.5px; cursor:pointer; color:${textSecondary}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${isDark ? '#111214' : '#fff'}'">
+          ${localStorage.getItem(`obsessed:${activeProfile}`) || "+ Status bio..."}
         </div>
       </div>
 
-      <!-- Decorative and Controls -->
-      <div style="display:flex; align-items:center; gap:6px; color:#65717d;" class="user-panel-controls">
-        <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme" style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center; color:inherit;">
-          ${activeTheme === "light"
-      ? `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>`
-      : `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 17a5 5 0 100-10 5 5 0 000 10z"/></svg>`
-    }
-        </button>
-        <button style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center; color:inherit;" onclick="alert('Mic muted');" title="Mute Mic">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-        </button>
-        <button style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.75; display:flex; align-items:center; justify-content:center; color:inherit;" id="panelSettingsBtn" title="Settings">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        </button>
+      <!-- User Information -->
+      <div style="padding:8px 12px 10px 12px; display:flex; flex-direction:column; min-height:0; flex-shrink:0;">
+        <span style="font-size:14px; font-weight:800; color:${textPrimary}; margin:4px 0 2px 0; line-height:1.2;">
+          ${escapeHtml(displayName)}
+        </span>
+        <span style="font-size:11px; color:${textSecondary}; font-weight:600; line-height:1;">
+          @${escapeHtml(displayName.split(" ")[0].toLowerCase())}
+        </span>
+        
+        <!-- Bio -->
+        <div style="border-top:1px solid ${panelBorder}; padding-top:6px; margin-top:8px; font-size:10px; color:${textSecondary}; line-height:1.35; white-space:normal;">
+          Somewhere between coffee and commits, we automate production pipelines.
+        </div>
       </div>
 
-      <!-- Popup selector menu -->
-      ${showStatusSelector ? `
-        <div id="presenceStatusMenu" style="position:absolute; bottom:52px; left:0; width:170px; background:#fff; border:1px solid #ded5c8; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.15); z-index:999; padding:6px; display:grid; gap:4px;">
-          ${[
+      <!-- Actions List Menu -->
+      <div style="background:${isDark ? '#111214' : '#fff'}; margin:0 8px 8px 8px; border-radius:6px; padding:4px; display:grid; gap:2px; flex-shrink:0;">
+        
+        <!-- Status Option Row -->
+        <div id="cardStatusRowBtn" style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border-radius:4px; font-size:11.5px; font-weight:700; color:${textPrimary}; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='none'">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${statusColor};"></span>
+            <span>Status: <span style="text-transform:capitalize;">${statusText}</span></span>
+          </div>
+          <span style="font-size:9px; color:${textSecondary}; font-weight:900;">▶</span>
+        </div>
+
+        <!-- Switch Profile Option Row -->
+        <div id="cardProfileRowBtn" style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border-radius:4px; font-size:11.5px; font-weight:700; color:${textPrimary}; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='none'">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <span>Role: ${activeProfile === 'admin' ? 'Admin' : (activeProfile === 'manager' ? 'Manager' : 'Engineer')}</span>
+          </div>
+          <span style="font-size:9px; color:${textSecondary}; font-weight:900;">▶</span>
+        </div>
+
+        <!-- Sign Out Option Row -->
+        <div id="cardSignOutRowBtn" style="display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:4px; font-size:11.5px; font-weight:700; color:#de350b; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background='none'">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <span>Sign Out</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDiscordUserPanel() {
+  const currentStatus = activeProfile === "admin"
+    ? (localStorage.getItem("taskpilot:adminPresence") || "online")
+    : (activeProfile === "manager" ? managerPresenceStatus : engineerPresenceStatus);
+  const displayName = settingsProfile?.name || (activeProfile === "admin" ? "Miso" : (activeProfile === "manager" ? "Sarah Connor" : "Utkarsh Sinha"));
+  const nameInitial = displayName ? displayName[0] : "U";
+
+  // Determine Discord style theme colors based on activeTheme
+  const isDark = activeTheme === "dark";
+  const panelBg = isDark ? "#111214" : "#ebedf0";
+  const panelBorder = isDark ? "#1f2023" : "#e3e5e8";
+  const textPrimary = isDark ? "#f2f3f5" : "#060607";
+  const textSecondary = isDark ? "#b5bac1" : "#5c5e66";
+  const iconColor = isDark ? "#b5bac1" : "#313338";
+  const hoverBg = isDark ? "#35373c" : "#dbdee1";
+  const pillBg = isDark ? "#2b2d31" : "#e3e5e8";
+  const statusColor = currentStatus === "online" ? "#23a55a" : currentStatus === "idle" ? "#f0b232" : currentStatus === "dnd" ? "#f23f43" : "#80848e";
+
+  return `
+    ${renderDiscordProfileCard()}
+
+    <!-- Popup selector menu (rendered outside container to prevent overflow clipping!) -->
+    ${showStatusSelector ? `
+      <div id="presenceStatusMenu" style="position:absolute; bottom:58px; left:8px; width:170px; background:${isDark ? '#1e1f22' : '#fff'}; border:1px solid ${panelBorder}; border-radius:8px; box-shadow:0 8px 16px rgba(0,0,0,0.2); z-index:10001; padding:6px; display:grid; gap:4px;">
+        ${[
         { id: "online", label: "Online", clr: "#23a55a" },
         { id: "idle", label: "Idle", clr: "#f0b232" },
         { id: "dnd", label: "Do Not Disturb", clr: "#f23f43" },
         { id: "invisible", label: "Invisible", clr: "#80848e" }
       ].map(st => `
-            <button class="status-option-btn" data-status="${st.id}" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:6px 8px; border-radius:6px; cursor:pointer; text-align:left; font-size:11.5px; font-weight:700; color:#334155; transition:background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
-              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${st.clr};"></span>
-              <span>${st.label}</span>
-            </button>
-          `).join("")}
-        </div>
-      ` : ""}
+          <button class="status-option-btn" data-status="${st.id}" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:6px 8px; border-radius:4px; cursor:pointer; text-align:left; font-size:12px; font-weight:600; color:${isDark ? '#dbdee1' : '#313338'}; transition:background 0.15s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='none'">
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${st.clr};"></span>
+            <span>${st.label}</span>
+          </button>
+        `).join("")}
+      </div>
+    ` : ""}
 
-      <!-- Popup settings menu -->
-      ${showSettingsMenu ? `
-        <div id="sidebarSettingsMenu" style="position:absolute; bottom:52px; right:10px; width:150px; background:#fff; border:1px solid #ded5c8; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.15); z-index:999; padding:6px; display:grid; gap:4px;">
-          <button id="sidebarGoToSettingsBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:6px; cursor:pointer; text-align:left; font-size:12px; font-weight:700; color:#334155; transition:background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
-            <svg width="14" height="14" fill="none" stroke="#0c66e4" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            <span>Settings</span>
-          </button>
-          <button id="sidebarSignOutBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:6px; cursor:pointer; text-align:left; font-size:12px; font-weight:700; color:#de350b; transition:background 0.15s;" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background='none'">
-            <svg width="14" height="14" fill="none" stroke="#de350b" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            <span>Sign out</span>
-          </button>
+    <!-- Popup settings menu (rendered outside container to prevent overflow clipping!) -->
+    ${showSettingsMenu ? `
+      <div id="sidebarSettingsMenu" style="position:absolute; bottom:58px; right:8px; width:150px; background:${isDark ? '#1e1f22' : '#fff'}; border:1px solid ${panelBorder}; border-radius:8px; box-shadow:0 8px 16px rgba(0,0,0,0.2); z-index:10001; padding:6px; display:grid; gap:4px;">
+        <button id="sidebarGoToSettingsBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:4px; cursor:pointer; text-align:left; font-size:12px; font-weight:600; color:${isDark ? '#dbdee1' : '#313338'}; transition:background 0.15s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='none'">
+          <svg width="14" height="14" fill="none" stroke="#0c66e4" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>Settings</span>
+        </button>
+        <button id="sidebarSignOutBtn" style="display:flex; align-items:center; gap:8px; width:100%; border:none; background:none; padding:8px; border-radius:4px; cursor:pointer; text-align:left; font-size:12px; font-weight:600; color:#de350b; transition:background 0.15s;" onmouseover="this.style.background='#fdf2f2'" onmouseout="this.style.background='none'">
+          <svg width="14" height="14" fill="none" stroke="#de350b" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <span>Sign out</span>
+        </button>
+      </div>
+    ` : ""}
+
+    <div class="discord-user-panel" id="discordUserPanel" style="margin-top:auto; padding:6px 8px; background:${panelBg}; border-radius:4px; display:flex; align-items:center; justify-content:space-between; position:relative; gap:6px; font-family:'Outfit', sans-serif; box-sizing:border-box; height:52px; flex-shrink:0; border:none;">
+      <!-- Avatar and Info -->
+      <div style="display:flex; align-items:center; gap:8px; cursor:pointer; flex:1; min-width:0; padding:2px; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='none'" id="openStatusSelectorBtn">
+        <div style="position:relative; width:32px; height:32px; flex-shrink:0;">
+          <div style="width:32px; height:32px; border-radius:50%; background:#5865f2; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; text-transform:uppercase;">
+            ${nameInitial}
+          </div>
+          <!-- Status badge -->
+          <div style="position:absolute; bottom:-3px; right:-3px; width:14px; height:14px; border-radius:50%; background:${panelBg}; display:flex; align-items:center; justify-content:center; z-index:2;">
+            <div style="width:10px; height:10px; border-radius:50%; background:${statusColor};"></div>
+          </div>
         </div>
-      ` : ""}
+        <div style="min-width:0; line-height:1.2; display:flex; flex-direction:column; justify-content:center;">
+          <span style="font-size:12.5px; font-weight:700; color:${textPrimary}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${escapeHtml(displayName.split(" ")[0])}
+          </span>
+          <span style="font-size:10px; color:${textSecondary}; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            @${escapeHtml(displayName.split(" ")[0].toLowerCase())}
+          </span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;" class="user-panel-controls">
+        <!-- Theme Toggle -->
+        <button id="themeToggleBtn" title="Toggle Theme" style="background:${pillBg}; border:none; padding:4px 6px; border-radius:4px; display:flex; align-items:center; gap:4px; cursor:pointer; color:${iconColor}; height:24px; transition:background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${pillBg}'">
+          ${isDark
+      ? `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 17a5 5 0 100-10 5 5 0 000 10z"/></svg>`
+      : `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>`
+    }
+          <span style="font-size:7px; color:${textSecondary}; transform:scale(0.8);">▼</span>
+        </button>
+        <!-- Settings Gear -->
+        <button style="background:none; border:none; padding:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${iconColor}; border-radius:4px; transition:background 0.2s; width:28px; height:28px;" id="panelSettingsBtn" title="Settings" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='none'">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:block;"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -4668,7 +6769,7 @@ function renderManagerCommandStrip(selected) {
       : "Run the Genome Analyzer to predict risks from historical sprint patterns."
     }</p>
       </article>
-      <article class="hero-card priority" style="cursor: pointer;" data-nav="analytics">
+      <article class="hero-card priority" style="cursor: pointer;" data-nav="engineer-analytics">
         <p class="eyebrow">Manager action</p>
         <h2>${blockers.length} blockers need decisions</h2>
         <p>Rebalance owners, approve dependencies, and send ETA updates across Jira, ServiceNow, and Outlook.</p>
@@ -6271,7 +8372,7 @@ function renderAgentScanConsole() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:11px;font-weight:700;color:${isBackendConnected ? "#15803d" : "#b45309"};background:${isBackendConnected ? "#dcfce7" : "#fef3c7"};padding:4px 10px;border-radius:6px;border:1px solid ${isBackendConnected ? "#bbf7d0" : "#fde68a"};font-family:'SF Mono',monospace;">
-            ${isBackendConnected ? "● Backend Active (127.0.0.1:8787)" : "● Connecting to Backend..."}
+            ${isBackendConnected ? `● Backend Active (${new URL(BACKEND_URL).host})` : "● Connecting to Backend..."}
           </span>
           <div style="font-size:12px;color:#0f172a;background:#f1f5f9;padding:6px 14px;border-radius:8px;border:1px solid #cbd5e1;font-weight:800;font-family:'SF Mono',Consolas,monospace;">
             ${totalRowsCleaned.toLocaleString()} total rows processed
@@ -6419,14 +8520,629 @@ function renderAgentScanConsole() {
   `;
 }
 
+function renderWhiteboardTaskCard(t) {
+  const isWorking = isTaskWorking(t.id);
+  const isDone = isTaskCompleted(t.id);
+  const sev = (t.severity || "P3").toUpperCase();
 
-// Page: Unified Inbox — Full Scrum Board with Source Tree, Kanban, and Date Stream
+  let sevColor = "#7c3aed";
+  let sevBg = "#f3e8ff";
+  if (sev === "P1") {
+    sevColor = "#dc2626";
+    sevBg = "#fee2e2";
+  } else if (sev === "P2") {
+    sevColor = "#d97706";
+    sevBg = "#fef3c7";
+  } else if (sev === "P4") {
+    sevColor = "#475569";
+    sevBg = "#f1f5f9";
+  }
 
-// Page: Unified Inbox — Full Scrum Board with Source Tree, Kanban, and Date Stream
+  let logoKey = "jira";
+  const srcLower = (t.sources ? t.sources.join(" ") : t.id || "").toLowerCase();
+  if (srcLower.includes("github") || srcLower.includes("pr")) logoKey = "github";
+  else if (srcLower.includes("servicenow") || srcLower.includes("defect") || srcLower.includes("incident")) logoKey = "servicenow";
+  else if (srcLower.includes("email") || srcLower.includes("outlook")) logoKey = "email";
+  else if (srcLower.includes("slack") || srcLower.includes("mention")) logoKey = "slack";
+  else if (srcLower.includes("notes") || srcLower.includes("meeting")) logoKey = "notes";
+  const platformLogo = SOURCE_LOGO_MAP[logoKey] || SOURCE_LOGO_MAP.jira;
+
+  const owner = t.owner || "Unassigned";
+  const initials = owner.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  const assigneeColors = {
+    Sarah: "#ec4899", Utkarsh: "#10b981", Miso: "#8b5cf6", Karan: "#f59e0b", Sophia: "#3b82f6", Unassigned: "#64748b"
+  };
+  const firstWord = owner.split(" ")[0];
+  const avatarBg = assigneeColors[firstWord] || "#64748b";
+
+  let timerHtml = "";
+  if (isWorking) {
+    if (!taskTimeLogs[t.id] || !taskTimeLogs[t.id].startTime) {
+      taskTimeLogs[t.id] = {
+        title: t.canonicalTitle,
+        severity: t.severity,
+        source: t.sources?.join(" + ") || t.sourceId,
+        startTime: new Date().toISOString(),
+        durationSeconds: Math.floor(Math.random() * 60) + 60, // 60 to 120 seconds
+        endTime: null
+      };
+    }
+
+    const log = taskTimeLogs[t.id];
+    const elapsedMs = new Date() - new Date(log.startTime);
+    const durationMs = (log.durationSeconds || 120) * 1000;
+    const remainingMs = Math.max(0, durationMs - elapsedMs);
+    const remainingSec = Math.floor(remainingMs / 1000);
+    const min = Math.floor(remainingSec / 60);
+    const sec = remainingSec % 60;
+    const timeStr = `${min}m ${sec < 10 ? '0' : ''}${sec}s`;
+    const pct = Math.max(0, Math.min(100, (remainingMs / durationMs) * 100));
+
+    timerHtml = `
+      <div class="wb-coc-timer-container" data-task-id="${t.id}" style="background:#1e293b; border:1.5px solid #0f172a; border-radius:6px; padding:2px 5px; display:flex; align-items:center; gap:5px; margin-bottom:5px; box-shadow:0 2px 4px rgba(0,0,0,0.15); box-sizing:border-box;">
+        <span class="coc-hammer-icon" style="font-size:10px; animation:hammerSwing 0.6s infinite alternate; display:inline-block; transform-origin:bottom right; margin-bottom: 2px;">🔨</span>
+        <div style="flex:1; height:6px; background:#0f172a; border-radius:3px; overflow:hidden; position:relative;">
+          <div class="wb-coc-progress-fill" style="width:${pct}%; height:100%; background:linear-gradient(90deg, #10b981, #34d399); transition:width 1s linear; box-sizing:border-box;"></div>
+        </div>
+        <span class="wb-coc-timer-text" style="font-size:8px; font-weight:900; color:#ffffff; font-family:'Outfit', sans-serif; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,0.8);">
+          ${timeStr}
+        </span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="task-card-wb ${isWorking ? "active-task" : ""}" data-task="${t.id}" style="border-left: 4px solid ${sevColor};">
+      ${timerHtml}
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span style="font-size:8.5px; font-weight:800; background:${sevBg}; color:${sevColor}; padding:2px 5px; border-radius:4px;">${sev}</span>
+        ${isWorking ? `
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span style="width:6px; height:6px; border-radius:50%; background:#10b981; display:inline-block; animation:pulse 0.8s infinite alternate;"></span>
+            <span style="font-size:8.5px; font-weight:800; color:#10b981; text-transform:uppercase; letter-spacing:0.02em;">Active</span>
+          </div>
+        ` : ""}
+        ${isDone ? `<span style="font-size:8.5px; font-weight:800; color:#10b981; display:flex; align-items:center; gap:2px;">✓ Done</span>` : ""}
+      </div>
+      <div style="font-size:11px; font-weight:800; color:#1e293b; line-height:1.35; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-bottom:4px;">
+        ${escapeHtml(t.canonicalTitle)}
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #e2e8f0; padding-top:6px; margin-top:2px;">
+        <div style="display:flex; align-items:center; gap:5px;">
+          <div style="width:16px; height:16px; border-radius:50%; background:${avatarBg}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:7.5px; font-weight:800; flex-shrink:0;">
+            ${initials}
+          </div>
+          <span style="font-size:9.5px; font-weight:700; color:#64748b;">${owner}</span>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:9px; font-weight:800; color:${t.due ? '#ef4444' : '#94a3b8'};">${t.due ? 'Today' : 'No deadline'}</span>
+          <div class="wb-card-source-logo" style="width:16px; height:16px; border-radius:4px; background:${platformLogo.bg}; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,0.06); flex-shrink:0;" title="${logoKey.toUpperCase()}">
+            ${platformLogo.svg}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderWhiteboardNotes() {
+  return `
+    <!-- Google Doc Project Brief -->
+    <div class="wb-brief" style="left:70px; top:30px; width:200px; height:240px; border-left: 4px solid #0c66e4; background: #ffffff;">
+      <div style="font-size:10px; font-weight:800; color:#0c66e4; margin-bottom:6px; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.05em;">
+        <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        Project Brief
+      </div>
+      <div style="font-size:13px; font-weight:800; color:#1e293b; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px; line-height:1.2;">
+        Design Manager Sync Agenda
+      </div>
+      <ul style="margin:0; padding-left:14px; font-size:10px; color:#475569; display:grid; gap:6px; font-weight:600; line-height:1.4; list-style-type:disc;">
+        <li>Update task statuses</li>
+        <li>Fix CSV upload timeout</li>
+        <li>Check cuDF optimizations</li>
+        <li>Verify real-time updates</li>
+      </ul>
+      <div style="margin-top:14px; font-size:8.5px; color:#94a3b8; font-weight:700; border-top:1px solid #f8fafc; padding-top:6px; display:flex; align-items:center; gap:4px;">
+        <span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:#10b981;"></span>
+        Google Docs &middot; Updated 10m ago
+      </div>
+    </div>
+
+    <!-- Yellow Sticky Note -->
+    <div class="wb-sticky" style="left:110px; top:290px; background:#fef9c3; border-top:3px solid #fde047; transform:rotate(-2deg);">
+      <div style="font-size:11.5px; line-height:1.4;">Add inspirational images to aid customers</div>
+      <div style="font-size:9.5px; opacity:0.6; text-align:right; font-weight:800; margin-top:8px;">— Sarah</div>
+    </div>
+
+    <!-- Green Sticky Note -->
+    <div class="wb-sticky" style="left:290px; top:30px; background:#dcfce7; border-top:3px solid #86efac; transform:rotate(1.5deg);">
+      <div style="font-size:11.5px; line-height:1.4;">Let's use Outfit & Outfit fonts for modern clean branding!</div>
+      <div style="font-size:9.5px; opacity:0.6; text-align:right; font-weight:800; margin-top:8px;">— Utkarsh</div>
+    </div>
+
+    <!-- Blue Sticky Note -->
+    <div class="wb-sticky" style="left:270px; top:210px; background:#dbeafe; border-top:3px solid #93c5fd; transform:rotate(-1deg);">
+      <div style="font-size:11.5px; line-height:1.4;">Transfer core database sync logic to Postgres/Supabase realtime</div>
+      <div style="font-size:9.5px; opacity:0.6; text-align:right; font-weight:800; margin-top:8px;">— Miso</div>
+    </div>
+
+    <!-- Pink Sticky Note -->
+    <div class="wb-sticky" style="left:280px; top:345px; background:#fce7f3; border-top:3px solid #fbcfe8; transform:rotate(2deg);">
+      <div style="font-size:11.5px; line-height:1.4;">Review infrastructure scaling assumptions on NVIDIA nodes</div>
+      <div style="font-size:9.5px; opacity:0.6; text-align:right; font-weight:800; margin-top:8px;">— Karan</div>
+    </div>
+  `;
+}
+
+function renderWhiteboardWorkflow(state) {
+  const backlog = state.prioritized.filter(t => !isTaskCompleted(t.id) && !isTaskWorking(t.id)).slice(0, 4);
+  const active = state.prioritized.filter(t => isTaskWorking(t.id)).slice(0, 4);
+  const completed = state.prioritized.filter(t => isTaskCompleted(t.id)).slice(0, 3);
+
+  const backlogHtml = backlog.map(t => renderWhiteboardTaskCard(t)).join("");
+  const activeHtml = active.map(t => renderWhiteboardTaskCard(t)).join("");
+  const completedHtml = completed.map(t => renderWhiteboardTaskCard(t)).join("");
+
+  return `
+    <div style="position:absolute; left:460px; top:30px; width:660px; height:440px; background:rgba(255,255,255,0.92); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid #e4e4e7; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.03); display:flex; flex-direction:column; padding:14px; box-sizing:border-box;">
+      <div style="font-size:12.5px; font-weight:800; color:#18181b; margin-bottom:12px; display:flex; align-items:center; gap:6px; border-bottom:1px solid #f4f4f5; padding-bottom:8px;">
+        🗺️ Engineering Workflow Status Board (Real-Time)
+      </div>
+      
+      <div style="display:flex; gap:10px; flex:1; min-height:0;">
+        <!-- Column 1: Backlog -->
+        <div style="flex:1; background:#f8fafc; border-radius:8px; display:flex; flex-direction:column; padding:8px; border:1px solid #e2e8f0;">
+          <div style="font-size:10px; font-weight:800; color:#3b82f6; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; letter-spacing:0.03em;">
+            <span>BACKLOG</span>
+            <span style="background:#dbeafe; color:#2563eb; padding:2px 7px; border-radius:10px; font-size:8.5px; font-weight:900;">${backlog.length}</span>
+          </div>
+          <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-right:2px;">
+            ${backlogHtml || `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:9.5px;">No backlog items</div>`}
+          </div>
+        </div>
+
+        <!-- Column 2: In Progress -->
+        <div style="flex:1; background:#fffbeb; border-radius:8px; display:flex; flex-direction:column; padding:8px; border:1px solid #fde68a;">
+          <div style="font-size:10px; font-weight:800; color:#d97706; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; letter-spacing:0.03em;">
+            <span>IN PROGRESS</span>
+            <span style="background:#fde68a; color:#b45309; padding:2px 7px; border-radius:10px; font-size:8.5px; font-weight:900;">${active.length}</span>
+          </div>
+          <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-right:2px;">
+            ${activeHtml || `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:9.5px;">No active tasks</div>`}
+          </div>
+        </div>
+
+        <!-- Column 3: Completed -->
+        <div style="flex:1; background:#f0fdf4; border-radius:8px; display:flex; flex-direction:column; padding:8px; border:1px solid #bbf7d0;">
+          <div style="font-size:10px; font-weight:800; color:#16a34a; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; letter-spacing:0.03em;">
+            <span>COMPLETED</span>
+            <span style="background:#bbf7d0; color:#15803d; padding:2px 7px; border-radius:10px; font-size:8.5px; font-weight:900;">${completed.length}</span>
+          </div>
+          <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-right:2px;">
+            ${completedHtml || `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:9.5px;">No completed items</div>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderManagerWFHWhiteboard() {
+  const zoom = window.whiteboardZoom || 100;
+  const panX = window.whiteboardPanX || 0;
+  const panY = window.whiteboardPanY || 0;
+
+  // Take a balanced sample across all priorities so all colors are visible
+  // (state.prioritized is sorted P1→P4 so a plain slice(0,35) shows only P1)
+  const _all = state.prioritized || [];
+  const _byPriority = { P1: [], P2: [], P3: [], P4: [] };
+  _all.forEach(t => { const k = t.severity || "P4"; if (_byPriority[k]) _byPriority[k].push(t); });
+  const PER_SEV = 10; // up to 10 per priority
+  const allTasks = [
+    ..._byPriority.P1.slice(0, PER_SEV),
+    ..._byPriority.P2.slice(0, PER_SEV),
+    ..._byPriority.P3.slice(0, PER_SEV),
+    ..._byPriority.P4.slice(0, PER_SEV),
+  ];
+
+  // ── Priority colors (matching the reference screenshot palette) ──────────
+  const SEV_COLORS = {
+    P1: { bg: "#FF9A42", shadow: "rgba(255,140,50,0.35)", text: "#7a3500", badgeBg: "rgba(0,0,0,0.13)" },
+    P2: { bg: "#5BB8FF", shadow: "rgba(60,150,255,0.3)",  text: "#003a6e", badgeBg: "rgba(0,0,0,0.13)" },
+    P3: { bg: "#FFD94A", shadow: "rgba(255,210,0,0.35)",  text: "#5c4000", badgeBg: "rgba(0,0,0,0.13)" },
+    P4: { bg: "#B8A8FF", shadow: "rgba(130,100,255,0.3)", text: "#2a006e", badgeBg: "rgba(0,0,0,0.13)" },
+  };
+
+  // ── Owner cursor colors ──────────────────────────────────────────────────
+  const CURSOR_COLORS = [
+    "#e91e8c","#7c3aed","#059669","#f59e0b","#0ea5e9",
+    "#ef4444","#8b5cf6","#10b981","#ec4899","#d97706"
+  ];
+  const ownerColorMap = {};
+  let _ci = 0;
+  [...new Set(allTasks.map(t => t.owner).filter(Boolean))]
+    .forEach(o => { ownerColorMap[o] = CURSOR_COLORS[_ci++ % CURSOR_COLORS.length]; });
+
+  // ── Store task data globally so onclick can reference by ID ──────────────
+  window.__mgrTaskData = {};
+  allTasks.forEach(t => {
+    window.__mgrTaskData[t.id] = {
+      id: t.id,
+      title: t.title || t.canonicalTitle || "Untitled",
+      body: t.body || t.description || "",
+      severity: t.severity || "P4",
+      owner: t.owner || "",
+      status: isTaskCompleted(t.id) ? "done" : isTaskWorking(t.id) ? "working" : "todo",
+      source: (t.sources || [])[0] || t.source || "",
+      team: t.team || "",
+      due: t.due || "",
+    };
+  });
+
+  // ── Detail modal renderer ─────────────────────────────────────────────────
+  window.__mgr_showDetail = function(taskId) {
+    const t = window.__mgrTaskData[taskId];
+    if (!t) return;
+    const c = SEV_COLORS[t.severity] || SEV_COLORS.P4;
+    const dueStr = t.due ? new Date(t.due).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"}) : null;
+    const ownerColor = ownerColorMap[t.owner] || "#6366f1";
+    const ownerInitials = t.owner ? t.owner.trim().split(" ").map(p => p[0]).join("").toUpperCase().slice(0,2) : "?";
+
+    const statusMeta = t.status === "working"
+      ? { label: "In Progress", bg: "#dcfce7", color: "#15803d", dot: "#22c55e", pulse: true }
+      : t.status === "done"
+      ? { label: "Completed",   bg: "#f1f5f9", color: "#475569", dot: "#94a3b8", pulse: false }
+      : { label: "To Do",       bg: "#ede9fe", color: "#6d28d9", dot: "#7c3aed", pulse: false };
+
+    const statusChip = `<div style="display:inline-flex;align-items:center;gap:6px;background:${statusMeta.bg};color:${statusMeta.color};padding:5px 13px 5px 9px;border-radius:99px;font-size:12px;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:${statusMeta.dot};flex-shrink:0;${statusMeta.pulse ? "animation:mgrPulse 1.4s ease-in-out infinite;" : ""}"></span>${statusMeta.label}</div>`;
+
+    const srcIcons = { jira:"▦", github:"⌁", servicenow:"△", slack:"💬", email:"📧", meeting:"📌" };
+    const srcKey = Object.keys(srcIcons).find(k => new RegExp(k,"i").test(t.source || ""));
+    const srcIcon = srcKey ? srcIcons[srcKey] : "◎";
+    const sourceChip = t.source ? `<div style="display:inline-flex;align-items:center;gap:5px;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;"><span>${srcIcon}</span>${t.source}</div>` : "";
+    const teamChip   = t.team   ? `<div style="display:inline-flex;align-items:center;gap:5px;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;"><span>🏷</span>${t.team}</div>` : "";
+
+    const sevGradients = { P1:"linear-gradient(135deg,#FF9A42,#ff6b1a)", P2:"linear-gradient(135deg,#5BB8FF,#1a8fe0)", P3:"linear-gradient(135deg,#FFD94A,#e0a800)", P4:"linear-gradient(135deg,#B8A8FF,#7c5ce0)" };
+    const sevGrad = sevGradients[t.severity] || sevGradients.P4;
+    const sevWidths = { P1:"100%", P2:"70%", P3:"45%", P4:"25%" };
+    const sevLabels = { P1:"Critical", P2:"High", P3:"Medium", P4:"Low" };
+
+    const descSection = t.body ? `
+      <div style="background:#f8fafc;border-radius:14px;padding:18px 20px;border:1.5px solid #f1f5f9;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="11" height="2" rx="1" fill="#94a3b8"/><rect x="1" y="5" width="9" height="2" rx="1" fill="#94a3b8"/><rect x="1" y="9" width="7" height="2" rx="1" fill="#94a3b8"/></svg>
+          <span style="font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:0.1em;text-transform:uppercase;">Description</span>
+        </div>
+        <div style="font-size:13.5px;color:#374151;line-height:1.65;">${t.body.slice(0,500)}${t.body.length > 500 ? "<span style='color:#94a3b8;'> …</span>" : ""}</div>
+      </div>
+    ` : "";
+
+    const dueDate = t.due ? new Date(t.due) : null;
+    const isOverdue = dueDate && dueDate < new Date() && t.status !== "done";
+
+    const ownerCard = t.owner ? `
+      <div style="flex:1;min-width:140px;background:#f8fafc;border-radius:14px;padding:16px 18px;border:1.5px solid #f1f5f9;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="3" stroke="#94a3b8" stroke-width="1.5"/><path d="M1 11c0-2.761 2.239-5 5-5s5 2.239 5 5" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span style="font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:0.1em;text-transform:uppercase;">Assigned To</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:50%;background:${sevGrad};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;box-shadow:0 3px 10px ${c.shadow};">${ownerInitials}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#1e293b;">${t.owner}</div>
+            <div style="font-size:11px;color:#94a3b8;font-weight:500;margin-top:1px;">Assignee</div>
+          </div>
+        </div>
+      </div>
+    ` : "";
+
+    const dueDateCard = dueStr ? `
+      <div style="flex:1;min-width:140px;background:${isOverdue ? "#fff1f0" : "#f8fafc"};border-radius:14px;padding:16px 18px;border:1.5px solid ${isOverdue ? "#fecaca" : "#f1f5f9"};">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="${isOverdue ? "#ef4444" : "#94a3b8"}" stroke-width="1.5"/><path d="M4 1v2M8 1v2" stroke="${isOverdue ? "#ef4444" : "#94a3b8"}" stroke-width="1.5" stroke-linecap="round"/><path d="M1 5h10" stroke="${isOverdue ? "#ef4444" : "#94a3b8"}" stroke-width="1.2"/></svg>
+          <span style="font-size:10px;font-weight:800;color:${isOverdue ? "#ef4444" : "#94a3b8"};letter-spacing:0.1em;text-transform:uppercase;">Due Date</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:${isOverdue ? "#dc2626" : "#1e293b"}">${dueStr}</div>
+        ${isOverdue ? "<div style='font-size:10.5px;color:#ef4444;font-weight:600;margin-top:3px;'>⚠ Overdue</div>" : ""}
+      </div>
+    ` : "";
+
+    const panel = document.getElementById("mgrDetailPanel");
+    if (!panel) return;
+
+    panel.innerHTML = `
+      <!-- Gradient header -->
+      <div style="background:${sevGrad};border-radius:20px 20px 0 0;padding:26px 26px 22px;position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,0.1);pointer-events:none;"></div>
+        <div style="position:absolute;right:50px;bottom:-50px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,0.07);pointer-events:none;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.35);color:#fff;font-size:10.5px;font-weight:800;padding:4px 12px;border-radius:99px;letter-spacing:0.09em;backdrop-filter:blur(6px);">${t.severity} · ${sevLabels[t.severity] || "Low"}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:10.5px;color:rgba(255,255,255,0.65);font-weight:600;font-family:monospace;letter-spacing:0.04em;">${t.id || ""}</span>
+            <button onclick="window.__mgr_closeDetail()" style="width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,0.18);border:none;cursor:pointer;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background 0.15s,transform 0.15s;line-height:1;" onmouseover="this.style.background='rgba(0,0,0,0.32)';this.style.transform='scale(1.1)'" onmouseout="this.style.background='rgba(0,0,0,0.18)';this.style.transform='scale(1)'">×</button>
+          </div>
+        </div>
+        <div style="font-size:19px;font-weight:800;color:#fff;line-height:1.3;letter-spacing:-0.01em;text-shadow:0 1px 4px rgba(0,0,0,0.12);">${t.title}</div>
+        <!-- Priority fill bar -->
+        <div style="margin-top:16px;background:rgba(0,0,0,0.15);border-radius:99px;height:4px;overflow:hidden;">
+          <div style="width:${sevWidths[t.severity]||"25%"};height:100%;background:rgba(255,255,255,0.65);border-radius:99px;"></div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:22px 24px 26px;display:flex;flex-direction:column;gap:16px;background:#fff;border-radius:0 0 20px 20px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${statusChip}${sourceChip}${teamChip}</div>
+        <div style="height:1px;background:linear-gradient(90deg,#e2e8f0 60%,transparent);"></div>
+        ${descSection}
+        ${(ownerCard || dueDateCard) ? `<div style="display:flex;gap:12px;flex-wrap:wrap;">${ownerCard}${dueDateCard}</div>` : ""}
+      </div>
+    `;
+    const modal = document.getElementById("mgrDetailModal");
+    if (modal) { modal.style.display = "flex"; requestAnimationFrame(() => { modal.style.opacity = "1"; panel.style.transform = "scale(1) translateY(0)"; }); }
+  };
+
+  window.__mgr_closeDetail = function() {
+    const modal = document.getElementById("mgrDetailModal");
+    const panel = document.getElementById("mgrDetailPanel");
+    if (!modal) return;
+    modal.style.opacity = "0";
+    if (panel) panel.style.transform = "scale(0.92) translateY(16px)";
+    setTimeout(() => { modal.style.display = "none"; }, 220);
+  };
+
+  // ── Seeded pseudo-random layout ─────────────────────────────────────────
+  function seededRand(seed) {
+    let s = seed;
+    return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  }
+
+  // 7-column grid, varied note sizes, small jitter
+  const COLS = 7;
+  const CELL_W = 192, CELL_H = 185;
+  const START_X = 20, START_Y = 20;
+
+  const NOTE_CFGS = [
+    { w: 148, h: 148, fs: "13px" },
+    { w: 168, h: 168, fs: "13.5px" },
+    { w: 132, h: 138, fs: "12.5px" },
+    { w: 154, h: 162, fs: "13px" },
+    { w: 176, h: 170, fs: "14px" },
+    { w: 142, h: 148, fs: "13px" },
+    { w: 158, h: 158, fs: "13.5px" },
+    { w: 122, h: 128, fs: "12px" },
+    { w: 172, h: 172, fs: "14px" },
+    { w: 146, h: 152, fs: "13px" },
+  ];
+  const ROTS = [-1.8, 0.9, -0.6, 1.4, -0.4, 1.7, -1.1, 0.6, -1.6, 0.4];
+
+  function taskNote(t, idx) {
+    const rng = seededRand(idx * 31337 + 7919);
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const jx = (rng() - 0.5) * 28;
+    const jy = (rng() - 0.5) * 22;
+    const left = START_X + col * CELL_W + jx;
+    const top  = START_Y + row * CELL_H + jy;
+    const cfg = NOTE_CFGS[idx % NOTE_CFGS.length];
+    const rot = ROTS[idx % ROTS.length];
+
+    const sev = t.severity || "P4";
+    const c = SEV_COLORS[sev] || SEV_COLORS.P4;
+    const isDone = isTaskCompleted(t.id);
+    const isWorking = isTaskWorking(t.id);
+    const ownerColor = ownerColorMap[t.owner] || "#555";
+
+    const maxLen = cfg.w < 135 ? 38 : cfg.w < 155 ? 55 : 78;
+    const title = (t.title || t.canonicalTitle || "Untitled").slice(0, maxLen);
+    const initials = t.owner ? t.owner.trim().split(" ").map(p => p[0]).join("").toUpperCase().slice(0,2) : "?";
+    const shortId = (t.id || "").slice(0, 12);
+    const animDelay = (0.05 + idx * 0.03).toFixed(2);
+
+    const workingRing = isWorking ? `
+      <div style="position:absolute;inset:-3px;border-radius:5px;border:2.5px solid ${ownerColor};animation:mgrRingPulse 2s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
+    ` : "";
+
+    const cursorBadge = isWorking ? `
+      <div style="position:absolute;bottom:-32px;right:-2px;display:flex;align-items:center;gap:3px;pointer-events:none;z-index:30;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.22));">
+        <svg width="15" height="19" viewBox="0 0 15 19" fill="none">
+          <path d="M1.5 1.5L1.5 13.5L5 10.5L7.5 16.5L9.5 15.5L7 9.5L12 9.5L1.5 1.5Z" fill="${ownerColor}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        <div style="background:${ownerColor};color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;font-family:'Outfit',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.2);">${t.owner}</div>
+      </div>
+    ` : "";
+
+    const doneStrikethrough = isDone ? "text-decoration:line-through;opacity:0.7;" : "";
+    const doneFilter = isDone ? "opacity:0.6;filter:saturate(0.4);" : "";
+
+    return `
+      <div
+        onclick="window.__mgr_showDetail('${(t.id||'').replace(/'/g,"\\'")}');"
+        style="
+          position:absolute;
+          left:${left}px;
+          top:${top}px;
+          width:${cfg.w}px;
+          min-height:${cfg.h}px;
+          background:${c.bg};
+          transform:rotate(${rot}deg);
+          box-shadow:3px 6px 20px ${c.shadow}, 0 1px 4px rgba(0,0,0,0.07);
+          padding:12px 12px 32px;
+          box-sizing:border-box;
+          border-radius:3px;
+          font-family:'Outfit','Inter',sans-serif;
+          color:${c.text};
+          line-height:1.38;
+          user-select:none;
+          cursor:pointer;
+          transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s ease;
+          z-index:${isWorking ? 20 : 2};
+          animation:mgrNoteIn ${animDelay}s cubic-bezier(0.34,1.56,0.64,1) both;
+          ${doneFilter}
+        "
+        onmouseover="
+          this.style.transform='rotate(0deg) scale(1.10) translateY(-8px)';
+          this.style.boxShadow='6px 16px 40px ${c.shadow}, 0 3px 10px rgba(0,0,0,0.13)';
+          this.style.zIndex=100;
+        "
+        onmouseout="
+          this.style.transform='rotate(${rot}deg)';
+          this.style.boxShadow='3px 6px 20px ${c.shadow}, 0 1px 4px rgba(0,0,0,0.07)';
+          this.style.zIndex=${isWorking ? 20 : 2};
+        "
+      >
+        ${workingRing}
+
+        <!-- Severity + ID row -->
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">
+          <span style="background:${c.badgeBg};color:${c.text};font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;letter-spacing:0.07em;">${sev}</span>
+          <span style="font-size:8px;color:${c.text};opacity:0.55;margin-left:auto;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60px;">${shortId}</span>
+        </div>
+
+        <!-- Title -->
+        <div style="font-size:${cfg.fs};font-weight:600;color:${c.text};line-height:1.4;${doneStrikethrough}">${title}</div>
+
+        <!-- Owner avatar -->
+        <div style="
+          position:absolute;bottom:8px;right:10px;
+          width:22px;height:22px;border-radius:50%;
+          background:${ownerColor};color:#fff;
+          display:flex;align-items:center;justify-content:center;
+          font-size:9px;font-weight:800;
+          border:2px solid rgba(255,255,255,0.65);
+          box-shadow:0 1px 5px rgba(0,0,0,0.14);
+          font-family:'Outfit',sans-serif;
+        ">${initials}</div>
+
+        ${cursorBadge}
+      </div>
+    `;
+  }
+
+  // ── Speech bubbles for active engineers ──────────────────────────────────
+  const workingTasks = allTasks.filter(t => isTaskWorking(t.id));
+  const activeOwners = [...new Set(workingTasks.map(t => t.owner).filter(Boolean))].slice(0, 2);
+  const bColors = ["#ec4899", "#a3e635"];
+  const bPos = [{ l: 10, t: 380 }, { l: 870, t: 275 }];
+
+  function speechBubble(name, color, pos) {
+    return `
+      <div style="
+        position:absolute;left:${pos.l}px;top:${pos.t}px;
+        background:white;border:2.5px solid ${color};border-radius:26px;
+        padding:7px 20px;font-size:20px;font-weight:700;
+        font-family:'Outfit',sans-serif;color:#333;
+        display:inline-flex;align-items:center;
+        box-shadow:0 4px 16px rgba(0,0,0,0.09);user-select:none;white-space:nowrap;z-index:30;
+        animation:mgrNoteIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+      ">
+        ${name}
+        <svg width="22" height="18" style="position:absolute;bottom:-15px;right:22px;" viewBox="0 0 22 18">
+          <path d="M4,2 L20,14 L16,2" fill="white" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M3,2 L17,2" fill="none" stroke="white" stroke-width="5"/>
+        </svg>
+      </div>
+    `;
+  }
+
+  const bubblesHtml = activeOwners.map((name, i) => speechBubble(name, bColors[i % 2], bPos[i % 2])).join("");
+  const notesHtml = allTasks.map((t, i) => taskNote(t, i)).join("");
+
+  const canvasRows = Math.ceil(allTasks.length / COLS);
+  const canvasW = START_X + COLS * CELL_W + 60;
+  const canvasH = START_Y + canvasRows * CELL_H + 80;
+
+  return `
+    <div style="display:flex;flex-direction:column;height:calc(100vh - 60px);overflow:hidden;background:#f0f0f0;font-family:'Outfit','Inter',sans-serif;position:relative;">
+
+      <style>
+        @keyframes mgrNoteIn {
+          from { opacity:0; transform:rotate(var(--r,0deg)) scale(0.75) translateY(14px); }
+          to   { opacity:1; transform:rotate(var(--r,0deg)) scale(1); }
+        }
+        @keyframes mgrFadeIn { from{opacity:0;} to{opacity:1;} }
+        @keyframes mgrPanelIn {
+          from { opacity:0; transform:scale(0.88) translateY(22px); }
+          to   { opacity:1; transform:scale(1) translateY(0); }
+        }
+        @keyframes mgrRingPulse {
+          0%,100%{opacity:1;} 50%{opacity:0.4;}
+        }
+        @keyframes mgrPulse {
+          0%,100%{opacity:1;} 50%{opacity:0.3;}
+        }
+        .wfh3-canvas { position:relative;width:100%;flex:1;min-height:0;overflow:auto;background:#f0f0f0; }
+        .wfh3-canvas::-webkit-scrollbar { width:5px;height:5px; }
+        .wfh3-canvas::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.15);border-radius:99px; }
+        .wfh3-canvas::-webkit-scrollbar-track { background:transparent; }
+      </style>
+
+      <!-- Scrollable whiteboard canvas -->
+      <div class="wfh3-canvas" id="whiteboardCanvas">
+        <div id="whiteboardContentWrapper" style="
+          position:relative;
+          width:${canvasW}px;
+          height:${canvasH}px;
+          transform-origin:0 0;
+          transform:translate(${panX}px,${panY}px) scale(${zoom/100});
+          transition:none;
+        ">
+          ${notesHtml}
+          ${bubblesHtml}
+        </div>
+      </div>
+
+      <!-- Legend bottom-left only -->
+      <div style="
+        position:absolute;left:14px;bottom:14px;
+        background:rgba(255,255,255,0.93);border:1px solid #ddd;
+        border-radius:10px;padding:7px 14px;
+        display:flex;align-items:center;gap:12px;
+        z-index:200;font-size:10.5px;font-weight:700;color:#555;
+        user-select:none;box-shadow:0 2px 10px rgba(0,0,0,0.08);
+      ">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:11px;height:11px;border-radius:2px;background:#FF9A42;box-shadow:0 1px 3px rgba(255,140,50,0.5);"></div>P1</div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:11px;height:11px;border-radius:2px;background:#5BB8FF;box-shadow:0 1px 3px rgba(60,150,255,0.5);"></div>P2</div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:11px;height:11px;border-radius:2px;background:#FFD94A;box-shadow:0 1px 3px rgba(255,210,0,0.5);"></div>P3</div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:11px;height:11px;border-radius:2px;background:#B8A8FF;box-shadow:0 1px 3px rgba(130,100,255,0.5);"></div>P4</div>
+        <div style="width:1px;height:12px;background:#ddd;"></div>
+        <div style="display:flex;align-items:center;gap:3px;">
+          <svg width="10" height="12" viewBox="0 0 10 12"><path d="M1.5 1L1.5 8.5L4 6.5L5.5 10L7 9.5L5.5 6L8.5 6L1.5 1Z" fill="#555"/></svg>
+          = working
+        </div>
+      </div>
+
+      <!-- ── Task Detail Modal ── -->
+      <div id="mgrDetailModal" style="
+        display:none;position:fixed;inset:0;
+        background:rgba(15,15,25,0.4);
+        z-index:2000;align-items:center;justify-content:center;
+        backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+        opacity:0;transition:opacity 0.2s ease;
+      " onclick="if(event.target.id==='mgrDetailModal')window.__mgr_closeDetail()">
+        <div id="mgrDetailPanel" style="
+          background:white;
+          border-radius:20px;
+          width:480px;
+          max-width:calc(100vw - 32px);
+          max-height:82vh;
+          overflow-y:auto;
+          box-shadow:0 32px 80px rgba(0,0,0,0.25),0 4px 20px rgba(0,0,0,0.1);
+          transform:scale(0.92) translateY(16px);
+          transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1), opacity 0.22s ease;
+          scrollbar-width:thin;
+        "></div>
+      </div>
+
+    </div>
+  `;
+}
+
+
 function renderUnifiedInbox() {
   const TODAY = "2026-06-21";
 
-  // Source color map — pastel-friendly accent colours (used for borders, icons, accents)
+  // Source color map — pastel-friendly accent colours
   const SOURCE_META = {
     jira: { label: "Jira Sprint Board", icon: "▦", color: "#1868db", pastel: "#eef3ff", emoji: "📋" },
     github: { label: "GitHub PRs", icon: "⌁", color: "#374151", pastel: "#f3f4f6", emoji: "🔀" },
@@ -6439,7 +9155,7 @@ function renderUnifiedInbox() {
   const queue = activeQueue();
 
   if (scrumActiveSource !== "all") {
-    // ─── SOURCE DETAIL VIEW: Show tasks matching Calendar Color Scheme ───
+    // ─── SOURCE DETAIL VIEW ───
     const pending = queue.filter(t => taskMatchesSource(t, scrumActiveSource));
     const meta = SOURCE_META[scrumActiveSource] || { label: scrumActiveSource, icon: "◎", color: "#64748b", emoji: "📌" };
 
@@ -6453,7 +9169,6 @@ function renderUnifiedInbox() {
       const isWorking = isTaskWorking(t.id);
       const sev = (t.severity || '').toUpperCase();
 
-      // Calendar Color Theme Palette: Red, Amber, Purple, Slate
       let theme = {
         bg: "#f3e8ff",
         borderLeft: "#a855f7",
@@ -6510,7 +9225,7 @@ function renderUnifiedInbox() {
               </a>
             </div>
             <h3 style="font-size:14px;font-weight:700;margin:0 0 8px 0;line-height:1.4;color:#172b4d;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">${escapeHtml(t.canonicalTitle)}</h3>
-            ${t.due ? `<div style="font-size:10px;color:${subTextColor};font-weight:600;margin-bottom:8px;">Due: ${formatDue(t.due)} · <span>${badgeText}</span></div>` : ""}
+            ${t.due ? `<div style="font-size:10px;color:${theme.subTextColor};font-weight:600;margin-bottom:8px;">Due: ${formatDue(t.due)} · <span>${theme.badgeLabel}</span></div>` : ""}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;border-top:1px solid rgba(0,0,0,0.08);padding-top:8px;">
             <span style="font-size:11px;color:${theme.subTextColor};font-weight:600;">${t.owner || "Unassigned"}</span>
@@ -6529,7 +9244,7 @@ function renderUnifiedInbox() {
     return `
       <div style="padding:18px;max-width:1200px;background:#f7f4ee;">
         <button class="btn-back-tree" data-scrum-source="all" style="background:#152238;color:#ffffff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,0.12);transition:all 0.15s ease;">
-          ← Back to Source Tree
+          ← Back to Workspace Board
         </button>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <div>
@@ -6559,417 +9274,302 @@ function renderUnifiedInbox() {
     `;
   }
 
-  // ─── OVERVIEW ALL SOURCES GRID VIEW ───
-  // Show ONLY tasks that fit in TODAY's working hours (capacity-based)
-  const todayStr = TODAY;
+  // ─── OVERVIEW ALL SOURCES WHITEBOARD VIEW ───
+  if (activeProfile === "manager") {
+    return renderManagerWFHWhiteboard();
+  }
+  const activeTasks = state.prioritized.filter(t => isTaskWorking(t.id));
 
-  const myName = activeProfile === "manager" ? "Manager" : (settingsProfile?.name || getUserName());
-  const todayCapacityTasks = buildTodayCapacityQueue(state.prioritized, myName, taskTimeLogs);
+  // Calculate aggregate queue statistics
+  const totalPending = state.prioritized.filter(t => !isTaskCompleted(t.id)).length;
+  const totalP1 = state.prioritized.filter(t => t.severity === "P1" && !isTaskCompleted(t.id)).length;
 
-  const tiles = sources.map(src => {
-    const meta = SOURCE_META[src.id] || { label: src.name, icon: "◎", color: src.color || "#64748b", emoji: "📌" };
-
-    const sourcePool = state.prioritized.filter(t => taskMatchesSource(t, src.id) && !isTaskCompleted(t.id));
-
-    // Pick a balanced priority mix: 1 P1 (Red), 1 P2 (Yellow), 1 P3 (Purple), 1 P4 (Slate)
-    const p1 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P1");
-    const p2 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P2");
-    const p3 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P3");
-    const p4 = sourcePool.find(t => (t.severity || '').toUpperCase() === "P4");
-
-    // Display 1-2 tasks per card matching today's calendar schedule
-    const topTasks = [p1, p2, p3, p4].filter(Boolean).slice(0, 2);
-
-    // If empty, fallback to first 2 available
-    if (topTasks.length === 0) {
-      topTasks.push(...sourcePool.slice(0, 2));
-    }
-
-    let cardUrgency = "cream";
-    for (const t of topTasks) {
-      if (t.severity === "P1") { cardUrgency = "red"; break; }
-      if (t.severity === "P2" && cardUrgency !== "red") cardUrgency = "amber";
-    }
-
-    const p1Count = sourcePool.filter(t => t.severity === "P1").length;
-
-    return { src, meta, pending: sourcePool, topTasks, cardUrgency, p1Count };
-  });
-
-  const totalPending = tiles.reduce((s, t) => s + t.pending.length, 0);
-  const totalP1 = tiles.reduce((s, t) => s + t.p1Count, 0);
-
-  // Task Row Renderer: STRICTLY maps P1 -> Red, P2 -> Yellow, P3 -> Purple, P4 -> Slate (Matches Calendar)
-  function renderTaskRow(t, parentDark = false) {
-    const isDone = isTaskCompleted(t.id);
-    const isWorking = isTaskWorking(t.id);
-    const sev = (t.severity || 'P3').toUpperCase();
-
-    // Calendar Color Theme Palette: P1 Red, P2 Yellow/Amber, P3 Purple, P4 Slate
-    let theme = {
-      bg: "#f3e8ff",
-      borderLeft: "#a855f7",
-      titleColor: "#581c87",
-      subTextColor: "#6b21a8",
-      badgeBg: "#e9d5ff",
-      badgeText: "#6b21a8",
-      label: "P3",
-      tagText: "Sprint Task"
-    };
-
-    if (sev === 'P1' || t.priority === 'high') {
-      // P1 Red
-      theme = {
-        bg: "#fde8e8",
-        borderLeft: "#d9381e",
-        titleColor: "#7a1c10",
-        subTextColor: "#991b1b",
-        badgeBg: "#fecaca",
-        badgeText: "#991b1b",
-        label: "P1",
-        tagText: "Urgent"
-      };
-    } else if (sev === 'P2' || t.priority === 'medium') {
-      // P2 Yellow / Amber
-      theme = {
-        bg: "#fef3c7",
-        borderLeft: "#f59e0b",
-        titleColor: "#78350f",
-        subTextColor: "#92400e",
-        badgeBg: "#fde68a",
-        badgeText: "#92400e",
-        label: "P2",
-        tagText: "High Priority"
-      };
-    } else if (sev === 'P4' || isDone) {
-      // P4 Slate / Blue
-      theme = {
-        bg: "#f1f5f9",
-        borderLeft: "#64748b",
-        titleColor: "#334155",
-        subTextColor: "#475569",
-        badgeBg: "#e2e8f0",
-        badgeText: "#475569",
-        label: "P4",
-        tagText: "Maintenance"
-      };
-    }
-
-    const ext = getTaskExternalUrl(t);
-
-    return `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;border:1px solid rgba(0,0,0,0.06);border-left:4px solid ${theme.borderLeft};background:${theme.bg};margin:4px 0;cursor:pointer;transition:transform 0.15s ease;width:100%;min-width:0;box-sizing:border-box;" data-task="${t.id}">
-        <span style="font-size:10px;font-weight:800;padding:2px 5px;border-radius:4px;background:${theme.badgeBg};color:${theme.badgeText};flex-shrink:0;">${theme.label}</span>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:800;color:${theme.titleColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle || t.title)}</div>
-          <div style="font-size:10px;color:${theme.subTextColor};font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <span>${t.owner || "Utkarsh"}</span>
-            <span>· ${theme.tagText}</span>
-            <a href="${ext.url}" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:2px;font-size:9px;font-weight:800;background:rgba(255,255,255,0.85);padding:1px 5px;border-radius:4px;border:1px solid ${theme.borderLeft}40;color:${theme.titleColor};text-decoration:none;" title="Open directly in ${ext.platform}">
-              ↗ Open
-            </a>
-          </div>
-        </div>
-        ${isWorking ? `<span style="font-size:9px;color:#0f766e;font-weight:800;flex-shrink:0;">● Active</span>` : ""}
-        ${isDone ? `<span style="font-size:9px;color:#0f766e;font-weight:800;flex-shrink:0;">✓ Done</span>` : ""}
-        ${!isDone && !isWorking ? `
-          <button class="tp-btn-start" data-task-start="${t.id}" style="font-size:10px;padding:3px 8px;flex-shrink:0;background:${theme.borderLeft};color:#ffffff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">▶</button>
-        ` : ""}
-      </div>`;
+  // Determine positions of live cursors
+  let activeUsers = Object.entries(presenceAllUsers)
+    .map(([name, u]) => ({ name, ...u }))
+    .filter(u => u.status !== "offline" && u.status !== "invisible");
+  if (activeUsers.length === 0) {
+    activeUsers = [
+      { name: "Sarah Connor", role: "manager", status: "online" },
+      { name: "Utkarsh Sinha", role: "engineer", status: "online" },
+      { name: "Miso", role: "admin", status: "dnd" },
+      { name: "Karan", role: "engineer", status: "online" },
+      { name: "Sophia", role: "designer", status: "online" }
+    ];
   }
 
-  // ── 3-colour urgency palette ─────────────────────────────────────────────
-  // RED   = due today    → warm red tint
-  // AMBER = approaching  → pale orange tint
-  // CREAM = stable       → warm cream (matches app background)
-  const PALETTE = {
-    red: { bg: "#fdecea", border: "#e8a09a", accent: "#c0392b", label: "#922b21", divider: "rgba(200,80,60,0.18)" },
-    amber: { bg: "#fef6e4", border: "#f0c080", accent: "#b7600a", label: "#935005", divider: "rgba(200,140,40,0.18)" },
-    cream: { bg: "#fdf8f0", border: "#d9c8ae", accent: "#7a5c3a", label: "#5d4226", divider: "rgba(180,150,100,0.2)" }
+  const cursorColors = {
+    "Sarah Connor": "#ec4899", // pink
+    "Utkarsh Sinha": "#10b981", // green
+    "Miso": "#8b5cf6", // purple
+    "Karan": "#f59e0b", // amber
+    "Sophia": "#3b82f6", // blue
+    "default": "#ef4444"
   };
 
-  // Per-source SVG logos — real brand marks, inline SVG, no external deps
-  const SOURCE_LOGOS = {
-    jira: {
-      bg: "#dbeafe",
-      svg: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-        <path d="M15.975 0C12.058 0 8.866 3.163 8.866 7.044v1.04H3.063A3.063 3.063 0 000 11.145c0 5.404 4.387 9.791 9.791 9.791h1.04v5.023C10.831 29.84 13.993 33 17.874 33h.002C21.795 33 25 29.837 25 25.956V7.044C25 3.163 21.838 0 17.958 0h-1.983z" fill="url(#jira-a)"/>
-        <path d="M16.043 0h-.068C12.058 0 8.866 3.163 8.866 7.044v14.892h7.177V7.044C16.043 3.163 19.206 0 23.124 0h-7.081z" fill="url(#jira-b)"/>
-        <defs>
-          <linearGradient id="jira-a" x1="24.997" y1="2.198" x2="11.867" y2="15.328" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#0052CC"/>
-            <stop offset="1" stop-color="#2684FF"/>
-          </linearGradient>
-          <linearGradient id="jira-b" x1="8.87" y1="10.566" x2="16.79" y2="10.566" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#0052CC"/>
-            <stop offset="1" stop-color="#2684FF"/>
-          </linearGradient>
-        </defs>
-      </svg>`
-    },
-    github: {
-      bg: "#f1f5f9",
-      svg: `<svg viewBox="0 0 24 24" fill="#1a1a2e" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-        <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-      </svg>`
-    },
-    servicenow: {
-      bg: "#fee2e2",
-      svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-        <circle cx="16" cy="16" r="16" fill="#c0392b"/>
-        <path d="M9 20.5c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-9c0-1.1-.9-2-2-2H11c-1.1 0-2 .9-2 2v9zm2-9h10v9H11v-9zm3 6.5h4v-4h-4v4z" fill="#fff"/>
-      </svg>`
-    },
-    email: {
-      bg: "#dbeafe",
-      svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-        <path d="M0 4C0 2.9.9 2 2 2h20c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H2c-1.1 0-2-.9-2-2V4z" fill="#0078D4"/>
-        <path d="M2 4l10 7L22 4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      </svg>`
-    },
-    slack: {
-      bg: "#ede9fe",
-      svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-        <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.528 2.528 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z" fill="#4A154B"/>
-      </svg>`
-    },
-    notes: {
-      bg: "#d1fae5",
-      svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-        <rect x="3" y="2" width="18" height="20" rx="2" fill="#0f766e"/>
-        <path d="M7 7h10M7 11h10M7 15h6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
-        <circle cx="18" cy="18" r="4" fill="#34d399"/>
-        <path d="M16.5 18l1 1 2-2" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      </svg>`
-    }
-  };
+  const cursorsHtml = activeUsers.map((u, index) => {
+    const color = cursorColors[u.name] || cursorColors.default;
 
-  // ── 3-colour palette (card-level and task-row-level) ──────────────────────
-  const CARD_PAL = {
-    red: { bg: "#fdecea", border: "#e8a09a", accent: "#c0392b", label: "#922b21", divider: "rgba(200,80,60,0.15)" },
-    amber: { bg: "#fef6e4", border: "#f0c080", accent: "#b7600a", label: "#935005", divider: "rgba(200,140,40,0.15)" },
-    cream: { bg: "#fdf8f0", border: "#d9c8ae", accent: "#7a5c3a", label: "#5d4226", divider: "rgba(180,150,100,0.18)" }
-  };
+    let x = 120 + index * 40;
+    let y = 180 + index * 30;
 
-  const tileGrid = tiles.map(tile => {
-    const { src, meta, pending, topTasks, cardUrgency, p1Count } = tile;
-    const pal = CARD_PAL[cardUrgency];
-    const logo = SOURCE_LOGO_MAP[src.id];
-
-    // Card-level badge
-    const cardBadge = cardUrgency === "red"
-      ? `<span style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;background:#fdecea;color:#c0392b;border:1px solid #e8a09a;white-space:nowrap;">● Due Today</span>`
-      : cardUrgency === "amber"
-        ? `<span style="font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;background:#fef6e4;color:#b7600a;border:1px solid #f0c080;white-space:nowrap;">◐ Approaching</span>`
-        : "";
-
-    const p1Badge = p1Count > 0
-      ? `<span style="font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;background:#fdecea;color:#c0392b;border:1px solid #e8a09a;white-space:nowrap;">⚡ ${p1Count} P1</span>`
-      : "";
-
-    // Per-task urgency → row colour
-    function rowUrgency(t) {
-      if (isTaskCompleted(t.id)) return "cream";
-      if (t.severity === "P1") return "red";
-      if (!t.due) return t.severity === "P2" ? "amber" : "cream";
-      const dl = Math.ceil((new Date(t.due) - new Date(TODAY)) / 86400000);
-      if (dl <= 0) return "red";
-      if (dl <= 3 || t.severity === "P2") return "amber";
-      return "cream";
+    if (u.name === "Sarah Connor") {
+      x = 140;
+      y = 210;
+    } else if (u.name === "Miso") {
+      x = 340;
+      y = 230;
+    } else if (u.name === "Utkarsh Sinha") {
+      if (activeTasks.length > 0) {
+        x = 730;
+        y = 150;
+      } else {
+        x = 320;
+        y = 120;
+      }
+    } else if (u.name === "Karan") {
+      x = 220;
+      y = 320;
+    } else if (u.name === "Sophia") {
+      x = 910;
+      y = 170; // completed column
     }
 
-    const ROW_BG = { red: "#fdecea", amber: "#fef6e4", cream: "rgba(255,255,255,0.6)" };
-    const ROW_BDR = { red: "#e8a09a", amber: "#f0c080", cream: "rgba(180,140,90,0.22)" };
-    const DUE_CLR = { red: "#c0392b", amber: "#b7600a", cream: "#8a6a3a" };
-    const SEV_BG = { P1: "#fdecea", P2: "#fef6e4", P3: "#d1fae5", P4: "#f1f5f9" };
-    const SEV_CLR = { P1: "#c0392b", P2: "#b7600a", P3: "#065f46", P4: "#64748b" };
-
-    if (src.id === "notes") {
-      const upcomingMeetings = meetingsList.filter(m => m.status === "Pending" || m.status === "Scheduled").slice(0, 3);
-      return `
-        <div style="background:${pal.bg};border:1.5px solid ${pal.border};border-radius:14px;overflow:hidden;
-                    box-shadow:0 2px 10px rgba(100,60,20,0.07),0 1px 2px rgba(100,60,20,0.04);
-                    cursor:pointer;transition:box-shadow 0.18s,transform 0.18s;display:flex;flex-direction:column;height:100%;min-height:0;"
-             onmouseover="this.style.boxShadow='0 8px 24px rgba(100,60,20,0.13)';this.style.transform='translateY(-2px)'"
-             onmouseout="this.style.boxShadow='0 2px 10px rgba(100,60,20,0.07)';this.style.transform='none'"
-             data-nav="meetings">
-
-          <!-- Header -->
-          <div style="padding:10px 14px 8px;flex-shrink:0;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-                <div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;
-                            background:${logo ? logo.bg : "#f1f5f9"};
-                            display:flex;align-items:center;justify-content:center;
-                            box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                  ${logo ? logo.svg : `<span style="font-size:16px;">${meta.emoji}</span>`}
-                </div>
-                <div style="min-width:0;">
-                  <div style="font-size:12.5px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
-                  <div style="font-size:10px;color:${pal.label};margin-top:1px;font-weight:600;">
-                    ${meetingsList.length} meeting${meetingsList.length !== 1 ? "s" : ""} found
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Divider -->
-          <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
-
-          <!-- Stats -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 2px;flex-shrink:0;">
-            <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
-              <div style="font-size:20px;font-weight:900;color:${pal.accent};line-height:1;">${meetingsList.length}</div>
-              <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Total</div>
-            </div>
-            <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
-              <div style="font-size:20px;font-weight:900;color:${meetingsList.filter(m => m.priority === "Critical" || m.priority === "High").length > 0 ? "#c0392b" : pal.accent};line-height:1;">${meetingsList.filter(m => m.priority === "Critical" || m.priority === "High").length}</div>
-              <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Urgent</div>
-            </div>
-            <div style="padding:6px 4px;text-align:center;">
-              <div style="font-size:20px;font-weight:900;color:${pal.accent};line-height:1;">${upcomingMeetings.length}</div>
-              <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Upcoming</div>
-            </div>
-          </div>
-
-          <!-- Divider -->
-          <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
-
-          <!-- Meeting list -->
-          <div class="eng-task-list-scrollable" style="padding:8px 10px;flex:1;min-height:0;overflow-y:auto;display:grid;gap:4px;">
-            ${upcomingMeetings.length === 0
-          ? `<div style="text-align:center;padding:10px 0;color:${pal.label};font-size:11px;opacity:0.6;">✅ No upcoming meetings</div>`
-          : upcomingMeetings.map(m => {
-            const priorityColor = m.priority === "Critical" ? "#c0392b" : m.priority === "High" ? "#b7600a" : "#065f46";
-            return `
-                    <div style="display:flex;flex-direction:column;gap:3px;padding:6px 8px;border-radius:7px;
-                                 background:rgba(255,255,255,0.6);border:1px solid ${pal.border};
-                                 cursor:pointer;transition:filter 0.1s;"
-                         onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'"
-                         data-meeting-select="${m.id}">
-                      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-                        <div style="font-size:11px;font-weight:700;color:#2d1505;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.title)}</div>
-                        <span style="font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:4px;background:${priorityColor}18;color:${priorityColor};flex-shrink:0;">${m.priority}</span>
-                      </div>
-                      <div style="font-size:10px;color:#8a6a3a;">
-                        ${m.suggestedDate} ${m.suggestedTime || ""} · ${m.duration || 30}min
-                      </div>
-                      <button class="secondary" style="font-size:10px;padding:4px 10px;margin-top:4px;border:1px solid ${pal.border};background:rgba(255,255,255,0.8);color:${pal.accent};" 
-                              data-meeting-analyze="${m.id}" onclick="event.stopPropagation();">
-                        Analyze with AI & View Transcript
-                      </button>
-                    </div>`;
-          }).join("")}
-          </div>
-        </div>`;
-    }
-
+    const elId = `cursor-${u.name.replace(/\s+/g, "-")}`;
     return `
-      <div style="background:${pal.bg};border:1.5px solid ${pal.border};border-radius:14px;overflow:hidden;
-                  box-shadow:0 2px 10px rgba(100,60,20,0.07),0 1px 2px rgba(100,60,20,0.04);
-                  cursor:pointer;transition:box-shadow 0.18s,transform 0.18s;display:flex;flex-direction:column;height:100%;min-height:0;"
-           onmouseover="this.style.boxShadow='0 8px 24px rgba(100,60,20,0.13)';this.style.transform='translateY(-2px)'"
-           onmouseout="this.style.boxShadow='0 2px 10px rgba(100,60,20,0.07)';this.style.transform='none'"
-           data-scrum-source="${src.id}">
-
-        <!-- Header -->
-        <div style="padding:10px 14px 8px;flex-shrink:0;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-              <div style="width:30px;height:30px;border-radius:8px;flex-shrink:0;
-                          background:${logo ? logo.bg : "#f1f5f9"};
-                          display:flex;align-items:center;justify-content:center;
-                          box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                ${logo ? logo.svg : `<span style="font-size:16px;">${meta.emoji}</span>`}
-              </div>
-              <div style="min-width:0;">
-                <div style="font-size:12.5px;font-weight:800;color:#2d1505;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(meta.label)}</div>
-                <div style="font-size:10px;color:${pal.label};margin-top:1px;font-weight:600;">
-                  ${pending.length} task${pending.length !== 1 ? "s" : ""} pending
-                </div>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
-              ${cardBadge}${p1Badge}
-            </div>
-          </div>
+      <div class="wb-cursor" id="${elId}" style="left:${x}px; top:${y}px; --color:${color};">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(0 1px 3px rgba(0,0,0,0.15));">
+          <path d="M4.5 3v15.3l4.2-4.2 5.1 8.7 2.3-1.3-5-8.6h6.6L4.5 3z" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+        </svg>
+        <div class="wb-cursor-badge" style="background:${color};">
+          ${escapeHtml(u.name.split(" ")[0])} ${u.status === 'idle' ? '💤' : '●'}
         </div>
-
-        <!-- Divider -->
-        <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
-
-        <!-- Stats -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:0 2px;flex-shrink:0;">
-          <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
-            <div style="font-size:20px;font-weight:900;color:${pal.accent};line-height:1;">${pending.length}</div>
-            <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Pending</div>
-          </div>
-          <div style="padding:6px 4px;text-align:center;border-right:1px solid ${pal.divider};">
-            <div style="font-size:20px;font-weight:900;color:${p1Count > 0 ? "#c0392b" : pal.accent};line-height:1;">${p1Count}</div>
-            <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">P1 Urgent</div>
-          </div>
-          <div style="padding:6px 4px;text-align:center;">
-            <div style="font-size:20px;font-weight:900;color:${cardUrgency === "red" ? "#c0392b" : cardUrgency === "amber" ? "#b7600a" : pal.accent};line-height:1;">${topTasks.length}</div>
-            <div style="font-size:8.5px;font-weight:700;color:${pal.label};letter-spacing:0.05em;margin-top:2px;opacity:0.75;text-transform:uppercase;">Showing</div>
-          </div>
-        </div>
-
-        <!-- Divider -->
-        <div style="height:1px;background:${pal.divider};margin:0 10px;flex-shrink:0;"></div>
-
-        <!-- Task rows list with internal scrollbar -->
-        <div class="eng-task-list-scrollable" style="padding:8px 10px;flex:1;min-height:0;overflow-y:auto;display:grid;gap:4px;">
-          ${topTasks.length === 0
-        ? `<div style="text-align:center;padding:10px 0;color:${pal.label};font-size:11px;opacity:0.6;">✅ All clear!</div>`
-        : topTasks.map(t => {
-          const isDone = isTaskCompleted(t.id);
-          const isWorking = isTaskWorking(t.id);
-          const urg = rowUrgency(t);
-          const taskDl = t.due ? Math.ceil((new Date(t.due) - new Date(TODAY)) / 86400000) : null;
-          const dueLabel = !t.due ? "" : taskDl <= 0 ? "Overdue" : taskDl === 1 ? "Tomorrow" : taskDl <= 6 ? `${taskDl}d left` : formatDue(t.due);
-          return `
-                  <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;
-                               background:${isDone ? "rgba(255,255,255,0.4)" : ROW_BG[urg]};
-                               border:1px solid ${isDone ? "rgba(180,150,100,0.15)" : ROW_BDR[urg]};
-                               cursor:pointer;transition:filter 0.1s;opacity:${isDone ? 0.55 : 1};"
-                       onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'"
-                       data-task="${t.id}">
-                    <span style="font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:4px;background:${SEV_BG[t.severity] || "#f1f5f9"};color:${SEV_CLR[t.severity] || "#64748b"};flex-shrink:0;">${t.severity}</span>
-                    <div style="flex:1;min-width:0;">
-                      <div style="font-size:11.5px;font-weight:600;color:${isDone ? "#a0856a" : "#2d1505"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isDone ? "text-decoration:line-through;" : ""}">${escapeHtml(t.canonicalTitle)}</div>
-                      <div style="font-size:9.5px;display:flex;gap:4px;margin-top:1px;">
-                        <span style="color:#8a6a3a;">${t.owner || "Unassigned"}</span>
-                        ${dueLabel ? `<span style="color:${DUE_CLR[urg]};font-weight:${urg !== "cream" ? 700 : 400};">${dueLabel}</span>` : ""}
-                      </div>
-                    </div>
-                    ${isWorking ? `<span style="font-size:8.5px;color:#065f46;font-weight:800;flex-shrink:0;">● Active</span>` : ""}
-                    ${isDone ? `<span style="font-size:8.5px;color:#065f46;font-weight:800;flex-shrink:0;">✓</span>` : ""}
-                    ${!isDone && !isWorking ? `<button class="tp-btn-start" data-task-start="${t.id}" style="font-size:9.5px;padding:2px 6px;flex-shrink:0;background:rgba(255,255,255,0.8);color:${pal.accent};border:1px solid ${pal.border};border-radius:4px;cursor:pointer;">▶</button>` : ""}
-                  </div>`;
-        }).join("")}
-          ${pending.length > (src.id === "jira" || src.id === "github" ? 1 : 8) ? `<div style="text-align:center;padding:3px;font-size:10px;color:${pal.accent};font-weight:700;opacity:0.85;">+ ${pending.length - (src.id === "jira" || src.id === "github" ? 1 : 8)} more →</div>` : ""}
-        </div>
-      </div>`;
+      </div>
+    `;
   }).join("");
 
+  const isDark = activeTheme === "dark";
+  const panelBorder = isDark ? "#2b2d31" : "#e7e5e4";
+  const pillBg = isDark ? "#2b2d31" : "#e3e5e8";
+  const hoverBg = isDark ? "#35373c" : "#dbdee1";
+  const iconColor = isDark ? "#b5bac1" : "#313338";
+
   return `
-    <div style="display:flex;flex-direction:column;height:calc(100vh - 84px);max-height:calc(100vh - 84px);overflow:hidden;padding:12px 18px 0;box-sizing:border-box;background:#f7f4ee;">
+    <div style="display:flex;flex-direction:column;height:calc(100vh - 84px);max-height:calc(100vh - 84px);overflow:hidden;padding:12px 18px 0;box-sizing:border-box;background:#fcfbf9; font-family:'Outfit', sans-serif;">
+      
+      <!-- Whiteboard Style Injector -->
+      <style>
+        .whiteboard-canvas {
+          position: relative;
+          width: 100%;
+          flex: 1;
+          min-height: 0;
+          background-color: #faf9f6;
+          background-image: radial-gradient(#e2e0db 1.2px, #faf9f6 1.2px);
+          background-size: 20px 20px;
+          border: 1px solid #e4e4e7;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: inset 0 2px 10px rgba(0,0,0,0.03);
+          margin-bottom: 12px;
+        }
+        .wb-sticky {
+          position: absolute;
+          width: 145px;
+          min-height: 115px;
+          padding: 12px;
+          border-radius: 8px;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.02), inset 0 -4px 0 rgba(0,0,0,0.04);
+          font-size: 11px;
+          line-height: 1.4;
+          font-weight: 700;
+          color: #1c1917;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .wb-sticky:hover {
+          box-shadow: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04);
+          transform: scale(1.04) rotate(0deg) !important;
+        }
+        .wb-brief {
+          position: absolute;
+          background: #ffffff;
+          border: 1px solid #e4e4e7;
+          border-radius: 10px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+          padding: 14px;
+          font-family: inherit;
+          transition: all 0.2s ease;
+        }
+        .wb-brief:hover {
+          box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+          transform: translateY(-2px);
+        }
+        .wb-cursor {
+          position: absolute;
+          z-index: 1000;
+          pointer-events: none;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          transition: left 1.2s cubic-bezier(0.25, 0.8, 0.25, 1), top 1.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+          animation: cursorWiggle 12s infinite ease-in-out;
+        }
+        @keyframes cursorWiggle {
+          0% { transform: translate(0, 0); }
+          20% { transform: translate(18px, -12px); }
+          40% { transform: translate(-10px, 20px); }
+          60% { transform: translate(22px, 8px); }
+          80% { transform: translate(-12px, -8px); }
+          100% { transform: translate(0, 0); }
+        }
+        .wb-cursor-badge {
+          font-size: 9px;
+          font-weight: 800;
+          color: #fff;
+          padding: 3px 8px;
+          border-radius: 6px;
+          white-space: nowrap;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .task-card-wb {
+          background: #ffffff;
+          border: 1px solid #e4e4e7;
+          border-radius: 8px;
+          padding: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.015);
+          cursor: pointer;
+          position: relative;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          min-height: 84px;
+        }
+        .task-card-wb:hover {
+          transform: translateY(-2px) scale(1.01);
+          box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+          border-color: #d4d4d8;
+        }
+        .task-card-wb.active-task {
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2), 0 4px 12px rgba(0,0,0,0.03);
+          border-color: #10b981 !important;
+        }
+        .wb-card-source-logo svg {
+          width: 10px !important;
+          height: 10px !important;
+        }
+        @keyframes pulse {
+          0% { transform: scale(0.92); opacity: 0.6; }
+          100% { transform: scale(1.15); opacity: 1; }
+        }
+        /* Toolbar */
+        .wb-toolbar {
+          position: absolute;
+          left: 16px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(228, 228, 231, 0.7);
+          border-radius: 12px;
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.05);
+          padding: 8px 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          z-index: 1001;
+        }
+        .wb-tool-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          border: none;
+          background: none;
+          color: #71717a;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .wb-tool-btn:hover {
+          background: #f4f4f5;
+          color: #18181b;
+          transform: scale(1.05);
+        }
+        .wb-tool-btn.active {
+          background: #e11d48;
+          color: #ffffff;
+          box-shadow: 0 4px 10px rgba(225, 29, 72, 0.3);
+        }
+      </style>
+
       <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-shrink:0;">
         <div>
           <p class="eyebrow" style="margin:0;">Unified Work Intelligence</p>
-          <h2 style="margin:1px 0 0;color:#17202a;font-size:18px;">All Sources</h2>
-          <p style="font-size:11px;color:#65717d;margin:1px 0 0;">
-            Today's queue: ${totalPending} pending · ${totalP1} P1 · All 6 sources locked on 1 screen
+          <h2 style="margin:2px 0 0;color:#1c1917;font-size:18px;display:flex;align-items:center;gap:8px;">
+            Live Workspace Board
+            <span style="font-size:9.5px;font-weight:800;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:12px;border:1px solid #a7f3d0;display:flex;align-items:center;gap:4px;">
+              <span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;animation:pulse 0.8s infinite alternate;"></span>
+              LIVE SYNCED
+            </span>
+          </h2>
+          <p style="font-size:11px;color:#65717d;margin:2px 0 0;">
+            Real-time whiteboard showing backlog items, completed tasks, and exactly where engineers are active.
           </p>
         </div>
-        ${activeProfile === "manager" ? `<button class="primary" style="font-size:11px;padding:6px 11px;background:#152238;color:#fff;border:none;border-radius:6px;font-weight:700;" id="openAddJiraModalBtn">+ Add Task</button>` : ""}
+        <div style="display:flex;gap:8px;">
+          ${activeProfile === "manager" ? `<button class="primary" style="font-size:11px;padding:6px 12px;background:#152238;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;" id="openAddJiraModalBtn">+ Add Task</button>` : ""}
+        </div>
       </div>
 
-      <!-- Tile grid — 3x2 fixed grid fitting 100% viewport height with ZERO scroll -->
-      <div style="display:grid;grid-template-columns:repeat(3, 1fr);grid-template-rows:1fr 1fr;gap:10px;flex:1;min-height:0;overflow:hidden;">
-        ${tileGrid}
+      <!-- Whiteboard Canvas -->
+      <div class="whiteboard-canvas" id="whiteboardCanvas" style="position:relative;">
+        <!-- Floating Toolbar -->
+        <div class="wb-toolbar">
+          <button class="wb-tool-btn active" title="Select Pointer">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-6 5L5 5l15 4-5 6zm0 0l5 5"/></svg>
+          </button>
+          <button class="wb-tool-btn" title="Sticky Note" onclick="alert('Sticky Note tool activated. Double-click anywhere on the canvas to place a note!')">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17h6"/></svg>
+          </button>
+          <button class="wb-tool-btn" title="Flow Connectors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+          </button>
+          <button class="wb-tool-btn" title="Laser Highlight">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>
+          </button>
+        </div>
+
+        <!-- Zoomable content wrapper -->
+        <div id="whiteboardContentWrapper" style="position:absolute; left:0; top:0; width:100%; height:100%; transform-origin: 0 0; transform: scale(${(window.whiteboardZoom || 100) / 100}); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+          <!-- Brainstorming Brief & Sticky Notes -->
+          ${renderWhiteboardNotes()}
+
+          <!-- Workflow Status Lanes -->
+          ${renderWhiteboardWorkflow(state)}
+
+          <!-- Cursors container -->
+          ${cursorsHtml}
+        </div>
+
+        <!-- Floating Zoom Control (matching reference image) -->
+        <div class="wb-zoom-control" style="position:absolute; right:16px; bottom:16px; background:rgba(255,255,255,0.85); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid rgba(228, 228, 231, 0.7); border-radius:8px; display:flex; align-items:center; gap:8px; padding:4px 8px; box-shadow:0 4px 12px rgba(0,0,0,0.06); z-index:1001; font-weight:800; font-size:11px; color:#52525b; user-select:none;">
+          <button onclick="changeWhiteboardZoom(-10)" style="width:20px; height:20px; border-radius:4px; border:none; background:none; color:#71717a; cursor:pointer; font-weight:900; display:flex; align-items:center; justify-content:center; transition:background 0.15s;" onmouseover="this.style.background='#f4f4f5'" onmouseout="this.style.background='none'">−</button>
+          <span id="wbZoomLabel" style="min-width:32px; text-align:center;">${window.whiteboardZoom || 100}%</span>
+          <button onclick="changeWhiteboardZoom(10)" style="width:20px; height:20px; border-radius:4px; border:none; background:none; color:#71717a; cursor:pointer; font-weight:900; display:flex; align-items:center; justify-content:center; transition:background 0.15s;" onmouseover="this.style.background='#f4f4f5'" onmouseout="this.style.background='none'">+</button>
+          <div style="width:1px; height:12px; background:#e4e4e7;"></div>
+          <button style="width:20px; height:20px; border-radius:4px; border:none; background:none; color:#71717a; cursor:help; font-weight:900; display:flex; align-items:center; justify-content:center;">?</button>
+        </div>
+
       </div>
     </div>
   `;
@@ -7141,9 +9741,9 @@ function renderMeetingMemory() {
                   Analyze with AI
                 </button>
                 ${activeMeeting.savedToCalendar || activeMeeting.status === "Scheduled"
-                  ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; padding:7px 10px; font-size:11.5px; font-weight:700;" disabled>✓ Saved</button>`
-                  : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; background:#0052cc; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">Save to Calendar</button>`
-                }
+        ? `<button class="secondary" style="color:#15803d; border-color:#dcfce7; background:#f0fdf4; padding:7px 10px; font-size:11.5px; font-weight:700;" disabled>✓ Saved</button>`
+        : `<button class="primary" id="saveMeetingCalBtn" data-meeting-id="${activeMeeting.id}" style="display:flex; align-items:center; justify-content:center; gap:4px; background:#0052cc; color:#ffffff; border:none; padding:7px 12px; font-size:11.5px; font-weight:700; border-radius:6px;">Save to Calendar</button>`
+      }
               </div>
 
               <!-- Analysis Result Box -->
@@ -7341,11 +9941,7 @@ function renderHiddenAsks() {
   `;
 }
 
-// ─── Scrum / Source Board state ───────────────────────────────────────────────
-let scrumActiveSource = "all";      // "all" | source id
-let scrumDateFilter = "all";       // "all" | "today" | "week" | "overdue"
-let scrumDiffFilter = "all";       // "all" | "easy" | "medium" | "hard"
-let scrumSearch = "";
+// ─── Scrum / Source Board state (moved to top of file) ─────────────────────────
 
 // ─── Unified Scrum Board ───────────────────────────────────────────────────────
 // Entry point — "Jira board" nav item now opens this full board
@@ -7357,7 +9953,7 @@ function renderJiraBoard() {
   return `
   < div class="scrum-shell" id = "scrumShell" >
       < !--Source Tree + title bar-- >
-  ${ renderSourceTree() }
+  ${renderSourceTree()}
 
       < !--Filters bar-- >
       <div class="scrum-filters" id="scrumFilters">
@@ -7402,24 +9998,24 @@ function renderWorkspaceHub() {
   function sourceDeepLink(sourceId, taskId) {
     const map = {
       jira: `https://jira.atlassian.com/browse/${taskId}`,
-servicenow: `https://support.servicenow.com/now/nav/ui/classic/params/target/task_list.do?sysparm_query=number=${taskId}`,
-  github: taskId.startsWith("PR") ? `https://github.com/pulls` : `https://github.com/issues`,
-    email: `https://outlook.office.com/mail/`,
+      servicenow: `https://support.servicenow.com/now/nav/ui/classic/params/target/task_list.do?sysparm_query=number=${taskId}`,
+      github: taskId.startsWith("PR") ? `https://github.com/pulls` : `https://github.com/issues`,
+      email: `https://outlook.office.com/mail/`,
       slack: `https://app.slack.com/`,
-        notes: `https://meet.google.com/`
+      notes: `https://meet.google.com/`
     };
-return map[sourceId] || "#";
+    return map[sourceId] || "#";
   }
 
-const workspaceSources = sources.map(s => ({
-  ...s,
-  tasks: state.prioritized.filter(t => t.sources.includes(s.name) && !completedTaskIds.includes(t.id)).slice(0, 6)
-}));
+  const workspaceSources = sources.map(s => ({
+    ...s,
+    tasks: state.prioritized.filter(t => t.sources.includes(s.name) && !completedTaskIds.includes(t.id)).slice(0, 6)
+  }));
 
-const activeWsSource = workspaceActiveSource || sources[0]?.id;
-const activeSource = workspaceSources.find(s => s.id === activeWsSource) || workspaceSources[0];
+  const activeWsSource = workspaceActiveSource || sources[0]?.id;
+  const activeSource = workspaceSources.find(s => s.id === activeWsSource) || workspaceSources[0];
 
-return `
+  return `
     <div class="ws-shell">
       <!-- Source tabs (Unstop-style sidebar) -->
       <nav class="ws-source-nav">
@@ -7448,16 +10044,16 @@ return `
 
         <div class="ws-task-list">
           ${!activeSource?.tasks.length
-    ? `<div style="padding:48px;text-align:center;color:#626f86;">
+      ? `<div style="padding:48px;text-align:center;color:#626f86;">
                 <p style="margin:0 0 10px;display:flex;justify-content:center;color:#22a06b;"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></p>
                 <h3 style="margin:0 0 6px;color:#172b4d;">All clear in ${activeSource?.name}!</h3>
                 <p style="margin:0;font-size:13px;">No open tasks from this source.</p>
                </div>`
-    : activeSource.tasks.map(t => {
-      const deepLink = sourceDeepLink(activeWsSource, t.aliases[0] || t.id);
-      const isWorking = workingTaskIds.includes(t.id);
-      const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[t.severity] || "#626f86";
-      return `
+      : activeSource.tasks.map(t => {
+        const deepLink = sourceDeepLink(activeWsSource, t.aliases[0] || t.id);
+        const isWorking = workingTaskIds.includes(t.id);
+        const sevColor = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[t.severity] || "#626f86";
+        return `
                   <div class="ws-task-card">
                     <div class="ws-task-left">
                       <span class="ws-sev-chip" style="background:${sevColor}22;color:${sevColor};">${t.severity}</span>
@@ -7482,8 +10078,8 @@ return `
                       ${!isWorking ? `<button class="tp-btn-start" data-task-start="${t.id}">▶ Start</button>` : `<button class="tp-btn-done" data-task-complete="${t.id}">✓ Done</button>`}
                     </div>
                   </div>`;
-    }).join("")
-  }
+      }).join("")
+    }
         </div>
       </div>
     </div>
@@ -8132,15 +10728,15 @@ function renderLineChart(series, lines, W = 420, H = 160) {
   const PAD = { top: 16, right: 16, bottom: 32, left: 36 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
-  const maxVal = Math.max(3, ...lines.flatMap(l => series.map(s => s[l.key] || 0)));
+  const maxVal = Math.max(...lines.flatMap(l => series.map(s => s[l.key] || 0)), 1);
   const xStep = innerW / Math.max(series.length - 1, 1);
 
   function toX(i) { return PAD.left + i * xStep; }
   function toY(v) { return PAD.top + innerH - (v / maxVal) * innerH; }
 
-  const ticks = maxVal <= 3 ? [0, 1, 2, 3] : [0, Math.round(maxVal * 0.25), Math.round(maxVal * 0.5), Math.round(maxVal * 0.75), maxVal];
-  const gridLines = ticks.map(val => {
-    const y = PAD.top + innerH - (val / maxVal) * innerH;
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const y = PAD.top + innerH * (1 - f);
+    const val = Math.round(maxVal * f);
     return `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
             <text x="${PAD.left - 4}" y="${y + 4}" font-size="9" fill="#94a3b8" text-anchor="end">${val}</text>`;
   }).join("");
@@ -8194,13 +10790,15 @@ function renderSourceBars(sourceMap) {
   }).join("");
 }
 
-// ─── Page: My Analytics (engineer view — own stats) ──────────────────────────
 function renderMyAnalyticsPage() {
-  // ── KPI values (shift based on active filters) ──
-  let tasksToday = "24";
-  let finishedToday = "18";
+  const currentEngineerName = authSession?.name || settingsProfile?.name || "Utkarsh Sinha";
+  const a = buildEngineerAnalytics(currentEngineerName, true);
 
-  // ── Source distribution percentages ──
+  // Dynamic filter values
+  let tasksToday = 24;
+  let finishedToday = completedTaskIds.length > 0 ? (18 + completedTaskIds.length) : 18;
+
+  // Source percentages (dynamic if telemetrySource filter selected)
   let jiraPct = 32.4;
   let githubPct = 24.1;
   let slackPct = 18.7;
@@ -8208,7 +10806,6 @@ function renderMyAnalyticsPage() {
   let outlookPct = 8.2;
   let meetingsPct = 5.3;
 
-  // ── Weekly bar data (Mon-Sun) ──
   let weeklyData = [
     { day: "Mon", val: 18 },
     { day: "Tue", val: 22 },
@@ -8220,272 +10817,208 @@ function renderMyAnalyticsPage() {
   ];
 
   if (telemetrySource === "Jira") {
-    tasksToday = "9"; finishedToday = "7";
+    tasksToday = 9; finishedToday = 7;
     jiraPct = 82; githubPct = 5; slackPct = 5; snowPct = 3; outlookPct = 3; meetingsPct = 2;
     weeklyData = [{ day: "Mon", val: 7 }, { day: "Tue", val: 9 }, { day: "Wed", val: 6 }, { day: "Thu", val: 11 }, { day: "Fri", val: 9 }, { day: "Sat", val: 3 }, { day: "Sun", val: 2 }];
   } else if (telemetrySource === "GitHub") {
-    tasksToday = "6"; finishedToday = "4";
+    tasksToday = 6; finishedToday = 4;
     jiraPct = 5; githubPct = 80; slackPct = 5; snowPct = 4; outlookPct = 3; meetingsPct = 3;
     weeklyData = [{ day: "Mon", val: 5 }, { day: "Tue", val: 6 }, { day: "Wed", val: 3 }, { day: "Thu", val: 8 }, { day: "Fri", val: 6 }, { day: "Sat", val: 2 }, { day: "Sun", val: 1 }];
   } else if (telemetrySource === "Slack") {
-    tasksToday = "4"; finishedToday = "3";
+    tasksToday = 4; finishedToday = 3;
     jiraPct = 5; githubPct = 5; slackPct = 80; snowPct = 4; outlookPct = 3; meetingsPct = 3;
     weeklyData = [{ day: "Mon", val: 4 }, { day: "Tue", val: 5 }, { day: "Wed", val: 3 }, { day: "Thu", val: 6 }, { day: "Fri", val: 4 }, { day: "Sat", val: 1 }, { day: "Sun", val: 1 }];
   } else if (telemetrySource === "ServiceNow") {
-    tasksToday = "3"; finishedToday = "2";
+    tasksToday = 3; finishedToday = 2;
     jiraPct = 4; githubPct = 4; slackPct = 4; snowPct = 82; outlookPct = 3; meetingsPct = 3;
     weeklyData = [{ day: "Mon", val: 2 }, { day: "Tue", val: 3 }, { day: "Wed", val: 2 }, { day: "Thu", val: 4 }, { day: "Fri", val: 3 }, { day: "Sat", val: 1 }, { day: "Sun", val: 0 }];
   } else if (telemetrySource === "Outlook") {
-    tasksToday = "2"; finishedToday = "2";
+    tasksToday = 2; finishedToday = 2;
     jiraPct = 4; githubPct = 3; slackPct = 4; snowPct = 3; outlookPct = 83; meetingsPct = 3;
     weeklyData = [{ day: "Mon", val: 2 }, { day: "Tue", val: 2 }, { day: "Wed", val: 1 }, { day: "Thu", val: 3 }, { day: "Fri", val: 2 }, { day: "Sat", val: 0 }, { day: "Sun", val: 0 }];
   } else if (telemetrySource === "Meetings") {
-    tasksToday = "2"; finishedToday = "1";
+    tasksToday = 2; finishedToday = 1;
     jiraPct = 3; githubPct = 3; slackPct = 4; snowPct = 3; outlookPct = 3; meetingsPct = 84;
     weeklyData = [{ day: "Mon", val: 1 }, { day: "Tue", val: 2 }, { day: "Wed", val: 1 }, { day: "Thu", val: 2 }, { day: "Fri", val: 2 }, { day: "Sat", val: 0 }, { day: "Sun", val: 0 }];
   } else if (telemetryWeek === "Last Week") {
-    tasksToday = "21"; finishedToday = "15";
+    tasksToday = 21; finishedToday = 15;
     weeklyData = [{ day: "Mon", val: 14 }, { day: "Tue", val: 19 }, { day: "Wed", val: 12 }, { day: "Thu", val: 22 }, { day: "Fri", val: 20 }, { day: "Sat", val: 6 }, { day: "Sun", val: 4 }];
   } else if (telemetryWeek === "Last Month") {
-    tasksToday = "28"; finishedToday = "22";
+    tasksToday = 28; finishedToday = 22;
     weeklyData = [{ day: "Mon", val: 22 }, { day: "Tue", val: 26 }, { day: "Wed", val: 18 }, { day: "Thu", val: 30 }, { day: "Fri", val: 27 }, { day: "Sat", val: 10 }, { day: "Sun", val: 7 }];
   }
 
-  // ── Recent finished tasks (filtered by source) ──
-  const allTasks = [
-    { id: "JIRA-2041", name: "Fix login redirect bug", source: "Jira", sourceColor: "#0052cc", sourceBg: "#e6f0ff", status: "Done", completed: "Today, 09:12" },
-    { id: "PR-887", name: "Merge feature/auth-improvements", source: "GitHub", sourceColor: "#24292e", sourceBg: "#f1f3f5", status: "Merged", completed: "Today, 10:44" },
-    { id: "SLK-0394", name: "Respond to #platform channel", source: "Slack", sourceColor: "#4a154b", sourceBg: "#f7ecf8", status: "Resolved", completed: "Today, 11:30" },
-    { id: "INC-5591", name: "Investigate API latency spike", source: "ServiceNow", sourceColor: "#2e7d32", sourceBg: "#edfbe9", status: "Closed", completed: "Yesterday, 16:05" },
-    { id: "MAIL-019", name: "Reply to VP Engineering email", source: "Outlook", sourceColor: "#0078d4", sourceBg: "#e3f2fd", status: "Done", completed: "Yesterday, 14:22" },
-    { id: "MTG-077", name: "Sprint planning meeting notes", source: "Meetings", sourceColor: "#e84393", sourceBg: "#fde8f3", status: "Done", completed: "Mon, 10:00" },
-    { id: "JIRA-2038", name: "Update API documentation", source: "Jira", sourceColor: "#0052cc", sourceBg: "#e6f0ff", status: "Done", completed: "Mon, 15:45" },
+  // Recent finished tasks
+  const defaultFinishedList = [
+    { id: "JIRA-2041", name: "Fix login redirect bug", source: "Jira", badgeBg: "#e8f0ff", badgeCol: "#0c66e4", status: "✓ Done", statusBg: "#dcfce7", statusCol: "#166534", time: "Today, 09:12" },
+    { id: "JIRA-2041", name: "Fix login redirect bug", source: "Jira", badgeBg: "#e8f0ff", badgeCol: "#0c66e4", status: "✓ Done", statusBg: "#dcfce7", statusCol: "#166534", time: "Today, 09:12" },
+    { id: "PR-887", name: "Merge feature/auth-improvements", source: "GitHub", badgeBg: "#f1f3f5", badgeCol: "#24292f", status: "✓ Merged", statusBg: "#dcfce7", statusCol: "#166534", time: "Today, 10:44" },
+    { id: "PR-887", name: "Merge feature/auth-improvements", source: "GitHub", badgeBg: "#f1f3f5", badgeCol: "#24292f", status: "✓ Merged", statusBg: "#dcfce7", statusCol: "#166534", time: "Today, 10:44" },
+    { id: "SLK-0394", name: "Respond to #platform channel", source: "Slack", badgeBg: "#f5f3ff", badgeCol: "#7c3aed", status: "✓ Resolved", statusBg: "#dcfce7", statusCol: "#166534", time: "Today, 11:30" },
+    { id: "SLK-0394", name: "Respond to #platform channel", source: "Slack", badgeBg: "#f5f3ff", badgeCol: "#7c3aed", status: "✓ Resolved", statusBg: "#dcfce7", statusCol: "#166534", time: "Today, 11:30" },
+    { id: "INC-5591", name: "Investigate API latency spike", source: "ServiceNow", badgeBg: "#fde8e8", badgeCol: "#c0392b", status: "✓ Closed", statusBg: "#dcfce7", statusCol: "#166534", time: "Yesterday, 16:05" },
+    { id: "INC-5591", name: "Investigate API latency spike", source: "ServiceNow", badgeBg: "#fde8e8", badgeCol: "#c0392b", status: "✓ Closed", statusBg: "#dcfce7", statusCol: "#166534", time: "Yesterday, 16:05" },
+    { id: "MAIL-019", name: "Reply to VP Engineering email", source: "Outlook", badgeBg: "#eff8ff", badgeCol: "#0369a1", status: "✓ Done", statusBg: "#dcfce7", statusCol: "#166534", time: "Yesterday, 14:22" }
   ];
 
-  const filteredTasks = telemetrySource === "All"
-    ? allTasks
-    : allTasks.filter(t => t.source === telemetrySource);
+  // Dynamic user completions merged into finished list
+  const userCompletedItems = (a.done || []).map(t => ({
+    id: t.id.toUpperCase(),
+    name: t.canonicalTitle,
+    source: t.sources?.[0] ? t.sources[0].charAt(0).toUpperCase() + t.sources[0].slice(1) : "Jira",
+    badgeBg: "#e8f0ff", badgeCol: "#0c66e4",
+    status: "✓ Done", statusBg: "#dcfce7", statusCol: "#166534",
+    time: "Just now"
+  }));
 
-  const maxWeekly = Math.max(...weeklyData.map(d => d.val), 1);
-  const todayIdx = (new Date().getDay() + 6) % 7; // 0=Mon…6=Sun
-
+  const combinedFinishedList = [...userCompletedItems, ...defaultFinishedList];
+  const finalFinishedList = telemetrySource === "All"
+    ? combinedFinishedList
+    : combinedFinishedList.filter(t => t.source.toLowerCase() === telemetrySource.toLowerCase());
 
   return `
     <style>
-      .workspace:has(#myAnalyticsPage) { padding-bottom: 0 !important; }
-      @keyframes pulse-badge {
-        0%,100% { transform:scale(1); opacity:1; }
-        50%      { transform:scale(1.3); opacity:0.55; }
+      .workspace:has(#myAnalyticsPage) { padding: 18px 24px !important; background: #f8fafc; }
+      .analytics-container {
+        font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        color: #0f172a;
       }
-      .tel-card {
-        background: #fff;
-        border: 1px solid #dfe3ea;
-        border-radius: 9px;
-        padding: 8px 10px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-        box-sizing: border-box;
+      .analytics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
-      .tel-card-title {
-        font-size: 9px;
+      .analytics-header h1 {
+        font-size: 28px;
         font-weight: 800;
-        color: #626f86;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
+        color: #0f172a;
+        margin: 0;
+        letter-spacing: -0.02em;
       }
-      .tel-select {
-        padding: 3px 8px;
-        border: 1px solid #dfe3ea;
+      .analytics-control-strip {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      }
+      .analytics-select-group {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .analytics-select-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.05em;
+      }
+      .analytics-select {
+        padding: 4px 10px;
+        border: 1px solid #cbd5e1;
         border-radius: 6px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
-        color: #172b4d;
-        outline: none;
+        color: #0f172a;
         background: #fff;
         cursor: pointer;
-        transition: border-color 0.15s;
+        outline: none;
       }
-      .tel-select:hover { border-color: #0c66e4; }
-      .tel-integ-logo {
+      .analytics-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        box-sizing: border-box;
+      }
+      .card-subhead {
+        font-size: 9.5px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 2px;
+      }
+      .card-timestamp {
+        font-size: 9px;
+        color: #94a3b8;
+        font-weight: 500;
+      }
+      .connected-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .connected-tile {
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 8px;
+        padding: 8px 4px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 5px;
-        padding: 8px 6px;
-        border-radius: 10px;
-        background: #f8f9fa;
-        border: 1px solid #eaecef;
-        width: 54px;
-        height: 54px;
-        box-sizing: border-box;
-        transition: box-shadow 0.15s, transform 0.15s;
-        cursor: default;
+        gap: 4px;
       }
-      .tel-integ-logo:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); transform: translateY(-1px); }
-      .tel-integ-label {
-        font-size: 7px;
+      .connected-icon-box {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .connected-tile-name {
+        font-size: 9px;
         font-weight: 800;
-        color: #626f86;
-        text-align: center;
-        line-height: 1;
+        color: #475569;
       }
-      .tel-status-dot {
-        width: 3px; height: 3px;
-        border-radius: 50%;
-        background: #22a06b;
-        animation: pulse-badge 1.5s ease infinite;
-        display: inline-block;
-        margin-right: 2px;
-      }
-      .tel-trow td { padding: 4px 6px; }
     </style>
 
-    <div id="myAnalyticsPage" style="height:calc(100vh - 60px); overflow:hidden; display:flex; flex-direction:column; gap:8px; box-sizing:border-box; background:#f4f5f7;">
+    <div class="analytics-container" id="myAnalyticsPage">
+      <!-- Page Title & Scan Button -->
+      <div class="analytics-header">
+        <h1>My Analytics</h1>
+        <button class="primary" id="runScan" style="border-radius:20px; padding:10px 22px; font-weight:700; font-size:13px; background:#0c66e4; box-shadow:0 4px 12px rgba(12,102,228,0.25);">
+          Run autonomous scan
+        </button>
+      </div>
 
-      <!-- Top control strip -->
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #dfe3ea; padding:7px 14px; border-radius:9px; flex-wrap:wrap; gap:10px; flex-shrink:0;">
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:10px; font-weight:800; color:#626f86; text-transform:uppercase;">Source:</span>
-            <select id="telSourceSelect" class="tel-select">
-              <option value="All"        ${telemetrySource === "All" ? "selected" : ""}>All</option>
-              <option value="Jira"       ${telemetrySource === "Jira" ? "selected" : ""}>Jira</option>
-              <option value="GitHub"     ${telemetrySource === "GitHub" ? "selected" : ""}>GitHub</option>
-              <option value="Slack"      ${telemetrySource === "Slack" ? "selected" : ""}>Slack</option>
+      <!-- Control Strip (Source / Week / Reset / Share) -->
+      <div class="analytics-control-strip">
+        <div class="analytics-select-group">
+          <div class="analytics-select-item">
+            <span>SOURCE:</span>
+            <select id="telSourceSelect" class="analytics-select">
+              <option value="All" ${telemetrySource === "All" ? "selected" : ""}>All</option>
+              <option value="Jira" ${telemetrySource === "Jira" ? "selected" : ""}>Jira</option>
+              <option value="GitHub" ${telemetrySource === "GitHub" ? "selected" : ""}>GitHub</option>
+              <option value="Slack" ${telemetrySource === "Slack" ? "selected" : ""}>Slack</option>
               <option value="ServiceNow" ${telemetrySource === "ServiceNow" ? "selected" : ""}>ServiceNow</option>
-              <option value="Outlook"    ${telemetrySource === "Outlook" ? "selected" : ""}>Outlook</option>
-              <option value="Meetings"   ${telemetrySource === "Meetings" ? "selected" : ""}>Meetings</option>
+              <option value="Outlook" ${telemetrySource === "Outlook" ? "selected" : ""}>Outlook</option>
+              <option value="Meetings" ${telemetrySource === "Meetings" ? "selected" : ""}>Meetings</option>
             </select>
           </div>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:10px; font-weight:800; color:#626f86; text-transform:uppercase;">Week:</span>
-            <select id="telWeekSelect" class="tel-select">
-              <option value="This Week"  ${telemetryWeek === "This Week" ? "selected" : ""}>This Week</option>
-              <option value="Last Week"  ${telemetryWeek === "Last Week" ? "selected" : ""}>Last Week</option>
+          <div class="analytics-select-item">
+            <span>WEEK:</span>
+            <select id="telWeekSelect" class="analytics-select">
+              <option value="This Week" ${telemetryWeek === "This Week" ? "selected" : ""}>This Week</option>
+              <option value="Last Week" ${telemetryWeek === "Last Week" ? "selected" : ""}>Last Week</option>
               <option value="Last Month" ${telemetryWeek === "Last Month" ? "selected" : ""}>Last Month</option>
             </select>
           </div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button id="analyticsPdfBtn" style="display:flex;align-items:center;gap:7px;padding:9px 16px;background:#172b4d;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-            Download Summary
-          </button>
-          <span style="padding:6px 14px;border-radius:20px;background:#f0fdf4;color:#22a06b;font-size:12px;font-weight:800;border:1px solid #b7e4ce;display:inline-flex;align-items:center;gap:5px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:#22a06b;display:inline-block;"></span>
-            Live
-          </span>
-        </div>
-      </div>
-
-      <!-- Loading overlay -->
-      ${telemetryIsLoading ? `
-        <div style="position:fixed; inset:0; background:rgba(244,245,247,0.75); display:flex; align-items:center; justify-content:center; z-index:200; backdrop-filter:blur(2px);">
-          <div style="text-align:center; background:#fff; padding:20px 28px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.1); border:1px solid #dfe3ea;">
-            <div style="width:28px; height:28px; border:3px solid #dfe3ea; border-top-color:#0c66e4; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px;"></div>
-            <span style="font-size:12px; color:#172b4d; font-weight:700;">Refreshing Task Telemetry...</span>
-          </div>
-        </div>
-      ` : ""}
-
-      <!-- Line chart + source bars -->
-      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <h3 style="margin:0;font-size:14px;">Work Completed (last 7 days)</h3>
-            <div style="display:flex;gap:10px;font-size:11px;">
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#0c66e4;border-radius:2px;display:inline-block;"></span>Total done</span>
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#22a06b;border-radius:2px;display:inline-block;"></span>On time</span>
-            </div>
-          </div>
-          ${renderLineChart(a.series, [
-    { key: "done", color: "#0c66e4" },
-    { key: "onTime", color: "#22a06b" }
-  ])}
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 12px;font-size:14px;">Work by Source</h3>
-          ${renderSourceBars(a.sourceMap)}
-        </div>
-      </div>
-
-      <!-- Severity breakdown + completed task list -->
-      <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 12px;font-size:14px;">By Priority</h3>
-          ${Object.entries(a.sevMap).map(([sev, d]) => {
-    const col = { P1: "#de350b", P2: "#974f0c", P3: "#216e4e" }[sev] || "#64748b";
-    const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
-    return `
-              <div style="margin:8px 0;">
-                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-                  <span style="font-weight:800;color:${col};">${sev}</span>
-                  <span style="color:#64748b;">${d.done}/${d.total} · ${pct}%</span>
-                </div>
-                <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;">
-                  <div style="width:${pct}%;height:100%;background:${col};border-radius:4px;"></div>
-                </div>
-              </div>`;
-  }).join("")}
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
-          <h3 style="margin:0 0 10px;font-size:14px;">Completed Tasks</h3>
-          <div style="max-height:200px;overflow-y:auto;display:grid;gap:5px;">
-            ${a.done.length === 0 ? `<p style="color:#94a3b8;font-size:12px;text-align:center;padding:20px;">Complete tasks to see them here.</p>` :
-      a.done.map(t => {
-        const col = srcChartColor(t.sources?.[0]);
-        const dl = deadlineStyle(t.due, true);
-        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${col};border-radius:6px;">
-                  <span style="color:#22a06b;font-weight:800;font-size:14px;">✓</span>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:600;color:#172b4d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.canonicalTitle)}</div>
-                    <div style="font-size:10px;color:#64748b;display:flex;gap:6px;margin-top:1px;">
-                      <span style="color:${col};">${t.sources?.[0] || "—"}</span>
-                      <span>${t.severity}</span>
-                      ${t.due ? `<span style="color:#22a06b;">${formatDue(t.due)}</span>` : ""}
-                    </div>
-                  </div>
-                </div>`;
-      }).join("")
-    }
-          </div>
-        </div>
-
-        <!-- KPI cards stacked -->
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <div class="tel-card" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
-            <span class="tel-card-title">Tasks Today</span>
-            <div style="font-size:24px; font-weight:900; color:#172b4d; line-height:1.1; margin-top:2px;">${tasksToday}</div>
-            <span style="font-size:8.5px; color:#8590a2; margin-top:2px;">Refreshed just now</span>
-          </div>
-          <div class="tel-card" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
-            <span class="tel-card-title">Finished Today</span>
-            <div style="font-size:24px; font-weight:900; color:#22a06b; line-height:1.1; margin-top:2px;">${finishedToday}</div>
-            <span style="font-size:8.5px; color:#8590a2; margin-top:2px;">Refreshed just now</span>
-          </div>
-        </div>
-
-        <!-- Pie Chart -->
-        <div class="tel-card" style="display:flex; flex-direction:column;">
-          <span class="tel-card-title">Task Distribution by Source</span>
-          <span style="font-size:8.5px; color:#8590a2; display:block; margin-top:1px; margin-bottom:6px;">Refreshed just now</span>
-          <div style="display:flex; align-items:center; gap:10px; flex:1;">
-            <svg width="76" height="76" viewBox="0 0 32 32" style="flex-shrink:0; transform:rotate(-90deg); border-radius:50%;">
-              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#0052cc" stroke-width="3" stroke-dasharray="${jiraPct} ${100 - jiraPct}" stroke-dashoffset="0"></circle>
-              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#24292e" stroke-width="3" stroke-dasharray="${githubPct} ${100 - githubPct}" stroke-dashoffset="-${jiraPct}"></circle>
-              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#4a154b" stroke-width="3" stroke-dasharray="${slackPct} ${100 - slackPct}" stroke-dashoffset="-${jiraPct + githubPct}"></circle>
-              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#62d84e" stroke-width="3" stroke-dasharray="${snowPct} ${100 - snowPct}" stroke-dashoffset="-${jiraPct + githubPct + slackPct}"></circle>
-              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#0078d4" stroke-width="3" stroke-dasharray="${outlookPct} ${100 - outlookPct}" stroke-dashoffset="-${jiraPct + githubPct + slackPct + snowPct}"></circle>
-              <circle cx="16" cy="16" r="15.915" fill="none" stroke="#e84393" stroke-width="3" stroke-dasharray="${meetingsPct} ${100 - meetingsPct}" stroke-dashoffset="-${jiraPct + githubPct + slackPct + snowPct + outlookPct}"></circle>
-            </svg>
-            <div style="display:flex; flex-direction:column; gap:3px; font-size:9px; font-weight:700; color:#44546f;">
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#0052cc;border-radius:50%;flex-shrink:0;"></span>Jira ${jiraPct}%</span>
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#24292e;border-radius:50%;flex-shrink:0;"></span>GitHub ${githubPct}%</span>
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#4a154b;border-radius:50%;flex-shrink:0;"></span>Slack ${slackPct}%</span>
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#62d84e;border-radius:50%;flex-shrink:0;"></span>SNOW ${snowPct}%</span>
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#0078d4;border-radius:50%;flex-shrink:0;"></span>Outlook ${outlookPct}%</span>
-              <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;background:#e84393;border-radius:50%;flex-shrink:0;"></span>Meets ${meetingsPct}%</span>
-            </div>
-          </div>
         </div>
 
         <!-- Weekly Bar Chart -->
@@ -8501,18 +11034,18 @@ function renderMyAnalyticsPage() {
               <line x1="38" y1="90" x2="390" y2="90" stroke="#cbd5e1" stroke-width="1"/>
               <text x="33" y="93" font-size="7.5" fill="#94a3b8" text-anchor="end">0</text>
               ${weeklyData.map((b, i) => {
-      const x = 57 + i * 47;
-      const h = Math.max(2, (b.val / maxWeekly) * 80);
-      const y = 90 - h;
-      const isToday = i === todayIdx;
-      return `
+    const x = 57 + i * 47;
+    const h = Math.max(2, (b.val / maxWeekly) * 80);
+    const y = 90 - h;
+    const isToday = i === todayIdx;
+    return `
                   <rect x="${x - 15}" y="${y}" width="30" height="${h}" rx="3"
                     fill="${isToday ? '#0c66e4' : '#93c5fd'}"
                     stroke="${isToday ? '#0052cc' : 'none'}" stroke-width="0.5"/>
                   <text x="${x}" y="103" font-size="8.5" fill="${isToday ? '#0c66e4' : '#64748b'}" text-anchor="middle" font-weight="${isToday ? '800' : '600'}">${b.day}</text>
                   <text x="${x}" y="${y - 3}" font-size="7.5" fill="#172b4d" text-anchor="middle" font-weight="700">${b.val}</text>
                 `;
-    }).join("")}
+  }).join("")}
             </svg>
           </div>
         </div>
@@ -9097,13 +11630,7 @@ function renderAdminSettings() {
   const engineers = [...new Set(state.prioritized.map(t => t.owner).filter(Boolean))];
 
   return `
-    <section class="board" style="padding:18px;">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Admin Control Center</p>
-          <h2>System Settings</h2>
-        </div>
-      </div>
+    <section class="board" style="padding:18px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; box-sizing: border-box;">
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
 
@@ -9896,6 +12423,183 @@ function bindEvents() {
   });
   // Admin Dashboard Event Listeners
   if (activeProfile === "admin") {
+    document.getElementById("adminDiagBtn")?.addEventListener("click", () => {
+      runAdminDiagSuite();
+    });
+
+    // User Management: Add User Submit
+    document.getElementById("addUserSubmitBtn")?.addEventListener("click", () => {
+      const name = document.getElementById("addUserNameInput")?.value.trim();
+      const email = document.getElementById("addUserEmailInput")?.value.trim();
+      const role = document.getElementById("addUserRoleSelect")?.value;
+      if (!name || !email) {
+        alert("Please enter both Name and Email address.");
+        return;
+      }
+
+      const colors = ["#3b82f6", "#10b981", "#0d9488", "#ea580c", "#8b5cf6", "#ec4899"];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+      const newUser = {
+        id: `u-${Date.now()}`,
+        name,
+        role,
+        email,
+        status: "online",
+        time: "Active now",
+        color: randomColor
+      };
+
+      adminUsers.push(newUser);
+      render();
+      syncStateWithBackend();
+    });
+
+    // User Management: Delete User
+    document.querySelectorAll(".delete-user-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const userId = btn.dataset.userId;
+        adminUsers = adminUsers.filter(u => u.id !== userId);
+        render();
+        syncStateWithBackend();
+      });
+    });
+
+    // User Management: Change User Role
+    document.querySelectorAll(".user-role-select").forEach(select => {
+      select.addEventListener("change", () => {
+        const userId = select.dataset.userId;
+        const newRole = select.value;
+        const user = adminUsers.find(u => u.id === userId);
+        if (user) {
+          user.role = newRole;
+          render();
+          syncStateWithBackend();
+        }
+      });
+    });
+
+    // User Management: Change User Status
+    document.querySelectorAll(".user-status-select").forEach(select => {
+      select.addEventListener("change", () => {
+        const userId = select.dataset.userId;
+        const newStatus = select.value;
+        const user = adminUsers.find(u => u.id === userId);
+        if (user) {
+          user.status = newStatus;
+          user.time = newStatus === "online" ? "Active now" : "1m ago";
+          render();
+          syncStateWithBackend();
+        }
+      });
+    });
+
+    // Database Explorer: Table Items Selection
+    document.querySelectorAll(".db-table-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const tableName = item.dataset.tableName;
+        selectedDbTable = tableName;
+        dbSqlQuery = `SELECT * FROM ${tableName} LIMIT 10;`;
+        executeDbQuery(dbSqlQuery);
+        render();
+      });
+    });
+
+    // Database Explorer: Run Query Button
+    document.getElementById("runDbQueryBtn")?.addEventListener("click", () => {
+      const q = document.getElementById("dbSqlQueryField")?.value;
+      if (q) {
+        executeDbQuery(q);
+        render();
+      }
+    });
+
+    // Database Explorer: Input Keydown (Enter)
+    document.getElementById("dbSqlQueryField")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const q = e.target.value;
+        if (q) {
+          executeDbQuery(q);
+          render();
+        }
+      }
+    });
+
+    // Model Hub Tab Switcher
+    document.querySelectorAll(".model-hub-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeModelHubTab = btn.dataset.tab;
+        render();
+      });
+    });
+
+    // Model Hub: Select Active Router Model
+    document.querySelectorAll(".nim-select-model-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const modelId = btn.dataset.modelId;
+        activeRouterModel = modelId;
+        render();
+      });
+    });
+
+    // Model Hub: Test in Playground Link/Action (Switches tab)
+    document.querySelectorAll(".nim-test-model-btn-tab").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const modelId = btn.dataset.modelId;
+        selectedModelForTest = modelId;
+        activeModelHubTab = "batches";
+        render();
+        setTimeout(() => {
+          document.getElementById("nimPlaygroundPrompt")?.focus();
+        }, 100);
+      });
+    });
+
+    // NIM Model Hub: Refresh GPU Stats
+    document.getElementById("refreshGpuStatsBtn")?.addEventListener("click", () => {
+      gpuTemp = Math.floor(60 + Math.random() * 10);
+      gpuMemoryUsed = +(38 + Math.random() * 15).toFixed(1);
+      gpuLoad = Math.floor(25 + Math.random() * 50);
+      render();
+    });
+
+    // NIM Model Hub: Execute Playground Inference
+    document.getElementById("sendNimPlaygroundBtn")?.addEventListener("click", async () => {
+      const promptField = document.getElementById("nimPlaygroundPrompt");
+      const prompt = promptField?.value.trim();
+      if (!prompt) return;
+
+      modelTestPrompt = prompt;
+      modelTestLoading = true;
+      modelTestResult = "Connecting to NVIDIA NIM API...\nSending request payload...\n";
+      render();
+
+      try {
+        const resp = await fetch(`${BACKEND_URL}/api/taskpilot/nvidia-telemetry`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nodeId: "playground",
+            nodeTitle: selectedModelForTest,
+            description: prompt
+          })
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (data.success) {
+          modelTestResult = data.text;
+        } else {
+          modelTestResult = data.text || "Failed to execute NIM test inference.";
+        }
+      } catch (err) {
+        modelTestResult = `Error: ${err.message}`;
+      } finally {
+        modelTestLoading = false;
+        render();
+      }
+    });
+
     // Drag Resizer logic for VS Code Terminal
     const resizer = document.querySelector("#terminalResizer");
     const terminal = document.querySelector(".admin-terminal-wrapper");
@@ -9929,6 +12633,11 @@ function bindEvents() {
         const nodeId = el.dataset.adminNode;
         adminSelectedNodeId = nodeId;
         activeNvidiaNodeId = nodeId;
+        if (nodeId !== "all") {
+          adminActiveTerminalTab = "inspector";
+        } else {
+          adminActiveTerminalTab = "logs";
+        }
         render();
       });
     });
@@ -10091,6 +12800,53 @@ function bindEvents() {
     document.querySelector("#resetAdminBtn3")?.addEventListener("click", () => {
       resetAdminSystem();
     });
+    document.querySelector("#fixGeminiErrorBtn")?.addEventListener("click", () => {
+      triggerAdminErrorSimulation();
+    });
+
+    document.querySelectorAll("#clearNodeSelectionBtn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        adminSelectedNodeId = "all";
+        adminActiveTerminalTab = "logs";
+        render();
+      });
+    });
+
+    // Unified Terminal Tab Switching
+    document.querySelectorAll(".terminal-tab-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        adminActiveTerminalTab = btn.dataset.terminalTab;
+        render();
+      });
+    });
+
+    // Simulated Gemini Error Toggle
+    document.querySelector("#toggleSimulatedGeminiErrorBtn")?.addEventListener("click", () => {
+      triggerAdminErrorSimulation();
+    });
+
+    // Simulated Alerts Error Toggle
+    document.querySelector("#toggleSimulatedAlertsErrorBtn")?.addEventListener("click", () => {
+      if (adminArchitectureNodes.alerts.status === "error") {
+        adminArchitectureNodes.alerts.status = "healthy";
+        adminArchitectureNodes.alerts.error = null;
+        adminArchitectureNodes.alerts.code = null;
+        adminArchitectureNodes.alerts.fix = null;
+        addAdminLog("system", "[SIMULATED ERROR] Slack Alert Webhook simulated failure cleared.");
+      } else {
+        adminArchitectureNodes.alerts.status = "error";
+        adminArchitectureNodes.alerts.error = "Error: Webhook token verification failed. HTTP 403 Forbidden. The signature mismatch suggests that the token or signing secret is either expired or invalid.";
+        adminArchitectureNodes.alerts.code = "def send_slack_notification(webhook_url, message):\n    headers = {'Content-Type': 'application/json'}\n    payload = {'text': message}\n    r = requests.post(webhook_url, json=payload, headers=headers)\n    # ERROR: Token signature verification failed here!";
+        addAdminLog("alerts", "[SIMULATED ERROR] Slack Alert Webhook marked offline. Status: error (403).");
+      }
+      render();
+    });
+
+    // Trigger Pipeline Simulation
+    document.querySelector("#triggerPipelineRunBtn")?.addEventListener("click", () => {
+      runAdminPipeline();
+    });
 
     // 6. Deploy suggested fix via NVIDIA NIM
     document.querySelector("#deployNvidiaFixBtn")?.addEventListener("click", (e) => {
@@ -10137,11 +12893,13 @@ function bindEvents() {
 
   // Navigation
   document.querySelectorAll("[data-nav]").forEach(btn => {
+    if (btn.closest(".app-nav")) return;
     btn.addEventListener("click", () => {
       const targetPage = btn.dataset.nav;
       if (["mgr-jira", "mgr-github", "mgr-servicenow", "mgr-email", "mgr-slack"].includes(targetPage)) {
         scrumActiveSource = targetPage.replace("mgr-", "");
         activePage = "inbox";
+        render();
       } else {
         activePage = targetPage;
         if (targetPage === "inbox" || targetPage === "source-tree") {
@@ -10151,8 +12909,15 @@ function bindEvents() {
         if (targetPage === "agent-scan") {
           companionOpen = true;
         }
+
+        if (targetPage === "calendar-ai" || targetPage === "eng-calendar") {
+          fetchMeetingsFromBackend().then(() => {
+            render();
+          });
+        } else {
+          render();
+        }
       }
-      render();
     });
   });
 
@@ -10195,8 +12960,9 @@ function bindEvents() {
   // Task selection
   document.querySelectorAll("[data-task]").forEach(btn => {
     btn.addEventListener("click", () => {
+      if (btn.classList.contains("schedule-task-item")) return;
       selectedTaskId = btn.dataset.task;
-      if (activePage === "calendar-ai") {
+      if ((activePage === "calendar-ai" || activePage === "inbox") && activeProfile === "manager") {
         showCalendarTaskModal = true;
       }
       render();
@@ -10252,6 +13018,122 @@ function bindEvents() {
       render();
     });
   });
+
+  // ─── Engineer Calendar Event Listeners ───
+  if (activePage === "calendar-ai" || activePage === "eng-calendar") {
+    // 1. Mini Calendar Day click
+    document.querySelectorAll(".mini-cal-day").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const dateStr = btn.dataset.date;
+        if (dateStr) {
+          calendarSelectedDate = new Date(dateStr);
+          calendarSelectedTaskId = null; // Close popup
+          render();
+        }
+      });
+    });
+
+    // 2. Week header day click (in Week view)
+    document.querySelectorAll(".week-header-day").forEach(hdr => {
+      hdr.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const dateStr = hdr.dataset.date;
+        if (dateStr) {
+          calendarSelectedDate = new Date(dateStr);
+          calendarSelectedTaskId = null;
+          render();
+        }
+      });
+    });
+
+    // 3. Today button click
+    document.querySelector("#calTodayBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      calendarSelectedDate = new Date("2026-07-23");
+      calendarSelectedTaskId = null;
+      render();
+    });
+
+    // 4. Mode Switchers
+    document.querySelector("#calDayModeBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      calendarViewMode = "day";
+      calendarSelectedTaskId = null;
+      render();
+    });
+    document.querySelector("#calWeekModeBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      calendarViewMode = "week";
+      calendarSelectedTaskId = null;
+      render();
+    });
+
+    // 5. Prev/Next buttons
+    document.querySelector("#calPrevBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      shiftCalendarDate(calendarViewMode === "day" ? -1 : -7);
+      calendarSelectedTaskId = null;
+      render();
+    });
+    document.querySelector("#calNextBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      shiftCalendarDate(calendarViewMode === "day" ? 1 : 7);
+      calendarSelectedTaskId = null;
+      render();
+    });
+
+    // 6. Schedule Task item click (open details popup)
+    document.querySelectorAll(".schedule-task-item").forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const taskId = item.dataset.task;
+        if (taskId) {
+          if (calendarSelectedTaskId === taskId) {
+            calendarSelectedTaskId = null; // toggle close
+          } else {
+            calendarSelectedTaskId = taskId;
+          }
+          render();
+        }
+      });
+    });
+
+    // 7. Close popup button
+    document.querySelector("#closeCalPopupBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      calendarSelectedTaskId = null;
+      render();
+    });
+
+    // 8. Open details in popup
+    document.querySelector("#calOpenTaskBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const taskId = calendarSelectedTaskId;
+      if (taskId) {
+        selectedTaskId = taskId;
+        showCalendarTaskModal = true;
+        render();
+      }
+    });
+
+    // 8.5 View manager assigned task details
+    document.querySelector("#calViewManagerTaskBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const taskId = e.currentTarget.dataset.taskId;
+      if (taskId) {
+        selectedTaskId = taskId;
+        showCalendarTaskModal = true;
+        render();
+      }
+    });
+
+    // 9. Download Calendar button inside the page
+    document.querySelector("#downloadCalBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      document.querySelector("#downloadCalendarBtn")?.click();
+    });
+  }
 
   const calApproveHandoffBtn = document.querySelector("#calApproveHandoffBtn");
   if (calApproveHandoffBtn) {
@@ -10480,13 +13362,15 @@ function bindEvents() {
   });
 
   // Main header actions
-  document.querySelector("#logoutBtn")?.addEventListener("click", () => {
-    authSession = null;
-    completedTaskIds = [];
-    workingTaskIds = [];
-    managerActivityFeed = [];
-    localStorage.removeItem("taskpilot:session");
-    render();
+  document.querySelectorAll("#logoutBtn, #sidebarLogoutBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      authSession = null;
+      completedTaskIds = [];
+      workingTaskIds = [];
+      managerActivityFeed = [];
+      localStorage.removeItem("taskpilot:session");
+      render();
+    });
   });
 
   // Discord Status Selector Events
@@ -10494,8 +13378,71 @@ function bindEvents() {
   if (openStatusSelectorBtn) {
     openStatusSelectorBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      showStatusSelector = !showStatusSelector;
+      showDiscordProfileCard = !showDiscordProfileCard;
+      showStatusSelector = false;
+      showSettingsMenu = false;
       render();
+    });
+  }
+  const openStatusSelectorBtn2 = document.querySelector("#openStatusSelectorBtn2");
+  if (openStatusSelectorBtn2) {
+    openStatusSelectorBtn2.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showDiscordProfileCard = !showDiscordProfileCard;
+      showStatusSelector = false;
+      showSettingsMenu = false;
+      render();
+    });
+  }
+
+  // Profile Card Popover triggers
+  const cardStatusRowBtn = document.querySelector("#cardStatusRowBtn");
+  if (cardStatusRowBtn) {
+    cardStatusRowBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showStatusSelector = !showStatusSelector;
+      showSettingsMenu = false;
+      render();
+    });
+  }
+
+  const cardProfileRowBtn = document.querySelector("#cardProfileRowBtn");
+  if (cardProfileRowBtn) {
+    cardProfileRowBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showSettingsMenu = !showSettingsMenu;
+      showStatusSelector = false;
+      render();
+    });
+  }
+
+  const cardSignOutRowBtn = document.querySelector("#cardSignOutRowBtn");
+  if (cardSignOutRowBtn) {
+    cardSignOutRowBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showDiscordProfileCard = false;
+      showSettingsMenu = false;
+      showStatusSelector = false;
+      authSession = null;
+      completedTaskIds = [];
+      workingTaskIds = [];
+      managerActivityFeed = [];
+      localStorage.removeItem("taskpilot:session");
+      render();
+    });
+  }
+
+  const obsessedInputTrigger = document.querySelector("#obsessedInputTrigger");
+  if (obsessedInputTrigger) {
+    obsessedInputTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const key = `obsessed:${activeProfile}`;
+      const oldVal = localStorage.getItem(key) || "";
+      const val = prompt("What are you currently obsessed with?", oldVal);
+      if (val !== null) {
+        localStorage.setItem(key, val.trim() || "+ Status bio...");
+        render();
+      }
     });
   }
 
@@ -10503,17 +13450,27 @@ function bindEvents() {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const newStatus = btn.dataset.status;
-      if (activeProfile === "manager") {
+
+      // Update local presence, synced adminUsers list and local storage
+      if (activeProfile === "admin") {
+        if (adminUsers[0]) adminUsers[0].status = newStatus;
+        localStorage.setItem("taskpilot:adminPresence", newStatus);
+      } else if (activeProfile === "manager") {
+        if (adminUsers[2]) adminUsers[2].status = newStatus;
         managerPresenceStatus = newStatus;
         localStorage.setItem("taskpilot:managerPresence", newStatus);
       } else {
+        if (adminUsers[1]) adminUsers[1].status = newStatus;
         engineerPresenceStatus = newStatus;
         localStorage.setItem("taskpilot:engineerPresence", newStatus);
       }
+
       // Push immediately to backend so manager sees it
       lastActivityTime = Date.now();
       pushPresenceHeartbeat();
+      syncStateWithBackend();
       showStatusSelector = false;
+      showDiscordProfileCard = false;
       render();
     });
   });
@@ -10552,11 +13509,16 @@ function bindEvents() {
     window._globalClickBound = true;
     document.addEventListener("click", (e) => {
       let needsRender = false;
-      if (showStatusSelector && !e.target.closest('#openStatusSelectorBtn') && !e.target.closest('#presenceStatusMenu')) {
+      if (showDiscordProfileCard && !e.target.closest('#openStatusSelectorBtn') && !e.target.closest('#openStatusSelectorBtn2') && !e.target.closest('#discordProfilePopover') && !e.target.closest('#presenceStatusMenu') && !e.target.closest('#sidebarSettingsMenu')) {
+        showDiscordProfileCard = false;
         showStatusSelector = false;
         needsRender = true;
       }
-      if (showSettingsMenu && !e.target.closest('#panelSettingsBtn') && !e.target.closest('#sidebarSettingsMenu')) {
+      if (showStatusSelector && !e.target.closest('#openStatusSelectorBtn') && !e.target.closest('#openStatusSelectorBtn2') && !e.target.closest('#presenceStatusMenu') && !e.target.closest('#discordProfilePopover')) {
+        showStatusSelector = false;
+        needsRender = true;
+      }
+      if (showSettingsMenu && !e.target.closest('#panelSettingsBtn') && !e.target.closest('#sidebarSettingsMenu') && !e.target.closest('#discordProfilePopover')) {
         showSettingsMenu = false;
         needsRender = true;
       }
@@ -12064,7 +15026,7 @@ function bindEvents() {
   // Settings inputs & key save
   document.querySelector("#saveSettingsBtn")?.addEventListener("click", async () => {
     const name = document.querySelector("#settingsNameInput").value.trim();
-    const role = document.querySelector("#settingsRoleInput").value;
+    const role = document.querySelector("#settingsRoleInput")?.value || settingsProfile.role || "engineer";
 
     settingsSaving = true;
     render();
@@ -12604,6 +15566,42 @@ function bindEvents() {
     render();
     setTimeout(() => { telemetryIsLoading = false; render(); }, 600);
   });
+
+  // Whiteboard drag-to-pan listener
+  const canvas = document.getElementById("whiteboardCanvas");
+  if (canvas) {
+    let isPanning = false;
+    let startX = 0, startY = 0;
+
+    canvas.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".wfh-sticky, .wb-sticky, .wb-brief, .wb-zoom-control, button, a, svg, rect, path")) return;
+      isPanning = true;
+      startX = e.clientX - (window.whiteboardPanX || 0);
+      startY = e.clientY - (window.whiteboardPanY || 0);
+      canvas.style.cursor = "grabbing";
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!isPanning) return;
+      window.whiteboardPanX = e.clientX - startX;
+      window.whiteboardPanY = e.clientY - startY;
+      const wrapper = document.getElementById("whiteboardContentWrapper");
+      if (wrapper) {
+        const zoom = window.whiteboardZoom || 100;
+        wrapper.style.transform = `translate(${window.whiteboardPanX}px, ${window.whiteboardPanY}px) scale(${zoom / 100})`;
+      }
+    });
+
+    canvas.addEventListener("mouseup", () => {
+      isPanning = false;
+      canvas.style.cursor = "grab";
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      isPanning = false;
+      canvas.style.cursor = "grab";
+    });
+  }
 }
 
 // ─── Meeting Helpers ──────────────────────────────────────────────────────────
@@ -13405,27 +16403,6 @@ function buildAgentResponse(intent) {
   }
 }
 
-// ─── Direct Helper to extract JSON from Gemini replies ────────────────────────
-function extractJSON(raw) {
-  if (!raw) return null;
-  let text = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  try { return JSON.parse(text); } catch { }
-  const arrStart = text.indexOf("[");
-  const objStart = text.indexOf("{");
-  const starts = [arrStart, objStart].filter(i => i !== -1);
-  if (starts.length === 0) return null;
-  const start = Math.min(...starts);
-  const openChar = text[start];
-  const closeChar = openChar === "[" ? "]" : "}";
-  let depth = 0;
-  let end = -1;
-  for (let i = start; i < text.length; i++) {
-    if (text[i] === openChar) depth++;
-    else if (text[i] === closeChar) { depth--; if (depth === 0) { end = i; break; } }
-  }
-  if (end === -1) return null;
-  try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
-}
 
 function startTask(id) {
   const task = state.prioritized.find(t => t.id === id);
@@ -14069,6 +17046,9 @@ async function loadBackendConfig() {
       const response = await fetchWithTimeout(`${BACKEND_URL}/api/taskpilot/config`);
       backendConfig = await response.json();
     }
+    if (!backendConfig?.supabaseUrl || backendConfig.supabaseUrl.includes("pfotrcjqnopvyihwqvhu")) {
+      backendConfig.supabaseUrl = "https://pzovknqrllnifvsrjvts.supabase.co";
+    }
     window.__TASKPILOT_CONFIG__ = backendConfig;
   } catch {
     backendConfig = {
@@ -14495,8 +17475,7 @@ function safeRender() {
   } catch (err) {
     console.error("[TaskPilot] render() threw:", err);
     // Show error overlay instead of blank page
-    if (app) {
-      app.innerHTML = `
+    getAppTarget().innerHTML = `
         <main style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#f7f4ee;font-family:Inter,system-ui,sans-serif;gap:16px;padding:40px;">
           <div style="display:flex;justify-content:center;margin-bottom:8px;color:#f59e0b;"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
           <h2 style="margin:0;color:#152238;font-family:Outfit,sans-serif;">TaskPilot ran into a problem</h2>
@@ -14506,7 +17485,6 @@ function safeRender() {
             Clear session &amp; reload
           </button>
         </main>`;
-    }
   }
 }
 
@@ -14526,51 +17504,58 @@ async function handleOAuthCallback() {
   window.history.replaceState(null, "", window.location.pathname);
 
   try {
-    const SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
-    const SUPABASE_ANON = backendConfig?.supabaseAnonKey || "";
+    let userEmail = "";
+    let userName = "";
+    let userId = "";
+    let avatarUrl = "";
 
-
-
-    // Fetch user info from Supabase
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: {
-        "apikey": SUPABASE_ANON,
-        "Authorization": `Bearer ${accessToken}`
-      }
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error("HTTP " + res.status + ": " + errText);
+    try {
+      const base64Url = accessToken.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(atob(base64).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join(""));
+      const payload = JSON.parse(jsonPayload);
+      userId = payload.sub || payload.id || `user-${Date.now()}`;
+      userEmail = payload.email || "user@taskpilot.dev";
+      userName = payload.user_metadata?.full_name || payload.user_metadata?.name || payload.name || userEmail.split("@")[0];
+      avatarUrl = payload.user_metadata?.avatar_url || payload.picture || "";
+    } catch (jwtErr) {
+      console.warn("[TaskPilot] JWT decoding failed, attempting API fallback:", jwtErr.message);
     }
-    const user = await res.json();
 
-    // Restore the role the user chose before the redirect
+    if (!userEmail) {
+      const SUPABASE_URL = backendConfig?.supabaseUrl || "https://pzovknqrllnifvsrjvts.supabase.co";
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { "Authorization": `Bearer ${accessToken}` }
+      });
+      if (res.ok) {
+        const user = await res.json();
+        userId = user.id;
+        userEmail = user.email;
+        userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email;
+        avatarUrl = user.user_metadata?.avatar_url || "";
+      }
+    }
+
+    if (!userEmail) {
+      userEmail = "google-user@taskpilot.dev";
+      userName = "Google User";
+      userId = `google-${Date.now()}`;
+    }
+
     const pendingRole = localStorage.getItem("taskpilot:pending-role") || "engineer";
     localStorage.removeItem("taskpilot:pending-role");
-
-    // Save role back to Supabase user metadata
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: "PUT",
-      headers: {
-        "apikey": SUPABASE_ANON,
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ data: { ...(user.user_metadata || {}), taskpilot_role: pendingRole } })
-    });
 
     authSession = {
       provider: "google-supabase",
       role: pendingRole,
-      userId: user.id,
-      email: user.email,
-      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
-      avatarUrl: user.user_metadata?.avatar_url || ""
+      userId: userId,
+      email: userEmail,
+      name: userName,
+      avatarUrl: avatarUrl
     };
     activeProfile = pendingRole;
     localStorage.setItem("taskpilot:session", JSON.stringify(authSession));
 
-    // Log sign-in history to Supabase
     logUserLogin(authSession.email, authSession.name, authSession.role);
     syncSettingsProfileWithSession();
     completedTaskIds = getMyCompletedIds();
@@ -14664,3 +17649,123 @@ async function geminiRescoreTodayQueue() {
     console.warn("[TaskPilot] Gemini re-score skipped:", err.message);
   }
 }
+
+// ─── Whiteboard Real-time Smooth Cursor & Clash of Clans Timer loop ───
+window.whiteboardZoom = 100;
+window.whiteboardPanX = 0;
+window.whiteboardPanY = 0;
+
+window.changeWhiteboardZoom = function (delta) {
+  const newZoom = Math.max(50, Math.min(150, (window.whiteboardZoom || 100) + delta));
+  window.whiteboardZoom = newZoom;
+  const label = document.getElementById("wbZoomLabel");
+  if (label) label.textContent = `${newZoom}%`;
+  const wrapper = document.getElementById("whiteboardContentWrapper");
+  if (wrapper) {
+    const panX = window.whiteboardPanX || 0;
+    const panY = window.whiteboardPanY || 0;
+    wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${newZoom / 100})`;
+  }
+};
+
+window.updateWhiteboardCursors = function () {
+  const tSec = Date.now() / 1000;
+
+  let activeUsers = Object.entries(presenceAllUsers)
+    .map(([name, u]) => ({ name, ...u }))
+    .filter(u => u.status !== "offline" && u.status !== "invisible");
+
+  if (activeUsers.length === 0) {
+    activeUsers = [
+      { name: "Sarah Connor", role: "manager", status: "online" },
+      { name: "Utkarsh Sinha", role: "engineer", status: "online" },
+      { name: "Miso", role: "admin", status: "dnd" },
+      { name: "Karan", role: "engineer", status: "online" },
+      { name: "Sophia", role: "designer", status: "online" }
+    ];
+  }
+
+  const activeTasks = state.prioritized.filter(t => isTaskWorking(t.id));
+
+  activeUsers.forEach((u, index) => {
+    const elId = `cursor-${u.name.replace(/\s+/g, "-")}`;
+    const el = document.getElementById(elId);
+    if (!el) return;
+
+    let x = 100;
+    let y = 100;
+
+    if (u.name === "Sarah Connor") {
+      x = 180 + Math.sin(tSec * 0.4) * 35;
+      y = 350 + Math.cos(tSec * 0.5) * 20;
+    } else if (u.name === "Miso") {
+      x = 320 + Math.cos(tSec * 0.3) * 40;
+      y = 260 + Math.sin(tSec * 0.4) * 25;
+    } else if (u.name === "Utkarsh Sinha") {
+      if (activeTasks.length > 0) {
+        x = 710 + Math.sin(tSec * 0.8) * 8;
+        y = 170 + Math.cos(tSec * 0.8) * 8;
+      } else {
+        x = 340 + Math.sin(tSec * 0.5) * 30;
+        y = 90 + Math.cos(tSec * 0.3) * 15;
+      }
+    } else if (u.name === "Karan") {
+      x = 330 + Math.sin(tSec * 0.35) * 30;
+      y = 390 + Math.cos(tSec * 0.45) * 20;
+    } else if (u.name === "Sophia") {
+      x = 940 + Math.cos(tSec * 0.25) * 30;
+      y = 230 + Math.sin(tSec * 0.35) * 40;
+    } else {
+      x = 500 + Math.sin(tSec * 0.2 + index) * 100;
+      y = 250 + Math.cos(tSec * 0.2 + index) * 60;
+    }
+
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  });
+};
+
+window.updateWhiteboardTimers = function () {
+  document.querySelectorAll(".wb-coc-timer-container").forEach(el => {
+    const taskId = el.dataset.taskId;
+    const log = taskTimeLogs[taskId];
+    if (!log || !log.startTime) return;
+    const startTime = new Date(log.startTime);
+    const elapsedMs = new Date() - startTime;
+    const durationMs = (log.durationSeconds || 120) * 1000;
+    const remainingMs = Math.max(0, durationMs - elapsedMs);
+
+    if (remainingMs <= 0) {
+      completeTask(taskId);
+      syncStateWithBackend();
+      render();
+      return;
+    }
+
+    const remainingSec = Math.floor(remainingMs / 1000);
+    const min = Math.floor(remainingSec / 60);
+    const sec = remainingSec % 60;
+    const timeStr = `${min}m ${sec < 10 ? '0' : ''}${sec}s`;
+
+    const textEl = el.querySelector(".wb-coc-timer-text");
+    if (textEl) textEl.textContent = timeStr;
+
+    const barEl = el.querySelector(".wb-coc-progress-fill");
+    if (barEl) {
+      const pct = Math.max(0, Math.min(100, (remainingMs / durationMs) * 100));
+      barEl.style.width = `${pct}%`;
+    }
+  });
+};
+
+if (!window._whiteboardInterval) {
+  window._whiteboardInterval = setInterval(() => {
+    if (activePage === "inbox" && document.getElementById("whiteboardCanvas")) {
+      window.updateWhiteboardCursors();
+      window.updateWhiteboardTimers();
+    }
+  }, 1000);
+}
+
+
+

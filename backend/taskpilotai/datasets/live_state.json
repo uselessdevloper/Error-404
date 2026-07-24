@@ -1,14 +1,105 @@
 {
   "completedTaskIds": [
+    "task-95",
+    "task-121",
+    "task-38",
+    "task-2",
+    "task-188",
     "task-1",
-    "task-141",
-    "task-139",
-    "task-33"
+    "task-14",
+    "task-269"
   ],
-  "workingTaskIds": [],
-  "taskTimeLogs": {},
+  "workingTaskIds": [
+    "task-189"
+  ],
+  "taskTimeLogs": {
+    "task-1": {
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "severity": "P1",
+      "source": "Jira Sprint Board + ServiceNow Defects + Outlook Emails + Slack Mentions",
+      "startTime": "2026-07-23T07:28:50.382Z",
+      "endTime": null
+    },
+    "task-189": {
+      "title": "Executive request: incident RCA summary needed",
+      "severity": "P1",
+      "source": "Outlook Emails",
+      "startTime": "2026-07-23T07:29:07.650Z",
+      "endTime": null
+    }
+  },
   "managerActivityFeed": [],
   "managerTaskPosts": [
+    {
+      "id": "MGR-02003",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Assigned via Kanban",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:42.003Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted"
+    },
+    {
+      "id": "MGR-00931",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Assigned via Kanban",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:40.931Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted"
+    },
+    {
+      "id": "MGR-98615",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Assigned via Kanban",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:38.615Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted"
+    },
+    {
+      "id": "MGR-94025",
+      "title": "Automate code ownership validation",
+      "description": "Assigned via Kanban",
+      "priority": "P3",
+      "deadline": "2026-07-04",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:34.025Z",
+      "assignment": {
+        "recommendedAssignee": "Karan",
+        "assignmentReasoning": "Automatically assigned to Karan due to lowest current task load."
+      },
+      "status": "Posted"
+    },
+    {
+      "id": "MGR-93761",
+      "title": "Automate code ownership validation",
+      "description": "Assigned via Kanban",
+      "priority": "P3",
+      "deadline": "2026-07-04",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:33.761Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted"
+    },
     {
       "id": "MGR-37792",
       "title": "Verify CDN Caching Policies",
@@ -37,6 +128,86 @@
     }
   ],
   "engineerPortalPosts": [
+    {
+      "id": "MGR-02003",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Assigned via Kanban",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:42.003Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You have been assigned: Fix CSV upload timeout for enterprise imports."
+    },
+    {
+      "id": "MGR-00931",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Assigned via Kanban",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:40.931Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You have been assigned: Fix CSV upload timeout for enterprise imports."
+    },
+    {
+      "id": "MGR-98615",
+      "title": "Fix CSV upload timeout for enterprise imports",
+      "description": "Assigned via Kanban",
+      "priority": "P1",
+      "deadline": "2026-06-18",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:38.615Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You have been assigned: Fix CSV upload timeout for enterprise imports."
+    },
+    {
+      "id": "MGR-94025",
+      "title": "Automate code ownership validation",
+      "description": "Assigned via Kanban",
+      "priority": "P3",
+      "deadline": "2026-07-04",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:34.025Z",
+      "assignment": {
+        "recommendedAssignee": "Karan",
+        "assignmentReasoning": "Automatically assigned to Karan due to lowest current task load."
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You have been assigned: Automate code ownership validation."
+    },
+    {
+      "id": "MGR-93761",
+      "title": "Automate code ownership validation",
+      "description": "Assigned via Kanban",
+      "priority": "P3",
+      "deadline": "2026-07-04",
+      "postedBy": "Demo Manager",
+      "postedAt": "2026-07-22T18:16:33.761Z",
+      "assignment": {
+        "recommendedAssignee": "Rohan",
+        "assignmentReasoning": "Automatically assigned to Rohan due to lowest current task load."
+      },
+      "status": "Posted",
+      "viewed": false,
+      "engineerNote": "You have been assigned: Automate code ownership validation."
+    },
     {
       "id": "MGR-37792",
       "title": "Verify CDN Caching Policies",

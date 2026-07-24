@@ -14,7 +14,7 @@ class CoordinatorAgent(BaseAgent):
         super().__init__(
             name="PrimaryCoordinatorAgent",
             provider="nvidia",
-            model="nvidia/llama-3.1-nemotron-70b-instruct",
+            model="meta/llama-3.1-8b-instruct",
             api_key_name="NVIDIA_API_KEY"
         )
         self.jira = JiraAgent()

@@ -1,9 +1,12 @@
 import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { extname, join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { renderHtml } from "./render-html.mjs";
 
-const root = resolve(process.argv[2] || ".");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const defaultRoot = resolve(__dirname, "..");
+const root = resolve(process.argv[2] || defaultRoot);
 const preferredPort = Number(process.env.PORT || 5173);
 const host = "127.0.0.1";
 const types = {
@@ -16,6 +19,8 @@ const types = {
 
 const server = createServer((request, response) => {
   const url = new URL(request.url || "/", `http://${request.headers.host}`);
+  response.setHeader("cache-control", "no-store, no-cache, must-revalidate, max-age=0");
+  response.setHeader("pragma", "no-cache");
   if (url.pathname === "/" || url.pathname === "/index.html") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     const localIndex = join(root, "index.html");

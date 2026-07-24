@@ -25,7 +25,8 @@ export async function loadCompletions(userEmail) {
   try {
     const res = await sbFetch(`/task_completions?user_email=eq.${encodeURIComponent(userEmail)}&select=task_id,task_title,severity,source,due_date,score,completed_at,was_on_time,time_spent_min&order=completed_at.desc`);
     if (!res.ok) return [];
-    return await res.json(); // array of completion rows
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch { return []; }
 }
 
@@ -70,7 +71,7 @@ export async function loadWorkingTasks(userEmail) {
     const res = await sbFetch(`/task_working?user_email=eq.${encodeURIComponent(userEmail)}&select=task_id`);
     if (!res.ok) return [];
     const rows = await res.json();
-    return rows.map(r => r.task_id);
+    return Array.isArray(rows) ? rows.map(r => r.task_id) : [];
   } catch { return []; }
 }
 
@@ -111,7 +112,8 @@ export async function loadAssignments(engineerEmail) {
   try {
     const res = await sbFetch(`/manager_assignments?assigned_to=eq.${encodeURIComponent(engineerEmail)}&status=eq.pending&select=*&order=created_at.desc`);
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch { return []; }
 }
 
@@ -163,7 +165,8 @@ export async function loadAllCompletions() {
   try {
     const res = await sbFetch(`/task_completions?select=user_email,user_name,task_id,task_title,severity,source,due_date,score,completed_at,was_on_time,time_spent_min&order=completed_at.desc`);
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch { return []; }
 }
 
@@ -172,7 +175,8 @@ export async function loadAllWorkingTasks() {
   try {
     const res = await sbFetch(`/task_working?select=user_email,user_name,task_id,task_title,started_at`);
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch { return []; }
 }
 

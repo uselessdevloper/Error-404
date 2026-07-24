@@ -854,6 +854,9 @@ body {
   width: 240px !important;
   min-width: 240px !important;
   max-width: 240px !important;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Sidebar brand row (logo + title + three-dots) ─── */
@@ -1020,6 +1023,7 @@ body {
   font-size: 13px;
   font-weight: 700;
   text-align: left;
+  cursor: pointer !important;
 }
 
 .nav-group button span {
@@ -2036,6 +2040,19 @@ h2 {
   box-sizing: border-box !important;
 }
 
+/* Zero-scroll workspace wrapper for Admin screens */
+.workspace-admin-fit-screen {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  padding: 12px 20px 12px 20px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #f4f5f7 !important;
+}
+
+
 /* Integrated Source Tabs Control Bar */
 .eng-source-tabs-bar {
   display: flex;
@@ -2059,6 +2076,7 @@ h2 {
   overflow-x: auto;
   scrollbar-width: none;
 }
+
 .eng-source-tabs-list::-webkit-scrollbar {
   display: none;
 }
@@ -2112,26 +2130,31 @@ h2 {
   border-color: #0052cc;
   box-shadow: 0 3px 10px rgba(0, 82, 204, 0.25);
 }
+
 .eng-source-tab-btn[data-eng-source="github"].active {
   background: #24292f;
   border-color: #24292f;
   box-shadow: 0 3px 10px rgba(36, 41, 47, 0.25);
 }
+
 .eng-source-tab-btn[data-eng-source="servicenow"].active {
   background: #c0392b;
   border-color: #c0392b;
   box-shadow: 0 3px 10px rgba(192, 57, 43, 0.25);
 }
+
 .eng-source-tab-btn[data-eng-source="email"].active {
   background: #0078d4;
   border-color: #0078d4;
   box-shadow: 0 3px 10px rgba(0, 120, 212, 0.25);
 }
+
 .eng-source-tab-btn[data-eng-source="slack"].active {
   background: #4a154b;
   border-color: #4a154b;
   box-shadow: 0 3px 10px rgba(74, 21, 75, 0.25);
 }
+
 .eng-source-tab-btn[data-eng-source="notes"].active {
   background: #0f766e;
   border-color: #0f766e;
@@ -2154,7 +2177,8 @@ h2 {
   position: relative;
 }
 
-.eng-source-app-card:hover, .eng-source-app-card.active {
+.eng-source-app-card:hover,
+.eng-source-app-card.active {
   border-color: #0c66e4;
   background: #f4f8ff;
   transform: translateY(-2px);
@@ -2176,7 +2200,7 @@ h2 {
   padding: 1px 5px;
   border-radius: 10px;
   border: 1px solid #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 /* Micro Scrollbars for Internal Panels */
@@ -2184,15 +2208,18 @@ h2 {
 .detail-scrollable::-webkit-scrollbar {
   width: 4px;
 }
+
 .eng-task-list-scrollable::-webkit-scrollbar-track,
 .detail-scrollable::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .eng-task-list-scrollable::-webkit-scrollbar-thumb,
 .detail-scrollable::-webkit-scrollbar-thumb {
   background: #dcdfe4;
   border-radius: 10px;
 }
+
 .eng-task-list-scrollable::-webkit-scrollbar-thumb:hover,
 .detail-scrollable::-webkit-scrollbar-thumb:hover {
   background: #0c66e4;
@@ -2302,11 +2329,13 @@ h2 {
   flex-shrink: 0;
   padding: 16px;
 }
+
 .consultao-tasks-card {
   flex: 1;
   min-height: 0;
   padding: 16px;
 }
+
 .consultao-pipeline-card {
   flex-shrink: 0;
   padding: 14px 16px;
@@ -2316,11 +2345,13 @@ h2 {
   flex-shrink: 0;
   padding: 14px 16px;
 }
+
 .consultao-rank-card {
   flex: 1.1;
   min-height: 0;
   padding: 16px;
 }
+
 .consultao-exec-card {
   flex: 0.9;
   min-height: 0;
@@ -2331,10 +2362,12 @@ h2 {
   flex-shrink: 0;
   padding: 12px 16px;
 }
+
 .consultao-insights-card {
   flex-shrink: 0;
   padding: 16px;
 }
+
 .consultao-oncall-card {
   flex: 1;
   min-height: 0;
@@ -2362,26 +2395,41 @@ h2 {
   background: #fff;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 .eng-task-row-consultao:hover {
   background: #f7f9fc !important;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(9, 30, 66, 0.05);
 }
+
 .eng-task-row-consultao.selected {
   border-color: #0c66e4 !important;
   background: #f4f8ff !important;
   box-shadow: 0 4px 12px rgba(12, 102, 228, 0.08);
 }
+
 .severity-dot {
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 3px;
 }
-.severity-dot.p1 { color: #ad2f2f; }
-.severity-dot.p2 { color: #b87319; }
-.severity-dot.p3 { color: #18745f; }
-.severity-dot.p4 { color: #626f86; }
+
+.severity-dot.p1 {
+  color: #ad2f2f;
+}
+
+.severity-dot.p2 {
+  color: #b87319;
+}
+
+.severity-dot.p3 {
+  color: #18745f;
+}
+
+.severity-dot.p4 {
+  color: #626f86;
+}
 
 .sde-icon-link:hover {
   background: #f4f8ff !important;
@@ -2456,28 +2504,49 @@ h2 {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.eng-task-item:nth-child(1) { animation-delay: 0.03s; }
-.eng-task-item:nth-child(2) { animation-delay: 0.06s; }
-.eng-task-item:nth-child(3) { animation-delay: 0.09s; }
-.eng-task-item:nth-child(4) { animation-delay: 0.12s; }
-.eng-task-item:nth-child(5) { animation-delay: 0.15s; }
-.eng-task-item:nth-child(6) { animation-delay: 0.18s; }
+.eng-task-item:nth-child(1) {
+  animation-delay: 0.03s;
+}
+
+.eng-task-item:nth-child(2) {
+  animation-delay: 0.06s;
+}
+
+.eng-task-item:nth-child(3) {
+  animation-delay: 0.09s;
+}
+
+.eng-task-item:nth-child(4) {
+  animation-delay: 0.12s;
+}
+
+.eng-task-item:nth-child(5) {
+  animation-delay: 0.15s;
+}
+
+.eng-task-item:nth-child(6) {
+  animation-delay: 0.18s;
+}
 
 .eng-task-item.severity-p1 {
   border-left: 4px solid #ad2f2f !important;
 }
+
 .eng-task-item.severity-p2 {
   border-left: 4px solid #b87319 !important;
 }
+
 .eng-task-item.severity-p3 {
   border-left: 4px solid #18745f !important;
 }
+
 .eng-task-item.severity-p4 {
   border-left: 4px solid #626f86 !important;
 }
@@ -2485,12 +2554,15 @@ h2 {
 .hero-focus-card.severity-p1::before {
   background: #ad2f2f !important;
 }
+
 .hero-focus-card.severity-p2::before {
   background: #b87319 !important;
 }
+
 .hero-focus-card.severity-p3::before {
   background: #18745f !important;
 }
+
 .hero-focus-card.severity-p4::before {
   background: #626f86 !important;
 }
@@ -4666,6 +4738,7 @@ h2 {
   pointer-events: none;
   display: flex;
   align-items: center;
+}
 
   /* Lunch Break Block in Week View */
   .gcal-week-lunch-break {
@@ -6832,8 +6905,8 @@ h2 {
   }
 
   .n8n-canvas {
-    width: 960px;
-    height: 440px;
+    width: 1300px;
+    height: 435px;
     position: relative;
     background-color: var(--bg-card);
     background-image: radial-gradient(var(--border-color) 1.5px, transparent 1.5px);
@@ -6841,27 +6914,85 @@ h2 {
     border-radius: 8px;
   }
 
-  .n8n-node {
-    position: absolute;
-    width: 145px;
-    padding: 8px 12px;
-    background: var(--bg-primary);
-    border: 1.5px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  /* n8n premium card node */
+  .n8n-node-card {
+    background: var(--bg-primary) !important;
+    border: 1.5px solid var(--border-color) !important;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    z-index: 10;
-    user-select: none;
+    align-items: center;
+    padding: 6px 12px 6px 6px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .n8n-node-card:hover {
+    border-color: #a855f7 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  }
+  
+  .n8n-node-card.selected {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+  }
+  
+  .n8n-node-card.status-active {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+  }
+  
+  .n8n-node-card.status-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
   }
 
-  .n8n-node:hover {
-    border-color: #8b5cf6;
-    box-shadow: 0 8px 12px -3px rgba(139, 92, 246, 0.15);
-    transform: translateY(-1px);
+  /* n8n icon container inside card */
+  .n8n-card-icon-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+
+  /* n8n circular sub-node */
+  .n8n-node-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-primary) !important;
+    border: 1.5px solid var(--border-color) !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+  
+  .n8n-node-circle:hover {
+    border-color: #a855f7 !important;
+    transform: scale(1.08);
+  }
+  
+  .n8n-node-circle.selected {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+  }
+
+  .n8n-node-circle.status-active {
+    border-color: #f97316 !important;
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.2);
+  }
+  
+  .n8n-node-circle.status-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
   }
 
   .n8n-node.selected-node {
@@ -7185,47 +7316,6 @@ h2 {
 
 
 
-  /* Light n8n Canvas Wrapper */
-  .role-admin .n8n-canvas-wrapper {
-    background: #fbfbfa !important;
-    border-color: var(--border-color) !important;
-  }
-
-  .role-admin .n8n-canvas {
-    background-color: #fbfbfa !important;
-    background-image: radial-gradient(var(--border-color) 1.5px, transparent 1.5px) !important;
-    background-size: 20px 20px;
-  }
-
-  .role-admin .n8n-node {
-    background: #ffffff !important;
-    border-color: var(--border-color) !important;
-    color: #17202a !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
-  }
-
-  .role-admin .n8n-node:hover {
-    border-color: #8b5cf6 !important;
-    box-shadow: 0 8px 12px rgba(139, 92, 246, 0.12) !important;
-  }
-
-  .role-admin .n8n-node .node-header {
-    color: #17202a !important;
-  }
-
-  .role-admin .n8n-node-pill {
-    background: #ffffff !important;
-    border-color: var(--border-color) !important;
-    color: #17202a !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
-  }
-
-  .role-admin .n8n-node-circle {
-    background: #ffffff !important;
-    border-color: var(--border-color) !important;
-    color: #17202a !important;
-  }
-
   /* VS Code style Terminal bottom wrapper - Light Theme */
   .admin-terminal-wrapper {
     background: #ffffff;
@@ -7365,20 +7455,6 @@ h2 {
 
 
   /* Additional n8n Canvas and Diagnostics Styles */
-  .path-active {
-    stroke: #8b5cf6 !important;
-    stroke-dasharray: 6 6;
-    animation: n8n-flow 25s linear infinite;
-  }
-
-  .path-error {
-    stroke: #ef4444 !important;
-    stroke-dasharray: 4 4;
-  }
-
-  .path-idle {
-    stroke: #cbd5e1 !important;
-  }
 
   .status-warn-node {
     border-color: #f59e0b !important;
@@ -7421,16 +7497,17 @@ h2 {
 
   /* ── n8n Canvas: animated flow paths ─────────────────── */
   .path-animated {
-    stroke: #6366f1 !important;
-    stroke-dasharray: 10 6;
+    stroke: #f97316 !important;
+    stroke-dasharray: 8 6;
     animation: n8n-dash-flow 1.2s linear infinite;
-    filter: drop-shadow(0 0 3px rgba(99, 102, 241, 0.5));
+    filter: drop-shadow(0 0 5px rgba(249, 115, 22, 0.7));
   }
 
   .path-error {
     stroke: #ef4444 !important;
     stroke-dasharray: 5 4;
     animation: n8n-dash-flow 2s linear infinite;
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6));
   }
 
   .path-warning {
@@ -7439,7 +7516,7 @@ h2 {
   }
 
   .path-idle {
-    stroke: #c7d2fe !important;
+    stroke: #33333e !important;
     transition: stroke 0.3s ease;
   }
 
@@ -7460,6 +7537,12 @@ h2 {
     50% {
       opacity: 0.6;
       transform: scale(1.4);
+    }
+  }
+
+  @keyframes stroke-flow {
+    to {
+      stroke-dashoffset: -20;
     }
   }
 

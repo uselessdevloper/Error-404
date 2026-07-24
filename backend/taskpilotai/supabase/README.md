@@ -7,7 +7,7 @@ Use this for Google login and engineer/manager profile storage.
 From your screenshot:
 
 ```env
-SUPABASE_URL=https://pfotrcjqnopvyihwqvhu.supabase.co
+SUPABASE_URL=https://pzovknqrllnifvsrjvts.supabase.co
 SUPABASE_ANON_KEY=copy_from_supabase_dashboard_api_settings
 ```
 
@@ -62,7 +62,7 @@ Google Cloud Console:
 3. Add authorized JavaScript origins:
 
 ```text
-https://pfotrcjqnopvyihwqvhu.supabase.co
+https://pzovknqrllnifvsrjvts.supabase.co
 http://localhost:5173
 http://127.0.0.1:5173
 ```
@@ -70,7 +70,7 @@ http://127.0.0.1:5173
 4. Add authorized redirect URI:
 
 ```text
-https://pfotrcjqnopvyihwqvhu.supabase.co/auth/v1/callback
+https://pzovknqrllnifvsrjvts.supabase.co/auth/v1/callback
 ```
 
 Google redirects to Supabase first. Supabase then redirects the completed desktop session to TaskPilot's temporary localhost callback on port `47835`.

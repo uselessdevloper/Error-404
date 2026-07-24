@@ -6,7 +6,7 @@
   "description": "Cross-platform TaskPilot AI hackathon POC for engineer task prioritization.",
   "main": "electron/main.cjs",
   "scripts": {
-    "dev": "node scripts/sync-datasets.mjs && node scripts/serve.mjs",
+    "dev": "node scripts/sync-datasets.mjs && node ../../backend/taskpilotai/server.mjs",
     "build": "node scripts/build.mjs",
     "preview": "node scripts/serve.mjs dist",
     "electron": "node scripts/build.mjs && electron .",

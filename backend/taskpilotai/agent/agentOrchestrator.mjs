@@ -26,7 +26,7 @@ async function callProvider(provider, prompt, { model, maxTokens = 2048, tempera
     url = "https://integrate.api.nvidia.com/v1/chat/completions";
     headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
     requestBody = {
-      model: model || "nvidia/llama-3.1-nemotron-70b-instruct",
+      model: model || "meta/llama-3.1-8b-instruct",
       messages: [{ role: "user", content: prompt }],
       temperature,
       max_tokens: maxTokens
@@ -143,6 +143,19 @@ export class AgentOrchestrator {
     this.engineerPortalPosts  = [];
     this.addedTasks           = [];
     this.reassignedTaskOwners = {};
+
+    // Admin & Model Hub state fields
+    this.adminUsers = [
+      { id: "u-1", name: "Miso", role: "Administrator", email: "miso220601@gmail.com", status: "online", time: "Active now", color: "#3b82f6" },
+      { id: "u-2", name: "Utkarsh Sinha", role: "Full-stack Engineer", email: "utkarsh@taskpilot.dev", status: "idle", time: "12m ago", color: "#10b981" },
+      { id: "u-3", name: "Sarah Connor", role: "Product Manager", email: "sarah@taskpilot.dev", status: "dnd", time: "1h ago", color: "#0d9488" }
+    ];
+    this.activeRouterModel = "meta/llama-3.1-8b-instruct";
+    this.selectedModelForTest = "meta/llama-3.1-8b-instruct";
+    this.activeModelHubTab = "models";
+    this.gpuTemp = 64;
+    this.gpuMemoryUsed = 42.6;
+    this.gpuLoad = 38;
   }
 
   // ─── INGEST ──────────────────────────────────────────────────────────────────
@@ -610,6 +623,16 @@ Write 3-5 sentences covering: who is most blocked, what the most critical blocke
     this.engineerPortalPosts  = liveState.engineerPortalPosts  || [];
     this.addedTasks           = liveState.addedTasks           || [];
     this.reassignedTaskOwners = liveState.reassignedTaskOwners || {};
+    
+    // Model Hub & User Management states
+    this.adminUsers           = liveState.adminUsers           || this.adminUsers;
+    this.activeRouterModel     = liveState.activeRouterModel     || this.activeRouterModel;
+    this.selectedModelForTest = liveState.selectedModelForTest || this.selectedModelForTest;
+    this.activeModelHubTab    = liveState.activeModelHubTab    || this.activeModelHubTab;
+    this.gpuTemp              = liveState.gpuTemp              || this.gpuTemp;
+    this.gpuMemoryUsed        = liveState.gpuMemoryUsed        || this.gpuMemoryUsed;
+    this.gpuLoad              = liveState.gpuLoad              || this.gpuLoad;
+
     await this.rebuildTasks();
   }
 
